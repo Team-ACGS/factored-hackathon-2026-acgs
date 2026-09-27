@@ -23,19 +23,20 @@ Only `data/` is built; every other folder is designed and described here as agre
   - `apps/`: pnpm workspace of three client-side SPAs (React, Vite, TanStack Router): `customer` (factoredai.sdfles.com), `support` (support.), `backoffice` (backoffice.), plus a shared `ui` package.
   - `training/`: training code for own models; artifacts versioned in S3, never in git.
   - `evaluation/`: held-out set, baselines and harness.
-  - `infra/`: Terraform: `bootstrap/` (state bucket, OIDC, deploy role; applied once), `environments/prd/` (the root), `modules/aws/*` (one leaf module per service).
+  - `infra/`: Terraform: `environments/core/` (account singletons: API Gateway logging role, admin users), `environments/prd/` (the root), `stacks/backend/` and `stacks/frontend/`, `modules/aws/*` (one leaf module per service), `modules/github/`; bootstrap, apply and destroy in `infra/docs/setup.md`.
   - `.github/workflows/`: CI and code delivery.
   - `docs/`: this documentation.
 - Install: `uv sync` in `data/` and `lambdas/`; `pnpm install --frozen-lockfile` in `apps/` [inferido: lambdas and apps not scaffolded].
 - Workspace files: `data/.env` from `data/.env.example`.
 - API spec: none yet.
 - Data: DynamoDB on demand, seven tables (`customers`, `products`, `transactions`, `complaints`, `staff`, `rooms`, `messages`), defined in `infra/`, no migrations; a separate seed process loads them (owner not decided). Analytics on DuckDB over Parquet in `data/`.
+- Keys: every table but `staff` has partition key `customer_id`; sort keys are `product_id`, `transaction_key`, `complaint_id`, `room_id` and `message_key` (`<room_id>#<sent_at>#<message_id>`); `customers` has none; `staff` is keyed by `staff_id`; `complaints` has GSI `by-area-priority` (`area`, `priority_score` number).
 - Delivery: see below.
 
 ## Runtime architecture
 
 - Client SPAs on S3 behind CloudFront, one distribution per app, certificates from ACM, records in the existing Route 53 zone `sdfles.com`.
-- API Gateway (REST) with a Cognito authorizer accepting both pools, routing to `crud` and `chatbot`.
+- API Gateway (REST) on `api.factoredai.sdfles.com` with a Cognito authorizer accepting both pools: `/crud/*` to `crud`, `/chat/*` to `chatbot`.
 - No lambda calls another lambda; shared behavior lives in `lambdas/core`.
 - A turn: `chatbot` understands, decides with the rules table, acts, composes with Claude Sonnet 5 on Bedrock, and publishes the reply to SQS; `notifications` writes `messages` and pushes it through an AppSync Events channel per room.
 - Isolation: the lambda reads pool and `cognito:groups` from the token and assumes `role-customer` (session tag `customer_id`, `dynamodb:LeadingKeys`), `role-agent`, `role-officer` or `role-analyst`; lambdas cannot read tables with their own role.
@@ -46,10 +47,11 @@ Only `data/` is built; every other folder is designed and described here as agre
 
 ## Observability
 
-- Every lambda uses Powertools for AWS Lambda (Python): Logger (structured JSON with `xray_trace_id`), Metrics (EMF), Tracer (X-Ray), Idempotency for writes.
-- CloudWatch Logs; custom metrics in namespaces `Clara/Backend` and `Clara/Assistant`.
+- Every lambda uses Powertools for AWS Lambda (Python): Logger (structured JSON with `xray_trace_id`), Metrics (EMF), Tracer (X-Ray).
+- Writes are idempotent through conditional writes with deterministic ids ("only if absent"), not Powertools Idempotency, which would need an eighth table.
+- CloudWatch Logs; custom metrics in namespaces `Clara/Backend` and `Clara/Assistant`, shown on dashboards `clara-prd-backend` and `clara-prd-assistant`.
 - X-Ray active tracing on every lambda and the API Gateway stage, set in Terraform.
-- Turn events from day one: `chatbot` publishes to EventBridge bus `clara` at the end of each turn, a rule delivers to Data Firehose, Firehose writes to S3; ids only, never message text, each with `trace_id`.
+- Turn events from day one: `chatbot` publishes to EventBridge bus `clara-prd` with source `clara.chatbot` at the end of each turn, a rule delivers to Data Firehose, Firehose writes gzip JSON lines to `turns/` in the events bucket; ids only, never message text, each with `trace_id`.
 - Analysis of those events and the LLM judge are deferred (`docs/tasks/_drafts/turn_events_analysis.md` in the docs root).
 
 ## Environments and delivery
@@ -58,10 +60,11 @@ Only `data/` is built; every other folder is designed and described here as agre
 - Terraform owns infrastructure and configuration; GitHub Actions owns code.
 - Terraform creates each lambda with a bootstrap bundle, its own role (from a capability map), log group and environment, and ignores `s3_key`; Actions uploads bundles keyed by commit SHA and calls `update-function-code` only when `CodeSha256` changes.
 - `terraform apply` is run by a person; CI runs `fmt`, `validate` and `plan` on pull requests.
-- On merge to `main`, Actions deploys lambdas and apps (`s3 sync` plus CloudFront invalidation) over GitHub OIDC; Terraform writes the Actions environment variables, so workflows hold no ARN, URL or key.
+- On merge to `main`, Actions deploys lambdas and apps (`s3 sync` plus CloudFront invalidation) over GitHub OIDC; Terraform writes the Actions environments and their variables, so workflows hold no ARN, URL or key (contract in `infra/docs/setup.md`).
+- The account's GitHub OIDC provider belongs to the my-napkin Terraform; Clara only reads it.
 - Names come from `${project}-${env}`; buckets append the account id.
 - Every resource carries `default_tags` (project, environment, managed-by) activated as cost allocation tags.
-- Fully destroyable: `terraform destroy` removes every resource and its data; only the state bucket and the Route 53 zone survive.
+- Fully destroyable: `terraform destroy` removes every resource and its data; only the state bucket, the Route 53 zone and the shared OIDC provider survive.
 - Pattern taken from the auvral infra (`auvral/docs/modules/infra/trd.md`).
 
 ## Verification targets
@@ -73,7 +76,7 @@ Only `data/` is built; every other folder is designed and described here as agre
 | data | `data/` | `unknown` | `unknown` | `uv run pytest` | `n/a` |
 | lambdas | `lambdas/` | `unknown` | `unknown` | `unknown` | `unknown` |
 | apps | `apps/` | `unknown` | `unknown` | `unknown` | `unknown` |
-| infra | `infra/` | `terraform fmt -check -recursive` | `terraform validate` | `n/a` | `n/a` |
+| infra | `infra/` | `terraform fmt -check -recursive` | `terraform -chdir=environments/prd init -backend=false && terraform -chdir=environments/prd validate` | `n/a` | `n/a` |
 
 Targets marked `unknown` are fixed by the task that scaffolds them.
 
