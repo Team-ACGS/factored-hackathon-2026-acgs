@@ -74,12 +74,10 @@ locals {
           region = var.aws_region
           stat   = "Sum"
           period = local.dashboard_period
-          metrics = flatten([
-            for table in module.table : [
-              ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", table.name],
-              ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", table.name],
-            ]
-          ])
+          metrics = [
+            for pair in setproduct(["ConsumedReadCapacityUnits", "ConsumedWriteCapacityUnits"], [for table in module.table : table.name]) :
+            ["AWS/DynamoDB", pair[0], "TableName", pair[1]]
+          ]
         }
       },
       {
