@@ -1,0 +1,11 @@
+transaction_id,transaction_date,process_date,product_id,customer_id,transaction_type,transaction_category,amount,currency,amount_usd,channel,branch_id,merchant_name,merchant_category,transaction_country,transaction_city,transaction_status,response_code,is_fraud,fraud_score,latitude,longitude
+TRX-00F13SUGXAP8SK3XU1BE,2026-05-02 14:50:23,2026-05-02,PRD-18E7FFUNZJXL,CLI-A5X4XYNVJKD5,Purchase,Entertainment,104545.78,ARS,298.7,Web,,Streaming Music,Entertainment,Argentina,Buenos Aires,Approved,00,False,,,
+TRX-00HT7T8UKDTB0DJDFB66,2026-05-02 15:20:50,2026-05-02,PRD-8SHS8ETCL0ON,CLI-F8INGQJ913DM,Adjustment,,2598176.14,COP,,App,,,,Colombia,Medellín,Approved,00,False,,,
+TRX-01001SEKI5QHRG8JVUSK,2026-05-02 10:25:12,2026-05-02,PRD-7WZ84038SXFV,CLI-OC9PH75I1GM9,Withdrawal,,333.94,USD,,Web,,,,México,Tijuana,Approved,00,False,12.11,,
+TRX-0223TN72ZCLXFMD7TI6D,2026-05-02 11:50:04,2026-05-02,PRD-X7HLNY42ZO0N,CLI-8FBEJU1QJW2S,Transfer,,8374.44,USD,,ATM,SUC-QE974U7T,,,México,Monterrey,Approved,00,False,9.13,,
+TRX-02422STP385IMGHRVDB0,2026-05-03 01:49:20,2026-05-02,PRD-ZN63D15Q1YME,CLI-N5T0TRH3ITH1,Purchase,Health,60.24,USD,,ATM,SUC-M8AEJ2A4,Óptica Visión,Health,México,Ciudad de México,Approved,00,False,6.89,,
+TRX-027TEYVFYN24HLQC5SHN,2026-05-02 22:45:07,2026-05-02,PRD-H4394I41WY4E,CLI-0POJOBKZGWWZ,Payment,Transport,5983919.55,COP,1495.98,ATM,SUC-AXEH5GB0,,,Colombia,,Approved,00,False,13.55,5.5021552,-74.0029344
+TRX-03A36DMDCDZLS98FWA7G,2026-05-03 00:25:59,2026-05-02,PRD-FX014SXB3F0T,CLI-LHVF33PIHV3F,Payment,Transport,1995.46,USD,,Web,,,,México,,Approved,00,False,24.97,,
+TRX-03XYK7JQJ87H7HKIQLYJ,2026-05-02 08:42:51,2026-05-02,PRD-ECSDLV1SEDWR,CLI-ZSWSQIFDLLEN,Transfer,,473182.05,COP,118.3,Web,,,,Colombia,Cartagena,Approved,00,False,,,
+TRX-04K1ZVQ1YY9UMV7PQWT3,2026-05-03 04:00:51,2026-05-02,PRD-ARH0SPOX7MYJ,CLI-ZLQE332T5ZPF,Purchase,Transport,50524.57,ARS,144.36,App,,Estación de Servicio,Transport,Argentina,,Approved,00,False,27.96,,
+TRX-050WQ03T0CYM24YINU8W,2026-05-03 04:50:13,2026-05-02,PRD-OOUFN0RGRIGT,CLI-C421V3MI3XTM,Deposit,,13793896.7,COP,3448.47,POS,,,,Colombia,Bogotá,Pending,14,False,13.47,5.0779682,-74.9868406

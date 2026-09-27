@@ -1,0 +1,7 @@
+status,is_open,cases,share_pct
+In Process,True,26823,40.0
+Open,True,20125,30.0
+Resolved,False,13512,20.1
+Escalated,True,3321,4.9
+Closed,False,2609,3.9
+Rejected,False,705,1.1

@@ -1,0 +1,5 @@
+transaction_status,purchases,share_pct
+Approved,83506,91.9
+Declined,4556,5.0
+Pending,1877,2.1
+Reversed,896,1.0

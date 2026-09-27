@@ -1,0 +1,9 @@
+column_name,rows,distinct_values
+call_transcripts.detected_intents,171321,1
+call_transcripts.detected_language,171321,1
+complaints.resolution,67095,5
+complaints.description,67095,5
+call_center_interactions.contact_reason,686296,6
+transactions.merchant_name,4425008,24
+call_transcripts.customer_text,171321,42
+call_transcripts.full_text,171321,546

@@ -1,0 +1,11 @@
+transaction_id,transaction_date,process_date,product_id,customer_id,transaction_type,transaction_category,amount,currency,amount_usd,channel,branch_id,merchant_name,merchant_category,transaction_country,transaction_city,transaction_status,response_code,is_fraud,fraud_score,latitude,longitude
+TRX-0045LRSM7X5BQ14GKFT2,2026-05-03 13:55:22,2026-05-03,PRD-R335ODSIO9H2,CLI-XDGSH3HGXQF2,Deposit,,964454.57,ARS,2755.58,ATM,SUC-10TO2Y3U,,,Argentina,Córdoba,Approved,00,False,,,
+TRX-00MF9PTO09JNQAM4L8K6,2026-05-03 15:33:02,2026-05-03,PRD-1PA3UESOMTZO,CLI-18ZQM3RJQWBF,Purchase,Services,43.59,USD,,App,,Internet Plus,Services,México,Guadalajara,Approved,00,False,25.41,,
+TRX-01NU1NRMGWZQJ1KSFRUF,2026-05-03 20:37:47,2026-05-03,PRD-HQRBLCCF1970,CLI-LSK7LPQZ91BF,Purchase,Transport,312.77,USD,,ATM,SUC-W04NBWY9,Uber,Transport,México,Puebla,Approved,00,False,23.22,,
+TRX-01Z375DUGN5F44MZ1M5V,2026-05-03 13:46:56,2026-05-03,PRD-HUHQLVEZMM6I,CLI-S7F0V1YOQFJR,Purchase,Services,394.7,USD,,POS,,Internet Plus,Services,México,Guadalajara,Approved,00,False,,,
+TRX-0243UPWRE11O712A8AP2,2026-05-03 18:10:34,2026-05-03,PRD-PFCGLYFX773Y,CLI-8FUN57ROGXVK,Purchase,Other,387.76,USD,,POS,,Tienda General,Other,México,Monterrey,Approved,00,False,26.24,-0.4243156,0.9641696
+TRX-02UEVKD890JIMTV6C60E,2026-05-04 01:07:15,2026-05-03,PRD-1J7VSFXCTSGM,CLI-EC5IVS01DVHB,Payment,Entertainment,185.52,USD,,App,,,,USA,Los Angeles,Approved,00,False,3.41,,
+TRX-04CHVP9IP1JE4C3MRT20,2026-05-03 14:02:22,2026-05-03,PRD-EDDY2AL5BLJO,CLI-1SXG599O3KNW,Deposit,,4217768.47,COP,1054.44,App,,,,Colombia,Cartagena,Approved,00,False,12.51,,
+TRX-04FVX2Y9GWUMK64CBMY0,2026-05-03 14:01:12,2026-05-03,PRD-XTJD9ZMLCN2Q,CLI-B4O6ZR61CGST,Adjustment,,2609721.65,COP,652.43,Web,,,,Colombia,Cali,Declined,05,False,22.47,,
+TRX-04XE16TAJMW7WVE6URXG,2026-05-03 20:10:40,2026-05-03,PRD-BSGX3WL33OQR,CLI-WXZ2JL7KCQAH,Withdrawal,,97.8,USD,,App,,,,México,Querétaro,Approved,00,False,27.66,,
+TRX-053HY6GU5ZUT2B9MNEYB,2026-05-04 01:37:18,2026-05-03,PRD-9ZEFB6TIAASD,CLI-K14KT074JE89,Transfer,,8502.83,USD,,ATM,,,,México,,Approved,00,False,26.98,,

@@ -1,0 +1,7 @@
+reason_category, contacts, share_pct, first_contact_resolution_pct, followup_pct, avg_duration_s
+Transaccional  ,   240056,      35.0,                         91.5,         22.1,          221.0
+Producto       ,   150863,      22.0,                         89.6,         23.8,          266.0
+Técnico        ,   102899,      15.0,                         69.9,         40.6,          360.0
+Comercial      ,    54879,       8.0,                         65.2,         44.5,          540.0
+Retención      ,    20578,       3.0,                         60.2,         49.1,          479.0
+Queja          ,   117021,      17.1,                         43.6,         63.0,          435.0

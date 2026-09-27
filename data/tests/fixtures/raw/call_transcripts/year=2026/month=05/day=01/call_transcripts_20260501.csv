@@ -1,0 +1,79 @@
+transcript_id,interaction_id,process_date,customer_id,agent_id,full_text,customer_text,agent_text,detected_language,detected_accent,accent_confidence,detected_keywords,mentioned_entities,detected_intents,main_topics,transcription_model,audio_quality,duration_seconds
+TRS-04AOQZIP16UO9C7233EQ,INT-MCMS27P0UE34Z5OM,2026-05-01,CLI-WVN7SGPEC318,AGT-9WIE6SB1MJ,"Cliente: Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros.
+
+Agente: Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}.
+
+Cliente: Entiendo, muchas gracias.
+
+Agente: Claro, estoy para servirle.
+
+Cliente: ¿Y eso cuánto tiempo tarda?
+
+Agente: Claro, estoy para servirle.","Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros. Entiendo, muchas gracias. ¿Y eso cuánto tiempo tarda?","Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}. Claro, estoy para servirle. Claro, estoy para servirle.",es,,0.8,"banco, servicio, cuenta","{""account_numbers"": 2, ""dates"": 1, ""amounts"": 0, ""products"": ""Cuenta Ahorro""}",consulta_general,Transaccional,Whisper v3,High,157.0
+TRS-07YWEKBI09ERE2Y5S3GM,INT-ROGM7L3C8TDGYP87,2026-05-01,CLI-X0O8IXPHO4C8,AGT-8QYBQ76ZD2,"Cliente: Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito.
+
+Agente: Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}.
+
+Cliente: Perfecto, eso es lo que necesitaba.
+
+Agente: Claro, estoy para servirle.
+
+Cliente: Entiendo, muchas gracias.
+
+Agente: Con gusto. ¿Hay algo más en lo que pueda ayudarle?","Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito. Perfecto, eso es lo que necesitaba. Entiendo, muchas gracias.","Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}. Claro, estoy para servirle. Con gusto. ¿Hay algo más en lo que pueda ayudarle?",es,mexican,0.83,"servicio, cuenta, banco","{""account_numbers"": 2, ""dates"": 0, ""amounts"": 2, ""products"": ""Cuenta Ahorro""}",,Transaccional,Whisper v3,Medium,121.0
+TRS-0BAF0GDMVQUOQ8ZUHG0E,INT-8ZEX0ZK6ZE7CEHPN,2026-05-01,CLI-KEM95ZJY64YS,AGT-GY37ZFJ5DC,"Cliente: Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito.
+
+Agente: Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}.
+
+Cliente: Perfecto, eso es lo que necesitaba.
+
+Agente: Claro, estoy para servirle.","Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito. Perfecto, eso es lo que necesitaba.","Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}. Claro, estoy para servirle.",es,argentine,0.8,"cuenta, servicio, banco","{""account_numbers"": 0, ""dates"": 1, ""amounts"": 1, ""products"": ""Cuenta Ahorro""}",consulta_general,Transaccional,Whisper v3,High,43.0
+TRS-0FA6ZSO0HVJ4UVYNOKVP,INT-LU5HMG8MD65Z9DH0,2026-05-01,CLI-CWFE21BCG048,AGT-GF86DSKF59,"Cliente: Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito.
+
+Agente: Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}.
+
+Cliente: Perfecto, eso es lo que necesitaba.
+
+Agente: No hay problema, que tenga buen día.","Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito. Perfecto, eso es lo que necesitaba.","Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}. No hay problema, que tenga buen día.",es,mexican,0.87,"servicio, cuenta","{""account_numbers"": 2, ""dates"": 1, ""amounts"": 1, ""products"": ""Cuenta Ahorro""}",consulta_general,Producto,Azure Speech,High,
+TRS-0IWKSTV6INIME35MI48W,INT-31OLON22E7PNH57S,2026-05-01,CLI-NUUO950U6CK4,AGT-0NK91BEH8F,"Cliente: Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros.
+
+Agente: Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}.","Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros.","Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}.",es,,0.86,"cuenta, servicio, banco","{""account_numbers"": 0, ""dates"": 0, ""amounts"": 2, ""products"": null}",consulta_general,Queja,Whisper v3,High,480.0
+TRS-0MZ2VMN5FAKGP79TCF5H,INT-VED3KINUGQIJK1UA,2026-05-01,CLI-1S7TJTC6VSTS,AGT-6NAZTH7M7Q,"Cliente: Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros.
+
+Agente: Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}.
+
+Cliente: Perfecto, eso es lo que necesitaba.
+
+Agente: Perfecto, ¿necesita algo más?
+
+Cliente: Entiendo, muchas gracias.
+
+Agente: Claro, estoy para servirle.","Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros. Perfecto, eso es lo que necesitaba. Entiendo, muchas gracias.","Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}. Perfecto, ¿necesita algo más? Claro, estoy para servirle.",es,mexican,0.8,"servicio, cuenta, banco","{""account_numbers"": 1, ""dates"": 0, ""amounts"": 1, ""products"": null}",consulta_general,Producto,AWS Transcribe,High,336.0
+TRS-0R5JUCF338ULH6IJXI4D,INT-13G5WGW7U2N04M8C,2026-05-01,CLI-B33CTMPRMGTE,AGT-3EYJYCLMVE,"Cliente: Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito.
+
+Agente: Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}.","Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito.","Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}.",es,mexican,,"banco, cuenta, servicio",,consulta_general,Queja,Google STT,High,302.0
+TRS-0UY6SZM3PUNFXA51L6IB,INT-HAOG342MWSD0M2RB,2026-05-01,CLI-8B2Z5NDAQLSM,AGT-KJJSUXEQ6N,"Cliente: Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros.
+
+Agente: Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}.
+
+Cliente: Muy bien, ¿hay algo más que deba saber?
+
+Agente: Claro, estoy para servirle.
+
+Cliente: Muy bien, ¿hay algo más que deba saber?
+
+Agente: Perfecto, ¿necesita algo más?","Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros. Muy bien, ¿hay algo más que deba saber? Muy bien, ¿hay algo más que deba saber?","Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}. Claro, estoy para servirle. Perfecto, ¿necesita algo más?",es,argentine,0.87,"banco, cuenta, servicio","{""account_numbers"": 0, ""dates"": 0, ""amounts"": 0, ""products"": ""Tarjeta Crédito""}",consulta_general,Transaccional,AWS Transcribe,Low,206.0
+TRS-12J8QPDZMIC5HIJ44EXJ,INT-FB144GR1LKOBZJY2,2026-05-01,CLI-1XB910NDBY4S,AGT-W4AYW4BGI9,"Cliente: Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros.
+
+Agente: Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}.
+
+Cliente: Muy bien, ¿hay algo más que deba saber?
+
+Agente: Perfecto, ¿necesita algo más?","Hola, buenos días. Quisiera saber cuál es mi saldo actual en mi cuenta de ahorros. Muy bien, ¿hay algo más que deba saber?","Buenos días, con gusto le ayudo. Permítame un momento para verificar su saldo. Su saldo actual es de {monto} {moneda}. Perfecto, ¿necesita algo más?",es,argentine,0.83,"servicio, cuenta, banco",,consulta_general,Queja,Azure Speech,High,354.0
+TRS-18HLVP2JIGOA246I0X3V,INT-Z84H8BG4E1F70B47,2026-05-01,CLI-SWFA93WWY8M0,AGT-JMA3MRKNWE,"Cliente: Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito.
+
+Agente: Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}.
+
+Cliente: ¿Y eso cuánto tiempo tarda?
+
+Agente: Perfecto, ¿necesita algo más?","Buenas tardes, necesito consultar el saldo de mi tarjeta de crédito. ¿Y eso cuánto tiempo tarda?","Buenas tardes, claro que sí. Déjeme revisar esa información. Su saldo actual es {monto} {moneda} y su límite disponible es de {limite} {moneda}. Perfecto, ¿necesita algo más?",es,mexican,0.85,,"{""account_numbers"": 0, ""dates"": 1, ""amounts"": 0, ""products"": null}",consulta_general,Transaccional,AWS Transcribe,High,

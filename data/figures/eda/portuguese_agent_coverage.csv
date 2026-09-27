@@ -1,0 +1,7 @@
+scope,agents,portuguese_speaking
+all agents,1200,129
+"active fraud agents, all shifts",96,7
+"active fraud agents, morning",31,4
+"active fraud agents, afternoon",30,2
+"active fraud agents, night",24,0
+"active fraud agents, rotating",11,1

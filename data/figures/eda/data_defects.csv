@@ -1,0 +1,9 @@
+defect,rows
+USD transactions with null amount_usd,2437979
+transactions before customer registration,830293
+card purchases on the ATM channel,325993
+non-USD transactions with null amount_usd,99477
+Mexican customers with document type DNI,74907
+transactions spelled Mexico without accent,40515
+customers updated after the data clock,9258
+transactions in MXN,0

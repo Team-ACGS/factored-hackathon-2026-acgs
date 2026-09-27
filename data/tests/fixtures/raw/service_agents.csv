@@ -1,0 +1,21 @@
+agent_id,employee_code,first_name,last_name,email,phone,native_accent,country_of_origin,assigned_branch_id,agent_type,experience_level,languages,specialty,hire_date,avg_csat,total_monthly_interactions,agent_status,work_shift
+AGT-01T1LJ1M61,E87403,Diana,Rodríguez Ramos,diana.rodriguez@bancohotmail.com,+54 9 58 8062 5833,argentine,Argentina,,In-Person,Specialist,"español, inglés, portugués",,2021-03-27,4.13,,Active,Afternoon
+AGT-020055Q6ET,E90484,Sandra Rocío,Suárez García,ssuarez@bancogmail.com,+54 9 15 2997 2255,argentine,Argentina,SUC-Q203IC8G,Hybrid,Senior,español,Ventas,2022-05-25,3.67,574.0,Active,Afternoon
+AGT-027UBQ07RA,E33311,Guadalupe,Valencia Rojas,guadalupe.valencia852@bancolive.com,+57 312 876 5566,colombian,Colombia,,Phone,Senior,español,Soporte Técnico,2022-03-04,4.42,278.0,Active,Rotating
+AGT-03BKII7RPZ,E99798,Lorena Silvia,Pérez Pereyra,lorena.perez705@bancolive.com,+54 9 95 7985 9032,argentine,Argentina,SUC-AXP84CON,Hybrid,Specialist,español,Soporte Técnico,2018-09-23,4.88,431.0,Active,Afternoon
+AGT-03D30TX4R9,E92232,Alicia Sandra,Martínez Ruiz,alicia.martinez@bancoprotonmail.com,+54 9 12 2742 9886,mexican,Mexico,SUC-5FGNEQ4R,Digital,Specialist,"español, inglés",Cobranza,2017-09-04,3.96,,Active,Afternoon
+AGT-04JD8RS9U4,E12152,Mercedes Julia,Suárez González,msuarez@bancohotmail.com,+57 300 162 3701,colombian,Colombia,SUC-3YPRGN58,Phone,Senior,español,Créditos,2023-02-15,4.34,450.0,Active,Night
+AGT-06AWFQDRXK,E94095,Valentina Isabella,Hernández García,valentinahernandez@bancogmail.com,+54 9 86 3497 2687,mexican,Mexico,,Phone,Specialist,"español, inglés",,2015-07-27,4.66,383.0,Active,Afternoon
+AGT-06FWQGSE0P,E28776,Camila,Flores Flores,camila.flores@bancolive.com,+54 9 15 1910 8083,mexican,Mexico,SUC-FEOSS2CV,Phone,Specialist,español,Quejas y Reclamos,2020-09-16,4.23,432.0,Active,Morning
+AGT-07DM6KZ1Y8,E60099,Ricardo,Mendoza Ruiz,ricardo.mendoza729@bancoyahoo.com,+54 9 85 7937 3838,mexican,Mexico,SUC-OMITD2WS,Phone,Specialist,"español, portugués",,2020-09-30,3.6,296.0,Active,Afternoon
+AGT-0965QQ774G,E96725,Diana,Vázquez Rodríguez,dianavazquez@bancolive.com,+54 9 28 1515 2931,mexican,Mexico,SUC-FCCGP03M,Phone,Specialist,español,,2019-09-10,3.59,585.0,Active,Morning
+AGT-09L5Z8WQAS,E17117,Jorge,Morales Mendoza,jorgemorales@bancoprotonmail.com,+54 9 99 2234 8633,mexican,Mexico,,Phone,Senior,"español, portugués",Fraudes,2021-07-06,3.91,216.0,Active,Afternoon
+AGT-0BNYKOVLMJ,E28396,Rodrigo Javier,Romero Alvarez,rodrigo.romero674@bancogmail.com,+54 9 32 5111 5428,mexican,Mexico,SUC-WGCRRHZZ,Digital,Specialist,español,Soporte Técnico,2020-03-01,4.4,440.0,Active,Rotating
+AGT-0DEAGE60M6,E35909,Raquel,Romero Sánchez,raquelromero@bancoprotonmail.com,+54 9 61 8295 7835,argentine,Argentina,SUC-2NUA05H4,Phone,Mid-Senior,"español, inglés, portugués",Créditos,2025-12-13,3.84,587.0,Active,Morning
+AGT-0FULA5JB42,E77901,Carmen,Torres Vázquez,carmen.torres@bancolive.com,,mexican,Mexico,SUC-2DYI8MCP,In-Person,Specialist,"español, inglés, portugués",Créditos,2017-12-18,4.65,329.0,Active,Afternoon
+AGT-0HSFPWDJF1,E67185,Lucas,Ruiz Rivera,lucas.ruiz571@bancogmail.com,+54 9 19 2429 5305,mexican,Mexico,SUC-PTY454ZL,Phone,Mid-Senior,español,,2024-07-12,3.74,780.0,Active,Afternoon
+AGT-0HU6VYEZG9,E67653,Pilar,Mendoza Delgado,pmendoza@bancoicloud.com,+54 9 76 6527 6525,mexican,Mexico,,Phone,Specialist,español,Cobranza,2014-03-26,4.5,631.0,Active,Afternoon
+AGT-0J6WJSWEBV,E55444,Leonardo,Salazar González,lsalazar@bancolive.com,+57 319 485 4795,colombian,Colombia,SUC-VC62T42J,Digital,Specialist,"español, inglés",Quejas y Reclamos,2020-02-26,4.33,446.0,Vacation,Rotating
+AGT-0NK91BEH8F,E44948,Samuel Pedro,Ortiz Castro,sortiz@bancoprotonmail.com,+57 317 877 4253,colombian,Colombia,,Phone,Senior,"español, inglés",,2021-09-19,,325.0,Active,Afternoon
+AGT-0O9BVZZ68Z,E54251,Emilio,Fernández Giménez,efernandez@bancolive.com,+54 9 69 3057 6103,argentine,Argentina,SUC-UY6EQAUH,In-Person,Specialist,español,,2014-12-06,4.85,326.0,Active,Rotating
+AGT-0Q4Z4AE9P2,E23509,Mariana,Restrepo Valencia,marianarestrepo@bancogmail.com,+57 351 568 6951,colombian,Colombia,,Digital,Specialist,español,Soporte Técnico,2014-12-01,3.78,785.0,Active,Afternoon

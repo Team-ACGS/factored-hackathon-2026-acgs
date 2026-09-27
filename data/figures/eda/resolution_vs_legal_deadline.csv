@@ -1,0 +1,4 @@
+country  , deadline_business_days, cases, resolved, median_calendar_days, median_business_days, resolved_over_legal_deadline_pct, sla_breached_flag_pct, first_response_recorded_pct
+Argentina,                     10, 13336,     3020,                 16.0,                 11.0,                             52.9,                  20.4,                        60.9
+Colombia ,                     15, 20384,     4679,                 16.0,                 11.0,                             29.8,                  19.7,                        60.8
+México   ,                     30, 33375,     7650,                 16.0,                 11.0,                              0.0,                  20.2,                        60.9

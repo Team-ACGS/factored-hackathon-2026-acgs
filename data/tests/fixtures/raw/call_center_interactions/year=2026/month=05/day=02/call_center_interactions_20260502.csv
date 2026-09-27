@@ -1,0 +1,11 @@
+interaction_id,interaction_date,process_date,customer_id,agent_id,interaction_type,channel,contact_reason,reason_category,duration_seconds,wait_time_seconds,was_resolved,requires_followup,detected_sentiment,sentiment_score,customer_detected_accent,agent_used_accent,was_escalated,mentioned_products,has_transcript,has_recording
+INT-01T4RLSPGF15UV2B,2026-05-03 04:51:43,2026-05-02,CLI-JT62OQRFMI06,AGT-GMSZFOVA7S,Inbound Call,Phone,Transaccional,Transaccional,140.0,90.0,True,False,Neutral,0.28,colombian,colombian,False,,False,True
+INT-026JNH6ZQ38CR1QN,2026-05-02 12:28:39,2026-05-02,CLI-MZLVMA1YNS2Q,AGT-7IZEUIYKAX,Inbound Call,Phone,Queja,Queja,348.0,238.0,False,True,Neutral,0.11,,,False,,False,True
+INT-0GCH0ZYQIRBBUKDM,2026-05-03 06:18:30,2026-05-02,CLI-YQG94DC2EYWW,AGT-NRP3DGI0C2,Inbound Call,Phone,Técnico,Técnico,380.0,188.0,False,True,Positivo,0.46,mexican,mexican,False,,True,True
+INT-0IKVSL8H45YL846K,2026-05-02 12:47:25,2026-05-02,CLI-2TZUAN0UUUL6,AGT-SXAAPU6PMW,Inbound Call,Phone,Transaccional,Transaccional,179.0,20.0,True,False,Neutral,0.13,colombian,colombian,False,"PRD-YKTEMOJ09ETW,PRD-4RQHD08Z0YZS,PRD-JRRJV3WCYKIC",False,True
+INT-0ILC2KW3RVRDHCHR,2026-05-02 21:56:57,2026-05-02,CLI-OLEEYB6TWQD1,AGT-IEP2JM9BI7,Inbound Call,Phone,Queja,Queja,263.0,197.0,True,False,Negativo,-0.55,argentine,mexican,False,"PRD-85NXX1RZZN3Y,PRD-HRHAV2DDVCKU,PRD-MSCNQHJRZ4MN",False,True
+INT-0NVYL4IE84AWANX3,2026-05-03 04:23:00,2026-05-02,CLI-BFHNPTDRIAUT,AGT-12AFACXPXI,Inbound Call,Phone,Transaccional,Transaccional,153.0,106.0,True,False,Neutral,-0.21,,,False,,False,True
+INT-0YEKI9P4EFXMQYGQ,2026-05-02 08:35:04,2026-05-02,CLI-M2ET7RQLTOTU,AGT-P6O3UZFIER,Inbound Call,Phone,Queja,Queja,285.0,76.0,True,False,Neutral,0.08,mexican,mexican,False,,True,True
+INT-13UO1QT13BSVFKUT,2026-05-02 14:51:08,2026-05-02,CLI-LSXJII8K7G70,AGT-56L27RI8NL,Inbound Call,Phone,Transaccional,Transaccional,187.0,135.0,True,False,Neutral,0.06,colombian,colombian,False,,False,True
+INT-16GP823Z3O4KH519,2026-05-02 17:53:30,2026-05-02,CLI-QWJST5FSGR3G,AGT-N2UN9U0TIY,Outbound Call,Phone,Producto,Producto,228.0,,True,False,Muy Negativo,-0.92,colombian,colombian,False,,False,True
+INT-1A6DO2EI3KKX5F6Z,2026-05-02 11:21:10,2026-05-02,CLI-IU442Q8JEVVV,AGT-OPWHZ8YA2C,Inbound Call,Phone,Producto,Producto,314.0,78.0,True,False,Neutral,0.15,mexican,mexican,False,,False,True

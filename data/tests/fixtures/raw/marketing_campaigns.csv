@@ -1,0 +1,21 @@
+campaign_id,campaign_name,description,campaign_type,campaign_objective,promoted_product,target_segment,target_country,start_date,end_date,budget,campaign_status,expected_conversion_rate
+CMP-06IKIC4I9JS9,CMP_RET_INV_May2025_0146,Campaña de retention para Inversión,Mix,Retention,Inversión,,,2025-05-28,2025-07-02,230105.71,Completed,6.36
+CMP-093CV52XZCZW,CMP_RET_PL_Sep2024_0107,Campaña de retention para Préstamo Personal,SMS,Retention,Préstamo Personal,Premium,,2024-09-20,2024-11-23,400601.31,Completed,
+CMP-0E8U4YN5XAPE,CMP_REA_CC_Aug2023_0028,Campaña de reactivation para Tarjeta Crédito,SMS,Reactivation,Tarjeta Crédito,Student,,2023-08-15,2023-11-07,356342.5,Completed,5.01
+CMP-0SCQMRQB1JT6,CMP_UPS_PL_Feb2026_0051,Campaña de up-sell para Préstamo Personal,SMS,Up-sell,Préstamo Personal,Premium,,2026-02-03,2026-05-02,490614.51,Completed,
+CMP-11Z48JDDYPJL,CMP_UPS_PL_Oct2023_0035,Campaña de up-sell para Préstamo Personal,Email,Up-sell,Préstamo Personal,,Colombia,2023-10-24,2023-12-29,326373.53,Completed,2.19
+CMP-173ISW5CHVBB,CMP_RET_PL_Dec2025_0180,Campaña de retention para Préstamo Personal,Email,Retention,Préstamo Personal,Plus,Argentina,2025-12-28,2026-01-31,91631.31,Completed,5.93
+CMP-1D79MWG31J51,CMP_XSL_CC_Apr2024_0200,Campaña de cross-sell para Tarjeta Crédito,WhatsApp,Cross-sell,Tarjeta Crédito,,Mexico,2024-04-17,2024-06-26,84081.0,Completed,13.88
+CMP-1MQRF3372LIG,CMP_ACQ_INS_Jun2025_0091,,Push,Acquisition,Seguro,,Mexico,2025-06-24,2025-07-11,333931.86,Completed,9.91
+CMP-1U65RWO4Q0U0,CMP_RET_CC_Dec2024_0096,,Voice,Retention,Tarjeta Crédito,,,2024-12-06,2025-03-03,250593.05,Completed,
+CMP-1W1D3EPWMOGC,CMP_RET_CC_Jun2024_0182,Campaña de retention para Tarjeta Crédito,SMS,Retention,Tarjeta Crédito,Basic,Colombia,2024-06-01,2024-07-17,,Completed,1.24
+CMP-1Y30B5OERXVQ,CMP_XSL_CC_May2024_0062,,Mix,Cross-sell,Tarjeta Crédito,,,2024-05-31,2024-08-26,78148.98,Completed,10.37
+CMP-2692TWEGEBE4,CMP_RET_SAV_Nov2023_0133,,Voice,Retention,Cuenta Ahorro,,,2023-11-11,2023-11-21,,Paused,1.05
+CMP-275KRTRNGAMG,CMP_ACQ_CC_Nov2023_0185,Campaña de acquisition para Tarjeta Crédito,Email,Acquisition,Tarjeta Crédito,,,2023-11-06,2023-11-26,167067.08,Completed,9.85
+CMP-29Z8ETCSV0VF,CMP_XSL_CC_Jul2025_0139,Campaña de cross-sell para Tarjeta Crédito,Mix,Cross-sell,Tarjeta Crédito,,,2025-07-27,2025-09-20,295901.02,Completed,13.52
+CMP-2A47VIMSSZSC,CMP_ACQ_CC_Nov2024_0102,Campaña de acquisition para Tarjeta Crédito,Email,Acquisition,Tarjeta Crédito,Plus,Mexico,2024-11-01,2024-12-15,208936.14,Paused,8.48
+CMP-2JIK5BI47K3I,CMP_REA_INV_Dec2023_0068,Campaña de reactivation para Inversión,WhatsApp,Reactivation,Inversión,Plus,Colombia,2023-12-01,2024-02-03,,Completed,8.68
+CMP-2MISMO9NJ962,CMP_RET_SAV_Sep2025_0155,,WhatsApp,Retention,Cuenta Ahorro,,,2025-09-02,2025-09-29,415071.29,Completed,3.7
+CMP-2T104M257G2M,CMP_RET_SAV_Jun2024_0075,Campaña de retention para Cuenta Ahorro,WhatsApp,Retention,Cuenta Ahorro,,,2024-06-27,2024-09-24,264352.49,Completed,12.67
+CMP-2WZGA64NQYDW,CMP_XSL_CC_Nov2023_0069,Campaña de cross-sell para Tarjeta Crédito,WhatsApp,Cross-sell,Tarjeta Crédito,Premium,,2023-11-13,2024-01-13,351690.51,Completed,8.35
+CMP-3AJCEDHL195L,CMP_RET_CC_Apr2024_0111,Campaña de retention para Tarjeta Crédito,Push,Retention,,Student,,2024-04-15,2024-07-06,462839.44,Completed,8.66

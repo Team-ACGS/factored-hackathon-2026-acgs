@@ -1,0 +1,11 @@
+interaction_id,interaction_date,process_date,customer_id,agent_id,interaction_type,channel,contact_reason,reason_category,duration_seconds,wait_time_seconds,was_resolved,requires_followup,detected_sentiment,sentiment_score,customer_detected_accent,agent_used_accent,was_escalated,mentioned_products,has_transcript,has_recording
+INT-03H6O4NM5VO6GHRK,2026-05-01 22:59:37,2026-05-01,CLI-FQADUZ0NTPTE,AGT-1LZC3FE0Y5,Inbound Call,Phone,Técnico,Técnico,332.0,156.0,False,True,Positivo,0.36,mexican,colombian,False,,False,True
+INT-03WGON24NRBS9KTN,2026-05-02 04:31:18,2026-05-01,CLI-NM63SV0CGRFW,AGT-265NTQ02ZF,Outbound Call,Phone,Queja,Queja,360.0,,True,False,Positivo,0.35,mexican,colombian,False,,False,True
+INT-05TGQ9YMNNCKKHBX,2026-05-01 20:17:12,2026-05-01,CLI-GEQ1N6PIYT8J,AGT-RM928J5EOG,Chat,Web Chat,Producto,Producto,,,True,False,Muy Negativo,-0.96,mexican,mexican,False,,False,False
+INT-05ZK2JWD5AK9QWX7,2026-05-01 22:47:34,2026-05-01,CLI-EB74XKFNB5ZQ,AGT-C2WNAD4Y8J,Chat,App,Transaccional,Transaccional,,,True,False,Neutral,-0.13,,,False,"PRD-RV205JERLFFC,PRD-DY69XT6SUZ23,PRD-M6DAQNTKY7UY",False,False
+INT-09MIY6C4RLKBYT6D,2026-05-01 10:42:59,2026-05-01,CLI-YXLJSRP0NE6Q,AGT-4EBSCOM63S,Inbound Call,Phone,Transaccional,Transaccional,127.0,150.0,True,False,Neutral,0.04,mexican,mexican,True,,False,True
+INT-0AL2TLM5JYFKODOZ,2026-05-01 18:50:45,2026-05-01,CLI-DQ9YHW4632KK,AGT-KNAQ0H42S9,Email,Email,Producto,Producto,,,True,False,Neutral,0.16,mexican,mexican,False,,False,False
+INT-0CQAV5OT5TWTVU4B,2026-05-02 05:21:28,2026-05-01,CLI-NQAQWAV7JYHY,AGT-L3EZA710VC,Inbound Call,Phone,Transaccional,Transaccional,244.0,94.0,True,False,Neutral,-0.23,mexican,mexican,False,,False,True
+INT-0EJ1MPO5ANF1HE6S,2026-05-02 01:59:17,2026-05-01,CLI-G0G5N1GHO2T0,AGT-OH0WV42QJM,Inbound Call,Phone,Producto,Producto,191.0,97.0,True,False,Muy Negativo,-0.9,mexican,mexican,False,,False,True
+INT-0F61Y5BAJP6ZTIKA,2026-05-02 05:02:02,2026-05-01,CLI-R2161MX6PIR8,AGT-ANQRQONI3V,Inbound Call,Phone,Comercial,Comercial,418.0,138.0,True,False,Muy Negativo,-0.71,,,False,PRD-R10Q82DTS0FI,False,True
+INT-0HRDNV7PKCUVT924,2026-05-01 12:25:38,2026-05-01,CLI-U7TO13VCVT5O,AGT-A8FKJXIIEG,Inbound Call,Phone,Comercial,Comercial,555.0,195.0,False,True,Neutral,-0.22,mexican,mexican,True,,False,True
