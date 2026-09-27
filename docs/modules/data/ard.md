@@ -1,0 +1,51 @@
+---
+updated: 2026-09-27
+source: setup
+---
+
+# data: architecture and debt
+
+## 2026-09-27: DuckDB over Parquet as the only engine, local or S3
+
+- Decision: every pipeline step (ingest, contracts, figures, scratch) runs through one DuckDB connection (`hackathon/data/src/bankdata/duck.py`); Parquet is the storage format at every step, and the same code path reads a local `.cache/` root or an `s3://` root by switching `BANKDATA_ROOT`.
+- Alternatives rejected: none recorded. [inferido]
+- Reason: reproducible, fast, no server to run; matches `docs/product/03-architecture.md`'s "Analytics store: DuckDB over Parquet in S3, reproducible, fast, no server" versus Redshift or Athena, called overkill for 5 GB. [inferido]
+- Debt created: none.
+- Revisit when: the curated dataset outgrows what a single DuckDB process handles on one machine.
+- Source: setup
+
+## 2026-09-27: Contracts as a hard gate, not a warning
+
+- Decision: `bankdata check` (`hackathon/data/src/bankdata/pipeline/contracts.py`) exits 1 on any failed check (non-empty, dictionary ratio in [0.5, 2.0], declared columns and types present, unique non-null key, event date within the data clock plus 1 day tolerance).
+- Alternatives rejected: none recorded. [inferido]
+- Reason: a broken dataset must stop a CI run or a presentation prep rather than silently produce a wrong figure; `hackathon/data/README.md` frames the whole module around "contracts pass or the pipeline stops". [inferido]
+- Debt created: contracts check schema and volume, not content; the real defects in `docs/analysis/findings.md` (random `claimed_amount`, `affected_product_id` pointing to another customer, `origin_interaction_id` always null) pass every contract because they are not schema violations. This is by design, not an oversight; the pipeline's job is structural, not semantic.
+- Revisit when: a downstream consumer (the DynamoDB seed process, once built) needs a semantic contract, e.g. "affected_product_id belongs to the complaint's customer".
+- Source: setup
+
+## 2026-09-27: Schema declared once, in code, as the single source
+
+- Decision: `hackathon/data/src/bankdata/pipeline/schemas.py` declares every table's columns, types, key, event date and partitioning in one Python dict (`TABLES`); contracts, ingest and (per the module's own comment) future Glue or Postgres DDL are meant to read from it.
+- Alternatives rejected: none recorded. [inferido]
+- Reason: one place to change a table's shape instead of duplicating it across ingest, contracts and any downstream DDL. [inferido]
+- Debt created: the "Glue and Postgres DDL" generation this file's docstring anticipates does not exist yet; only contracts and ingest consume `TABLES` today.
+- Revisit when: a component (e.g. the DynamoDB seed process) needs a DynamoDB or Postgres schema derived from these declarations.
+- Source: setup
+
+## 2026-09-27: The runtime product does not depend on this package
+
+- Decision: `hackathon/data/README.md` states explicitly "The runtime service does not import this package."; nothing under `lambdas/`, `apps/` or `training/` (none of which exist yet) is expected to import `bankdata`. Confirmed: the process that seeds the serving DynamoDB tables from curated Parquet is a separate process, not this module; infra/ defines the tables and identity owns the IAM roles on them.
+- Alternatives rejected: none recorded. [inferido]
+- Reason: keeps the analysis pipeline (batch, DuckDB, can run for minutes) decoupled from request-serving code (Lambda, must be fast and stateless). [inferido]
+- Debt created: the DynamoDB seed has no owner yet; it is a confirmed gap, not this module's to close.
+- Revisit when: the seed process is built and given an owner.
+- Source: setup
+
+## 2026-09-27: Figures are committed CSV, always rewritten in full
+
+- Decision: `bankdata figures <group>` deletes and rewrites every CSV under `figures/<group>/` from the SQL files currently in `sql/figures/<group>/`, and the output is committed to git (`hackathon/data/tests/test_analysis.py::test_figures_run_overwrites_group_with_one_csv_per_query` proves a stale CSV for a removed query is deleted).
+- Alternatives rejected: leaving scratch output as the source of truth for doc figures (rejected by convention: `sql/scratch/` output is git-ignored and queries using `USING SAMPLE` are barred from `sql/figures/` because "figures must be reproducible", per the README).
+- Reason: any number cited in a doc must be regenerable byte-for-byte from a committed query, and git then carries the history of how a figure changed. [inferido]
+- Debt created: none.
+- Revisit when: never, unless the team stops trusting hand-written doc figures entirely and wants figure generation enforced in CI.
+- Source: setup

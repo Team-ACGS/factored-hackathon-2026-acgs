@@ -1,0 +1,90 @@
+---
+updated: 2026-09-27
+source: setup
+---
+
+# Architecture and Debt Record
+
+Global decisions, as a dated log, and the index of debt across modules.
+Module-level decisions live in `modules/<module>/ard.md`.
+The design sessions behind these entries are summarized in `docs/tasks/_drafts/architecture_and_layout.md` of the docs root.
+
+## Decisions
+
+## 2026-09-27: Serverless on Lambda, no containers, no VPC
+
+- Decision: API Gateway in front of Python lambdas (`core`, `auth`, `crud`, `chatbot`, `notifications`) with a shared package bundled into each zip; no lambda calls another lambda.
+- Alternatives rejected: FastAPI on ECS Fargate (`docs/product/03-architecture.md`); an EC2 instance for own models; lambda-to-lambda calls from `chatbot` to `crud`.
+- Reason: no always-on cost, no VPC or NAT gateway, one deploy shape for everything; a shared package avoids chained cold starts and cascading failures.
+- Debt created: own-model serving is designed as a Lambda container image but not in `infra/` yet.
+- Revisit when: a turn's latency budget cannot be met by lambdas.
+- Source: setup
+
+## 2026-09-27: Isolation enforced by IAM, not by code
+
+- Decision: customer-owned tables are keyed by `customer_id`; each request assumes `role-customer` with a `customer_id` session tag (`dynamodb:LeadingKeys`), or `role-agent`, `role-officer`, `role-analyst` by Cognito group; lambdas cannot read tables with their own role.
+- Alternatives rejected: a mock identity provider; a Cognito identity pool (requests go through lambdas, not the browser); checks in code only.
+- Reason: a cross-customer read fails with AccessDenied from AWS, a proof no prompt or code bug can bypass.
+- Debt created: the lambda maps token to role; a bug there is not caught by AWS.
+- Revisit when: a role needs row-level rules beyond the partition key.
+- Source: setup
+
+## 2026-09-27: Two Cognito pools, three webs
+
+- Decision: pool `customers` (self sign-up, email and password, email verification code through SES) and pool `staff` (created by the team, email and password, groups `agents`, `officers`, `analysts`); one app client per web: factoredai., support., backoffice., and later analysts.
+- Alternatives rejected: one pool with groups; passwordless email OTP; MFA for staff.
+- Reason: open self sign-up must not reach staff webs; the separation comes from Cognito, not from our code.
+- Debt created: a pre token generation trigger and every lambda must still check group against app client inside `staff`.
+- Revisit when: staff need a second factor.
+- Source: setup
+
+## 2026-09-27: One language model, Claude Sonnet 5 on Bedrock
+
+- Decision: Sonnet 5 at low effort extracts and composes on every turn, and labels and judges offline; prompt caching is mandatory.
+- Alternatives rejected: Haiku, Sonnet and Opus by role; Titan embeddings and Grok in the turn; Fable 5.1 and Opus 5.5 for cost and latency.
+- Reason: one model, one cache, the cheapest setup that holds quality; Clara decides with rules and the grounding check is deterministic, so no second model is needed in the turn.
+- Debt created: Sonnet judging Sonnet risks self-preference; the judge must be validated against human labels.
+- Revisit when: measured cost or latency per turn is too high (move extraction to Haiku 4.5).
+- Source: setup
+
+## 2026-09-27: Infra and delivery follow the auvral pattern
+
+- Decision: Terraform owns infrastructure and configuration, GitHub Actions owns code; one environment `prd` in us-east-1; apply by a person, CI plans; code deploys on merge over OIDC; one IAM role per lambda from a capability map; everything tagged and fully destroyable.
+- Alternatives rejected: CDK (`docs/product/03-architecture.md`); applying Terraform from CI; a dev environment.
+- Reason: a proven pattern in `auvral/docs/modules/infra/trd.md`; a hackathon needs one environment and no leftover data after `terraform destroy`.
+- Debt created: the state bucket and the OIDC role come from a one-time bootstrap applied by hand.
+- Revisit when: a second environment is needed.
+- Source: setup
+
+## 2026-09-27: Observability from day one, analysis later
+
+- Decision: Powertools (Logger, Metrics, Tracer, Idempotency) in every lambda; CloudWatch Logs; metrics in `Clara/Backend` and `Clara/Assistant`; X-Ray active tracing; one turn event per turn to EventBridge, Firehose and S3 with ids only and the `trace_id`.
+- Alternatives rejected: a third-party APM; events through a lambda; storing message text in events.
+- Reason: turns not recorded can never be analyzed; events are also the bronze layer of a later ETL.
+- Debt created: event analysis and the LLM judge are deferred (`docs/tasks/_drafts/turn_events_analysis.md`).
+- Revisit when: the rubric metrics must be produced.
+- Source: setup
+
+## 2026-09-27: Product docs live in the code repo
+
+- Decision: PRD, TRD, ARD, modules and domain docs live in `docs/` of this repo; task planning lives in a separate local docs root.
+- Alternatives rejected: all docs in the docs root.
+- Reason: the whole team reads and updates the product docs where the code is.
+- Debt created: working notes cited here (problem statement, EDA findings, product flows) stay in the docs root, invisible to teammates.
+- Revisit when: a teammate needs one of them.
+- Source: setup
+
+## Debt index
+
+Open debt only: an entry with `Resolved by` leaves the table.
+
+| Module | Date | Debt | Revisit when |
+|---|---|---|---|
+| global | 2026-09-27 | Legal deadlines cited from memory, not verified (`docs/domain/legal-deadlines.md`) | before any deadline reaches a reply or a ranking |
+| global | 2026-09-27 | Owner of the DynamoDB seed process not decided | before the first deploy with data |
+| assistant | 2026-09-27 | No adversarial fixture for tool-output injection | before the evaluation run |
+| identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
+| models | 2026-09-27 | Serving designed but not in `infra/` | when the first model artifact exists |
+| evaluation | 2026-09-27 | No custodian, hash mechanism or recorded-response fixtures for the held-out | before the held-out is written |
+| evaluation | 2026-09-27 | Held-out written from scenario cards the team designed; Portuguese entirely team-generated | state it in the presentation |
+| data | 2026-09-27 | Contracts check structure, not content; known semantic defects pass | if curated data feeds a model |
