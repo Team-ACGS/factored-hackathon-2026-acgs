@@ -52,18 +52,27 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 - Decision: Terraform owns infrastructure and configuration, GitHub Actions owns code; one environment `prd` in us-east-1; apply by a person, CI plans; code deploys on merge over OIDC; one IAM role per lambda from a capability map; everything tagged and fully destroyable.
 - Alternatives rejected: CDK (`docs/product/03-architecture.md`); applying Terraform from CI; a dev environment.
 - Reason: a proven pattern in `auvral/docs/modules/infra/trd.md`; a hackathon needs one environment and no leftover data after `terraform destroy`.
-- Debt created: the state bucket and the OIDC role come from a one-time bootstrap applied by hand.
+- Debt created: the state bucket is created by hand once; the GitHub OIDC provider is shared with the my-napkin Terraform, which owns it; the account is shared with other projects, so the admin users' region deny is a guardrail, not isolation.
 - Revisit when: a second environment is needed.
 - Source: setup
 
 ## 2026-09-27: Observability from day one, analysis later
 
-- Decision: Powertools (Logger, Metrics, Tracer, Idempotency) in every lambda; CloudWatch Logs; metrics in `Clara/Backend` and `Clara/Assistant`; X-Ray active tracing; one turn event per turn to EventBridge, Firehose and S3 with ids only and the `trace_id`.
+- Decision: Powertools (Logger, Metrics, Tracer) in every lambda; CloudWatch Logs; metrics in `Clara/Backend` and `Clara/Assistant`; X-Ray active tracing; one turn event per turn to EventBridge, Firehose and S3 with ids only and the `trace_id`.
 - Alternatives rejected: a third-party APM; events through a lambda; storing message text in events.
 - Reason: turns not recorded can never be analyzed; events are also the bronze layer of a later ETL.
 - Debt created: event analysis and the LLM judge are deferred (`docs/tasks/_drafts/turn_events_analysis.md`).
 - Revisit when: the rubric metrics must be produced.
 - Source: setup
+
+## 2026-09-27: Idempotent writes through conditional writes
+
+- Decision: every write uses a deterministic id and a condition ("only if absent") on the business table itself.
+- Alternatives rejected: Powertools Idempotency, which needs an eighth table.
+- Reason: the tables already hold the natural key; a retry that finds the item is a no-op.
+- Debt created: none.
+- Revisit when: a write has no natural deterministic id.
+- Source: task 0001
 
 ## 2026-09-27: Product docs live in the code repo
 
@@ -84,6 +93,7 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | global | 2026-09-27 | Owner of the DynamoDB seed process not decided | before the first deploy with data |
 | assistant | 2026-09-27 | No adversarial fixture for tool-output injection | before the evaluation run |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
+| messaging | 2026-09-27 | Any signed-in user can subscribe to any `rooms/*` channel whose id they know; no per-room check on subscribe yet | before the first real conversation |
 | models | 2026-09-27 | Serving designed but not in `infra/` | when the first model artifact exists |
 | evaluation | 2026-09-27 | No custodian, hash mechanism or recorded-response fixtures for the held-out | before the held-out is written |
 | evaluation | 2026-09-27 | Held-out written from scenario cards the team designed; Portuguese entirely team-generated | state it in the presentation |

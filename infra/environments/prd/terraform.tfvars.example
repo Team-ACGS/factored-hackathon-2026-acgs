@@ -1,0 +1,5 @@
+github_app_pem = <<-PEM
+  -----BEGIN RSA PRIVATE KEY-----
+  ...
+  -----END RSA PRIVATE KEY-----
+PEM
