@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-27
-source: task 0002
+source: 0003_walking_skeleton
 ---
 
 # Messaging: architecture decisions and debt
 
-Status: infrastructure built (task 0002), code not built.
+Status: built for customers (task 0003).
 
 ## 2026-09-27: a message is written once and delivered from the table's stream
 
@@ -69,3 +69,57 @@ Status: infrastructure built (task 0002), code not built.
 - Debt created: none.
 - Revisit when: never, unless a rating needs to outlive or span rooms.
 - Source: setup
+
+## 2026-09-27: a reply's id is the successor of the id it answers
+
+- Decision: the chatbot's reply takes the answered message's UUIDv7 with its 74 random bits plus one, and the answered `sent_at`.
+- Alternatives rejected: a UUIDv5 of the answered id (not a UUIDv7, sorts anywhere); the answered `sent_at` plus one millisecond (another message can share that millisecond).
+- Reason: no id can sort between an integer and its successor, so the reply is always right after the message it answers, and a redelivered stream record computes the same key and hits the conditional write.
+- Debt created: none; the successor overflows only when the random part is all ones (2^-74), and then the reply fails instead of misordering.
+- Revisit when: a reply answers something other than one customer message.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: the customer API is send and latest room only
+
+- Decision: `POST /messages` (201 new, 200 with the stored message on a retry, text trimmed and at most 2000 characters) and `GET /messages/rooms/latest`, which returns the whole room and `server_time`.
+- Alternatives rejected: a history route per room with a cursor; returning 409 on a retried id.
+- Reason: the customer app only reopens its latest room; a retry answering the stored message lets the client treat both answers as "sent".
+- Debt created: history is not paginated, a very long room grows the response toward the 6 MB Lambda limit.
+- Revisit when: the support app needs another room than the latest, or a room passes a few hundred messages.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: the client mints ids on server time and retries with the same id
+
+- Decision: `server_time` from the latest-room call corrects the device clock before minting UUIDv7 ids; network, 429 and 5xx errors retry automatically with the same id; a manual retry reuses the id for 90 seconds, after that the failed bubble is dropped and the text is sent as a new message.
+- Alternatives rejected: minting on the device clock (a skewed phone fails the 2 minute window on every send); always reusing the id (a late manual retry is rejected forever).
+- Reason: the 2 minute window protects the key order; the client must stay inside it without the customer noticing.
+- Debt created: none.
+- Revisit when: the window changes.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: subscribe to all of the customer's rooms before reading history
+
+- Decision: the customer app subscribes to `/rooms/<sub>/*`, waits for the subscription ack, then reads history; pushes, history and POST answers merge by `message_id`, and only the open room is shown.
+- Alternatives rejected: reading history first (a reply written in between is lost); subscribing to the room channel (the room id is unknown until history answers, and a new room has none).
+- Reason: nothing can fall between the history read and the live feed, and the order of arrival does not matter.
+- Debt created: after the live connection drops the chat only shows a notice; it does not resubscribe and reread history on its own.
+- Revisit when: customers report missing replies, or before the demo.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: no customer text in logs, traces or events
+
+- Decision: handlers log ids only, Tracer never captures responses, `post_confirmation` logs the `sub` instead of the email, `turn.completed` carries ids and `trace_id`.
+- Alternatives rejected: Powertools defaults, which put every handler response (the message text) in X-Ray metadata.
+- Reason: text is customer data; it lives in `messages` under IAM isolation and nowhere else.
+- Debt created: none.
+- Revisit when: debugging needs text, which then goes through the table, not the logs.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: each lambda bundle carries its locked dependencies
+
+- Decision: `lambdas/build.py` writes one directory per deployed function with the `uv.lock` dependencies (boto3 included, manylinux wheels only), the workspace packages it uses and an entry file named after its handler; the deploy zips them with sorted entries and fixed mtimes.
+- Alternatives rejected: relying on the runtime's boto3 (tests and production would run different versions); one shared layer (a second artifact to version).
+- Reason: what the tests ran is what production runs, and identical code gives an identical `CodeSha256`, so unchanged functions are skipped.
+- Debt created: each zip is about 18 MB, mostly botocore; no smoke test runs after a lambda deploy.
+- Revisit when: cold starts matter, or a deploy breaks a function unnoticed.
+- Source: 0003_walking_skeleton

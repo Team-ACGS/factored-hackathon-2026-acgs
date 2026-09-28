@@ -93,7 +93,12 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | global | 2026-09-27 | Legal deadlines cited from memory, not verified (`docs/domain/legal-deadlines.md`) | before any deadline reaches a reply or a ranking |
 | global | 2026-09-27 | Owner of the DynamoDB seed process not decided | before the first deploy with data |
 | assistant | 2026-09-27 | No adversarial fixture for tool-output injection | before the evaluation run |
+| assistant | 2026-09-27 | `turn.completed` is at least once; duplicates reach S3 and must be deduped by `reply_message_id` | when turn events are analyzed |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
+| identity | 2026-09-27 | One STS AssumeRole and boto3 session per request or record, no credentials cache | when API latency or STS throttling shows |
+| messaging | 2026-09-27 | Room history is not paginated | when the support app reads other rooms or a room passes a few hundred messages |
+| messaging | 2026-09-27 | The chat does not resubscribe and reread history after the live connection drops | when customers report missing replies, or before the demo |
+| messaging | 2026-09-27 | Lambda zips are about 18 MB each and no smoke test follows a lambda deploy | when cold starts matter or a deploy breaks unnoticed |
 | models | 2026-09-27 | Serving designed but not in `infra/` | when the first model artifact exists |
 | evaluation | 2026-09-27 | No custodian, hash mechanism or recorded-response fixtures for the held-out | before the held-out is written |
 | evaluation | 2026-09-27 | Held-out written from scenario cards the team designed; Portuguese entirely team-generated | state it in the presentation |

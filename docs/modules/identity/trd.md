@@ -1,20 +1,19 @@
 ---
 updated: 2026-09-27
-source: task 0004
+source: 0003_walking_skeleton
 ---
 
 # Identity: technical
 
-Status: designed, not built.
-Nothing under `lambdas/auth/` or `infra/` exists yet; this describes the agreed design, source `docs/tasks/_drafts/architecture_and_layout.md` (2026-09-27), which wins over `docs/product/03-architecture.md` where they differ.
+Status: built (tasks 0001 and 0003); the staff group against app client check waits for the support app.
 
 ## Structure
 
 | Path | What |
 |---|---|
-| `lambdas/auth/` [inferido, planned] | Cognito trigger handlers, one file per trigger: `post_confirmation`, `pre_token_generation`. Deploy unit like the other lambdas (uv workspace, shared `core` package bundled in). |
-| `infra/modules/aws/cognito` [inferido, planned] | Leaf Terraform module for the two user pools, their app clients and groups. |
-| `infra/environments/prd/` [inferido, planned] | Where the Cognito pools, `role-customer`, `role-agent`, `role-officer`, `role-analyst` IAM roles and the auth lambdas are wired into the single `prd` environment. |
+| `lambdas/auth/` | Cognito triggers, deployed as `auth-post-confirmation` and `auth-pre-token-generation`: the first logs the confirmed `sub` and counts `SignUps`, the second logs and returns the event unchanged. |
+| `core.access` in `lambdas/core` | Reads pool (from `iss`) and `cognito:groups` from verified claims and assumes the matching role; a customer session is tagged `customer_id` = `sub`, a staff token needs exactly one group. |
+| `infra/stacks/backend/` | `cognito.tf` (pools, app clients, groups, triggers) and `access.tf` (the four roles and their trust); leaf module `infra/modules/aws/cognito_user_pool`. |
 
 ## Endpoints owned
 
@@ -44,11 +43,12 @@ Both triggers use AWS Lambda Powertools (Python) for structured JSON logging and
 
 ## Configuration
 
-- `CUSTOMERS_USER_POOL_ID`, `CUSTOMERS_APP_CLIENT_ID` [inferido, planned]: the `customers` pool and its `factoredai.` app client.
-- `STAFF_USER_POOL_ID`, `STAFF_APP_CLIENT_ID_SUPPORT`, `STAFF_APP_CLIENT_ID_BACKOFFICE` [inferido, planned]: the `staff` pool, one app client per staff subdomain (`support.`, `backoffice.`); the fourth, `analysts.`, does not exist until that web is built.
-- `ROLE_CUSTOMER_ARN`, `ROLE_AGENT_ARN`, `ROLE_OFFICER_ARN`, `ROLE_ANALYST_ARN` [inferido, planned]: the four roles a request-handling lambda assumes, written by Terraform per the auvral pattern (no ARN typed anywhere); `ROLE_ANALYST_ARN` is unused until the improvement console exists.
+- `CUSTOMERS_POOL_ID`, `STAFF_POOL_ID`, `CUSTOMER_CLIENT_ID`, `SUPPORT_CLIENT_ID`, `BACKOFFICE_CLIENT_ID`: the pools and their app clients, in every request lambda.
+- `ROLE_CUSTOMER_ARN`, `ROLE_AGENT_ARN`, `ROLE_OFFICER_ARN`, `ROLE_ANALYST_ARN`: the roles a request lambda may assume, written by Terraform; `ROLE_ANALYST_ARN` is unused until the improvement console exists.
+- The triggers get no pool variable: the pools read the triggers' ARNs, so the reverse would close a cycle.
 
 ## Testing
 
-- No tests exist yet.
-- Planned: a `pre_token_generation` case that asserts a `staff` user in `agents` is rejected on the `backoffice.` app client, and the reverse [inferido].
+- `lambdas/tests/auth/`: triggers return the event, only a sign-up confirmation counts, no email in the output.
+- `lambdas/tests/core/test_access.py`: pool and group mapping and the session tag, on moto.
+- Planned with the support app: `pre_token_generation` rejects a `staff` user on the wrong app client.

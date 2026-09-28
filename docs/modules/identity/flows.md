@@ -1,12 +1,11 @@
 ---
 updated: 2026-09-27
-source: setup
+source: 0003_walking_skeleton
 ---
 
 # Identity: flows
 
-Status: designed, not built.
-These diagrams describe the agreed design, not running code.
+Status: the customer flow and the role assumption run since task 0003; staff sign-in is designed, not built.
 
 ## Customer sign-up and sign-in (email and password)
 
@@ -31,7 +30,7 @@ sequenceDiagram
   CUP->>SES: send sign-up verification code
   SES-->>C: one-time code
   C->>CUP: submit code
-  CUP-->>C: account confirmed
+  CUP-->>C: account confirmed, signed in (Amplify auto sign-in)
   Note over C,CUP: later, any sign-in
   C->>CUP: sign in, email + password
   CUP-->>C: JWT (pool = customers, no groups)
