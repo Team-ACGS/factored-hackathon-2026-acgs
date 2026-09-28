@@ -99,7 +99,7 @@ Status: built for customers (task 0003).
 
 ## 2026-09-27: subscribe to all of the customer's rooms before reading history
 
-- Decision: the customer app subscribes to `/rooms/<sub>/*`, waits for the subscription ack, then reads history; pushes, history and POST answers merge by `message_id`, and only the open room is shown.
+- Decision: the customer app subscribes to `/rooms/{sub}/*`, waits for the subscription ack, then reads history; pushes, history and POST answers merge by `message_id`, and only the open room is shown.
 - Alternatives rejected: reading history first (a reply written in between is lost); subscribing to the room channel (the room id is unknown until history answers, and a new room has none).
 - Reason: nothing can fall between the history read and the live feed, and the order of arrival does not matter.
 - Debt created: after the live connection drops the chat only shows a notice; it does not resubscribe and reread history on its own.

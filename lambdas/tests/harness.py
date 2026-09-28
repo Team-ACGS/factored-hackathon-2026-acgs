@@ -24,6 +24,7 @@ ENVIRONMENT = {
     "POWERTOOLS_SERVICE_NAME": "test",
     "POWERTOOLS_METRICS_NAMESPACE": "Clara/Test",
     "POWERTOOLS_TRACE_DISABLED": "true",
+    "TABLE_CUSTOMERS": "clara-test-customers",
     "TABLE_ROOMS": "clara-test-rooms",
     "TABLE_MESSAGES": "clara-test-messages",
     "ROLE_CUSTOMER_ARN": f"arn:aws:iam::{ACCOUNT}:role/clara-test-role-customer",
@@ -94,6 +95,7 @@ class LambdaContext:
 
 @dataclass
 class Aws:
+    customers: "Table"
     rooms: "Table"
     messages: "Table"
     turn_events: "SQSClient"

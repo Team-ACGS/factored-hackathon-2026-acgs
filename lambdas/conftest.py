@@ -15,6 +15,12 @@ os.environ.update(ENVIRONMENT)
 def aws() -> Iterator[Aws]:
     with mock_aws():
         dynamodb = boto3.resource("dynamodb")
+        customers = dynamodb.create_table(
+            TableName=ENVIRONMENT["TABLE_CUSTOMERS"],
+            KeySchema=[{"AttributeName": "customer_id", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "customer_id", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
         rooms = dynamodb.create_table(
             TableName=ENVIRONMENT["TABLE_ROOMS"],
             KeySchema=[
@@ -59,7 +65,9 @@ def aws() -> Iterator[Aws]:
             Targets=[{"Id": "queue", "Arn": queue_arn}],
         )
 
-        yield Aws(rooms=rooms, messages=messages, turn_events=sqs, turn_events_url=queue_url)
+        yield Aws(
+            customers=customers, rooms=rooms, messages=messages, turn_events=sqs, turn_events_url=queue_url
+        )
 
     from chat_notifier import handler as notifier
     from chatbot import handler as chatbot

@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any, Literal, cast, get_args
 
 import boto3
 from boto3.dynamodb.conditions import Key
-from botocore.exceptions import ClientError
 
+from core.conditional import put_if_absent
 from core.ids import InvalidId, format_instant, parse_uuid7, successor, uuid7_time
 
 if TYPE_CHECKING:
@@ -147,16 +147,9 @@ class Messaging:
         return self.write(message)
 
     def write(self, message: Message) -> tuple[Message, bool]:
-        try:
-            self._messages.put_item(
-                Item=message.to_item(),
-                ConditionExpression="attribute_not_exists(message_key)",
-            )
-        except ClientError as error:
-            if not _is_conditional_failure(error):
-                raise
-            return self._stored(message), False
-        return message, True
+        if put_if_absent(self._messages, message.to_item(), "message_key"):
+            return message, True
+        return self._stored(message), False
 
     def room(self, customer_id: str, room_id: str) -> Room | None:
         item = self._rooms.get_item(
@@ -191,20 +184,13 @@ class Messaging:
         return Message.from_item(item)
 
     def _open_room(self, customer_id: str, room_id: str, created_at: str) -> None:
-        try:
-            self._rooms.put_item(
-                Item={
-                    "customer_id": customer_id,
-                    "room_id": room_id,
-                    "created_at": created_at,
-                    "delegated_to_human": False,
-                },
-                ConditionExpression="attribute_not_exists(room_id)",
-            )
-        except ClientError as error:
-            if not _is_conditional_failure(error):
-                raise
-
-
-def _is_conditional_failure(error: ClientError) -> bool:
-    return error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException"
+        put_if_absent(
+            self._rooms,
+            {
+                "customer_id": customer_id,
+                "room_id": room_id,
+                "created_at": created_at,
+                "delegated_to_human": False,
+            },
+            "room_id",
+        )

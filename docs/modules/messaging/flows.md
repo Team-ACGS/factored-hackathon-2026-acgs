@@ -23,7 +23,7 @@ sequenceDiagram
     participant Bot as lambdas/chatbot (assistant)
     participant Evt as AppSync Events
 
-    C->>Evt: subscribe /rooms/<sub>/* (wait for the ack)
+    C->>Evt: subscribe /rooms/{sub}/* (wait for the ack)
     C->>GW: GET /messages/rooms/latest
     GW-->>C: latest room, history, server_time
     C->>GW: POST /messages (pending clock)

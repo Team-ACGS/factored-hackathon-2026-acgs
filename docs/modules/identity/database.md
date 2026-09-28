@@ -30,8 +30,8 @@ There is no `cases` table and no `users` table: `cases` is a module name only (c
 ## Invariants kept in code
 
 - A request-handling lambda never reads a table with its own execution role; it always assumes `role-customer`, `role-agent`, `role-officer` or `role-analyst` first.
-- `customer_id` is the Cognito `sub` of the `customers` pool; `post_confirmation` writes the `customers` row with it, only if absent (its role can `PutItem` on `customers` and nothing else).
-- The `customer_id` session tag passed to `AssumeRole` comes from the verified JWT's `sub` (`messages`) or from the stream record the table itself wrote (`chatbot`), never from a request parameter, so a lambda cannot be asked to tag a session with someone else's id.
+- `customer_id` is the Cognito `sub` of the `customers` pool; `post_confirmation` writes the `customers` row with it, only if absent, through `role-customer` tagged with that `sub`, which may create its own row and never update it; the trigger's own role touches no table.
+- The `customer_id` session tag passed to `AssumeRole` comes from the verified JWT's `sub` (`messages`), the stream record the table itself wrote (`chatbot`) or the Cognito trigger event (`post_confirmation`), never from a request parameter, so a lambda cannot be asked to tag a session with someone else's id.
 
 ## Migrations of note
 
