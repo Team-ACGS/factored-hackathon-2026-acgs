@@ -1,0 +1,74 @@
+name: Deploy functions
+description: Upload the bundles whose code differs from what is deployed, and leave the rest alone
+
+inputs:
+  function-prefix:
+    description: Prefix every function name carries, so chatbot is <prefix>-chatbot
+    required: true
+  artifacts-bucket:
+    description: Bucket the bundles are uploaded to
+    required: true
+  dist:
+    description: Directory holding one subdirectory per function
+    required: true
+  sha:
+    description: Commit the bundles are keyed by
+    required: true
+
+outputs:
+  deployed:
+    description: Space separated names of the functions that were updated
+    value: ${{ steps.deploy.outputs.deployed }}
+  skipped:
+    description: How many functions already ran their bundle
+    value: ${{ steps.deploy.outputs.skipped }}
+
+runs:
+  using: composite
+  steps:
+    - id: deploy
+      shell: bash
+      env:
+        PREFIX: ${{ inputs.function-prefix }}
+        BUCKET: ${{ inputs.artifacts-bucket }}
+        DIST: ${{ inputs.dist }}
+        SHA: ${{ inputs.sha }}
+      run: |
+        set -euo pipefail
+
+        deployed=()
+        skipped=0
+
+        for dir in "$DIST"/*/; do
+          name=$(basename "$dir")
+          fn="$PREFIX-$name"
+          zip="$(realpath "$DIST")/$name.zip"
+
+          find "$dir" -exec touch -h -t 198001010000 {} +
+          (cd "$dir" && find . -type f | LC_ALL=C sort | zip -qX "$zip" -@)
+
+          local_sha=$(openssl dgst -sha256 -binary "$zip" | openssl base64)
+          deployed_sha=$(aws lambda get-function-configuration \
+            --function-name "$fn" --query CodeSha256 --output text)
+
+          if [ "$local_sha" = "$deployed_sha" ]; then
+            skipped=$((skipped + 1))
+            continue
+          fi
+
+          aws s3 cp "$zip" "s3://$BUCKET/functions/$SHA/$name.zip" --only-show-errors
+          aws lambda update-function-code \
+            --function-name "$fn" \
+            --s3-bucket "$BUCKET" \
+            --s3-key "functions/$SHA/$name.zip" \
+            --no-cli-pager > /dev/null
+
+          deployed+=("$name")
+        done
+
+        for name in "${deployed[@]}"; do
+          aws lambda wait function-updated --function-name "$PREFIX-$name"
+        done
+
+        echo "deployed=${deployed[*]}" >> "$GITHUB_OUTPUT"
+        echo "skipped=$skipped" >> "$GITHUB_OUTPUT"

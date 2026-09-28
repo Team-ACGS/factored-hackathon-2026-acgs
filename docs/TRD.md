@@ -78,8 +78,8 @@ Only `data/` is built; every other folder is designed and described here as agre
 | Target | Path | lint | typecheck | unit | e2e |
 |---|---|---|---|---|---|
 | data | `data/` | `unknown` | `unknown` | `uv run pytest` | `n/a` |
-| lambdas | `lambdas/` | `unknown` | `unknown` | `unknown` | `unknown` |
-| apps | `apps/` | `unknown` | `unknown` | `unknown` | `unknown` |
+| lambdas | `lambdas/` | `uv run ruff check . && uv run ruff format --check .` | `uv run mypy` | `uv run pytest` | `n/a` |
+| apps | `apps/` | `pnpm lint` | `pnpm typecheck` | `pnpm test` | `n/a` |
 | infra | `infra/` | `terraform fmt -check -recursive` | `terraform -chdir=environments/prd init -backend=false && terraform -chdir=environments/prd validate` | `n/a` | `n/a` |
 
 Targets marked `unknown` are fixed by the task that scaffolds them.

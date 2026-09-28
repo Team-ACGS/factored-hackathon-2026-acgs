@@ -72,7 +72,7 @@ Details: [modules/data/prd.md](modules/data/prd.md)
 - Clara never reads another customer's data, enforced by AWS, not by the prompt.
 - A write is announced only after it is read back.
 - Legal deadlines per country come from a versioned table, pending verification against the current law (`docs/domain/legal-deadlines.md`).
-- Spanish and Brazilian Portuguese everywhere a customer reads text.
+- English, Spanish and Brazilian Portuguese everywhere a customer reads text, chosen by the browser locale; no customer-facing string is hardcoded.
 
 ## Not in the product
 
