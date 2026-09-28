@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: setup
+source: task 0004
 ---
 
 # Identity: database
@@ -30,7 +30,8 @@ There is no `cases` table and no `users` table: `cases` is a module name only (c
 ## Invariants kept in code
 
 - A request-handling lambda never reads a table with its own execution role; it always assumes `role-customer`, `role-agent`, `role-officer` or `role-analyst` first.
-- The `customer_id` session tag passed to `AssumeRole` always comes from the verified JWT's subject, never from a request parameter, so a lambda cannot be asked to tag a session with someone else's id.
+- `customer_id` is the Cognito `sub` of the `customers` pool; `post_confirmation` writes the `customers` row with it, only if absent (its role can `PutItem` on `customers` and nothing else).
+- The `customer_id` session tag passed to `AssumeRole` always comes from the verified JWT's `sub`, never from a request parameter, so a lambda cannot be asked to tag a session with someone else's id.
 
 ## Migrations of note
 

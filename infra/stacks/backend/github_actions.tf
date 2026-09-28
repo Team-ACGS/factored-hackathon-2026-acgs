@@ -124,7 +124,7 @@ resource "aws_iam_role_policy" "terraform_plan" {
         Sid      = "StateLock"
         Effect   = "Allow"
         Action   = ["s3:PutObject", "s3:DeleteObject"]
-        Resource = "arn:aws:s3:::${var.state_bucket}/${var.state_key}.tflock"
+        Resource = "arn:aws:s3:::${var.state_bucket}/*/terraform.tfstate.tflock"
       },
       {
         Sid    = "DenyCustomerData"

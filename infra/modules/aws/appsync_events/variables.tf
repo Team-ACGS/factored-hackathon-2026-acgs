@@ -8,6 +8,12 @@ variable "namespace" {
   type        = string
 }
 
+variable "code_handlers" {
+  description = "APPSYNC_JS source of the namespace's onPublish and onSubscribe handlers. Null runs none."
+  type        = string
+  default     = null
+}
+
 variable "cognito_user_pool_ids" {
   description = "Pools whose users may connect and subscribe with their id token. Publishing is IAM only, so only a backend role publishes."
   type        = map(string)

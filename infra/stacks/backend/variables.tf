@@ -82,12 +82,7 @@ variable "github_oidc_provider_arn" {
 }
 
 variable "state_bucket" {
-  description = "Bucket holding the Terraform state, read by the plan role"
-  type        = string
-}
-
-variable "state_key" {
-  description = "Key of this environment's state inside state_bucket"
+  description = "Bucket holding the state of every root, read and locked by the plan role"
   type        = string
 }
 

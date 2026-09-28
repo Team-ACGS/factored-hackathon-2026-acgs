@@ -41,6 +41,8 @@ Only `data/` is built; every other folder is designed and described here as agre
 - A message is written once: `messages` stores it (and the room when new) with a conditional write; the `messages` DynamoDB stream feeds `chat_notifier`, which pushes it to the room's AppSync Events channel, and `chatbot`, which only sees customer messages (`sender_type = customer`).
 - A turn: `chatbot` understands, decides with the rules table, acts, composes with Claude Sonnet 5 on Bedrock, and writes the reply as an ordinary message, which reaches clients through the same notifier.
 - Each stream consumer has 3 retries, bisect on error and its own SQS DLQ.
+- Identity of a customer: `customer_id` is the Cognito `sub` of the `customers` pool, set by Cognito at sign-up and never chosen by a client or a lambda; `post_confirmation` creates the `customers` row with it. `staff_id` is the `sub` of the `staff` pool.
+- Realtime: one AppSync Events channel per room, `/rooms/{customer_id}/{room_id}`; publishing is IAM only (`chat_notifier`); an `onSubscribe` handler lets a customer token subscribe only when the `customer_id` segment is its own `sub`, and lets staff tokens through.
 - Isolation: the lambda reads pool and `cognito:groups` from the token and assumes `role-customer` (session tag `customer_id`, `dynamodb:LeadingKeys`), `role-agent`, `role-officer` or `role-analyst`; lambdas cannot read tables with their own role.
 - Identity: pool `customers` (self sign-up, email and password, email verification code through SES) and pool `staff` (created by us, email and password, no MFA, groups `agents`, `officers`, `analysts`); triggers `post_confirmation` and `pre_token_generation` in `lambdas/auth`.
 - Email: SES from `notifications.factoredai.sdfles.com`.
@@ -61,7 +63,7 @@ Only `data/` is built; every other folder is designed and described here as agre
 - One environment, `prd`, AWS us-east-1, deployed from `main`.
 - Terraform owns infrastructure and configuration; GitHub Actions owns code.
 - Terraform creates each lambda with a bootstrap bundle, its own role (from a capability map), log group and environment, and ignores `s3_key`; Actions uploads bundles keyed by commit SHA and calls `update-function-code` only when `CodeSha256` changes.
-- `terraform apply` is run by a person; CI runs `fmt`, `validate` and `plan` on pull requests.
+- `terraform apply` is run by a person; `.github/workflows/terraform.yml` runs `fmt`, `validate` and a `plan` of `core` and `prd` on every pull request that touches `infra/`, with the plan in the job summary.
 - On merge to `main`, Actions deploys lambdas and apps (`s3 sync` plus CloudFront invalidation) over GitHub OIDC; Terraform writes the Actions environments and their variables, so workflows hold no ARN, URL or key (contract in `infra/docs/setup.md`).
 - The account's GitHub OIDC provider belongs to the my-napkin Terraform; Clara only reads it.
 - Names come from `${project}-${env}`; buckets append the account id.

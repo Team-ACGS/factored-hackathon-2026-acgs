@@ -20,7 +20,6 @@ module "backend" {
   github_app_pem           = var.github_app_pem
 
   state_bucket = local.state_bucket
-  state_key    = local.state_key
 }
 
 module "frontend" {

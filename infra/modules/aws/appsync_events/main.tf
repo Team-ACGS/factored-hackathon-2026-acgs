@@ -83,8 +83,9 @@ resource "aws_cloudwatch_log_group" "this" {
 }
 
 resource "aws_appsync_channel_namespace" "this" {
-  name   = var.namespace
-  api_id = aws_appsync_api.this.api_id
+  name          = var.namespace
+  api_id        = aws_appsync_api.this.api_id
+  code_handlers = var.code_handlers
 
   publish_auth_mode {
     auth_type = "AWS_IAM"

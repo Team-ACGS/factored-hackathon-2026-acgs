@@ -111,10 +111,18 @@ Each role trusts one environment through the OIDC subject `repo:Team-ACGS/factor
 |---|---|---|
 | `prd` | Lambda deploy on merge | `AWS_REGION`, `AWS_ROLE_ARN`, `ARTIFACTS_BUCKET`, `FUNCTION_PREFIX`, `API_URL` |
 | `customer-prd`, `support-prd`, `backoffice-prd` | Web deploy on merge | `AWS_REGION`, `AWS_ROLE_ARN`, `SITE_BUCKET`, `DISTRIBUTION_ID`, `SITE_URL`, `VITE_API_URL`, `VITE_USER_POOL_ID`, `VITE_USER_POOL_CLIENT_ID`, `VITE_REALTIME_URL`, `VITE_REALTIME_HTTP_URL`, `VITE_REALTIME_NAMESPACE` |
-| `terraform` | `fmt`, `validate`, `plan` on pull requests, any branch | `AWS_REGION`, `AWS_ROLE_ARN`, secret `TF_GITHUB_APP_PEM` |
+| `terraform` | `.github/workflows/terraform.yml` on pull requests, any branch | `AWS_REGION`, `AWS_ROLE_ARN`, secret `TF_GITHUB_APP_PEM` |
 
 Lambda deploys follow auvral: build one zip per function with pinned mtimes, upload to `s3://$ARTIFACTS_BUCKET/functions/<sha>/<function>.zip`, and call `update-function-code` on `$FUNCTION_PREFIX-<function>` only when its `CodeSha256` differs.
 Functions are `crud`, `messages`, `chat-notifier`, `chatbot`, `auth-post-confirmation` and `auth-pre-token-generation`; Terraform ignores their code after creation, so an apply never rolls a deploy back.
 Every API and stream lambda has handler `handler.handler`; the triggers have `post_confirmation.handler` and `pre_token_generation.handler`.
 Web deploys run `aws s3 sync --delete` into `SITE_BUCKET` and invalidate `DISTRIBUTION_ID`; the build always writes `index.html`, which replaces the placeholder Terraform created.
-The plan role is `ReadOnlyAccess` minus customer data (table items, users, logs, queue messages, turn events) plus the state lock; fork pull requests get no environment secrets and no OIDC token, so they cannot plan.
+`terraform.yml` runs on every pull request that touches `infra/`: `fmt` and `validate` for both roots, then a `plan` of `core` and `prd` whose summary and full text land in the job summary; `apply` stays manual.
+The plan role is `ReadOnlyAccess` minus customer data (table items, users, logs, queue messages, turn events) plus the state locks; the plan job is skipped for fork pull requests, which get no environment secrets and no OIDC token anyway.
+The repository is public, so anyone can read a plan: Terraform masks sensitive values, not names or ids.
+
+## Realtime channels
+
+One channel per room: `/rooms/{customer_id}/{room_id}`, where `customer_id` is the customer's Cognito `sub`.
+`chat-notifier` publishes with IAM; the webs subscribe with their Cognito id token.
+The `onSubscribe` handler in `stacks/backend/handlers/rooms.js` lets a staff token through and lets any other token through only when the `customer_id` segment is its own `sub`, so a wildcard such as `/rooms/*` is refused too.

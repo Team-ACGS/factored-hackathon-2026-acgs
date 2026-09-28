@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: setup
+source: task 0004
 ---
 
 # Identity: technical
@@ -20,10 +20,13 @@ Nothing under `lambdas/auth/` or `infra/` exists yet; this describes the agreed 
 
 None over API Gateway.
 The two functions in `lambdas/auth/` are invoked by Cognito itself as Lambda triggers (`post_confirmation`, `pre_token_generation`), not through a route.
+`post_confirmation` runs only on the `customers` pool and creates the `customers` row keyed by the user's `sub` (env `TABLE_CUSTOMERS`, permission `PutItem` on that table only).
+
+Emails: every code email (sign-up verification and password reset) and the staff invitation are one trilingual template per pool, English, Spanish and Brazilian Portuguese, in `infra/stacks/backend/emails/`.
 
 Jobs, listeners or scheduled work: none.
 
-Both triggers use AWS Lambda Powertools (Python) for structured JSON logging and X-Ray active tracing, the same as every other lambda in the project; they write nothing of their own.
+Both triggers use AWS Lambda Powertools (Python) for structured JSON logging and X-Ray active tracing, the same as every other lambda in the project; `post_confirmation` writes one `customers` row with a conditional put, `pre_token_generation` writes nothing.
 
 ## Depends on
 

@@ -25,6 +25,7 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 - Decision: customer-owned tables are keyed by `customer_id`; each request assumes `role-customer` with a `customer_id` session tag (`dynamodb:LeadingKeys`), or `role-agent`, `role-officer`, `role-analyst` by Cognito group; lambdas cannot read tables with their own role.
 - Alternatives rejected: a mock identity provider; a Cognito identity pool (requests go through lambdas, not the browser); checks in code only.
 - Reason: a cross-customer read fails with AccessDenied from AWS, a proof no prompt or code bug can bypass.
+- `customer_id` is the Cognito `sub`, so the token, the session tag, the table keys and the realtime channel all carry one value no one can choose (task 0004).
 - Debt created: the lambda maps token to role; a bug there is not caught by AWS.
 - Revisit when: a role needs row-level rules beyond the partition key.
 - Source: setup
@@ -93,7 +94,6 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | global | 2026-09-27 | Owner of the DynamoDB seed process not decided | before the first deploy with data |
 | assistant | 2026-09-27 | No adversarial fixture for tool-output injection | before the evaluation run |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
-| messaging | 2026-09-27 | Any signed-in user can subscribe to any `rooms/*` channel whose id they know; no per-room check on subscribe yet | before the first real conversation |
 | models | 2026-09-27 | Serving designed but not in `infra/` | when the first model artifact exists |
 | evaluation | 2026-09-27 | No custodian, hash mechanism or recorded-response fixtures for the held-out | before the held-out is written |
 | evaluation | 2026-09-27 | Held-out written from scenario cards the team designed; Portuguese entirely team-generated | state it in the presentation |

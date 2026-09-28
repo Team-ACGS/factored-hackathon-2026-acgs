@@ -28,5 +28,4 @@ locals {
 
   ### State ####################################################################
   state_bucket = "clara-terraform-state-975050033628"
-  state_key    = "prd/terraform.tfstate"
 }

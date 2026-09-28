@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: task 0002
+source: task 0004
 ---
 
 # Messaging: flows
@@ -27,7 +27,7 @@ sequenceDiagram
     M->>DDB: conditional write (room created if new)
     M-->>C: 2xx, message confirmed
     DDB-->>N: stream insert
-    N->>Evt: publish to /rooms/<room_id>
+    N->>Evt: publish to /rooms/{customer_id}/{room_id}
     Evt-->>C: push over the subscription
     DDB-->>Bot: stream insert, sender_type = customer only
     Bot->>Bot: skip if the room is delegated to a human

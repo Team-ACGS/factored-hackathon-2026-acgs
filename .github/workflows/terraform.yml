@@ -1,0 +1,108 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - infra/**
+      - .github/workflows/terraform.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  checks:
+    name: fmt and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.13.3
+          terraform_wrapper: false
+
+      - name: fmt
+        run: terraform fmt -check -recursive infra
+
+      - name: validate
+        run: |
+          set -euo pipefail
+          for root in core prd; do
+            echo "::group::$root"
+            terraform -chdir="infra/environments/$root" init -backend=false
+            terraform -chdir="infra/environments/$root" validate -no-color
+            echo "::endgroup::"
+          done
+
+  plan:
+    name: plan ${{ matrix.root }}
+    needs: checks
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: terraform
+
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        root: [core, prd]
+
+    defaults:
+      run:
+        working-directory: infra/environments/${{ matrix.root }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.13.3
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+
+      - run: terraform init
+
+      - name: plan
+        env:
+          TF_VAR_github_app_pem: ${{ secrets.TF_GITHUB_APP_PEM }}
+        run: terraform plan -no-color -lock-timeout=120s -out=tfplan
+
+      - name: Summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "### Plan: \`${{ matrix.root }}\`"
+            echo
+            if [ ! -f tfplan ]; then
+              echo "No plan was produced; see the plan step."
+              exit 0
+            fi
+            terraform show -no-color tfplan | grep -E '^Plan:|^No changes' || true
+            echo
+            echo "<details><summary>Full plan</summary>"
+            echo
+            echo '```'
+            terraform show -no-color tfplan | head -c 900000
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"

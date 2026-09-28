@@ -25,6 +25,23 @@ variable "allow_password_auth" {
   default     = false
 }
 
+variable "code_email" {
+  description = "Subject and body of every email carrying a code: sign-up verification and password reset. The body must contain {####}."
+  type = object({
+    subject = string
+    message = string
+  })
+}
+
+variable "invite_email" {
+  description = "Subject and body of the email a user created by an administrator receives. The body must contain {username} and {####}. Null keeps Cognito's default."
+  type = object({
+    subject = string
+    message = string
+  })
+  default = null
+}
+
 variable "from_email_address" {
   description = "Friendly From of every message the pool sends, on the SES sending domain"
   type        = string

@@ -13,10 +13,22 @@ resource "aws_cognito_user_pool" "this" {
 
   admin_create_user_config {
     allow_admin_create_user_only = !var.self_sign_up
+
+    dynamic "invite_message_template" {
+      for_each = var.invite_email == null ? [] : [var.invite_email]
+
+      content {
+        email_subject = invite_message_template.value.subject
+        email_message = invite_message_template.value.message
+        sms_message   = "Clara: {username} {####}"
+      }
+    }
   }
 
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = var.code_email.subject
+    email_message        = var.code_email.message
   }
 
   email_configuration {
