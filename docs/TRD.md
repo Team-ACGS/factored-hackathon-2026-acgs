@@ -1,13 +1,13 @@
 ---
 updated: 2026-09-27
-source: setup
+source: 0003_walking_skeleton
 ---
 
 # Technical Requirements Document
 
 Clara, the customer service system for LATAM Bank unrecognized card charges.
 One repository, `Team-ACGS/factored-hackathon-2026-acgs`, base branch `main`.
-Only `data/` is built; every other folder is designed and described here as agreed on 2026-09-27.
+Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a walking skeleton (task 0003: every lambda but `crud`, the `customer` app and `ui`); `crud`, `support`, `backoffice`, `training/` and `evaluation/` are designed and described here as agreed on 2026-09-27.
 
 ## Components
 
@@ -26,8 +26,8 @@ Only `data/` is built; every other folder is designed and described here as agre
   - `infra/`: Terraform: `environments/core/` (account singletons: API Gateway logging role, admin users), `environments/prd/` (the root), `stacks/backend/` and `stacks/frontend/`, `modules/aws/*` (one leaf module per service), `modules/github/`; bootstrap, apply and destroy in `infra/docs/setup.md`.
   - `.github/workflows/`: CI and code delivery.
   - `docs/`: this documentation.
-- Install: `uv sync` in `data/` and `lambdas/`; `pnpm install --frozen-lockfile` in `apps/` [inferido: lambdas and apps not scaffolded].
-- Workspace files: `data/.env` from `data/.env.example`.
+- Install: `uv sync` in `data/` and `lambdas/`; `pnpm install --frozen-lockfile` in `apps/`.
+- Workspace files: `data/.env` from `data/.env.example`; `apps/customer/.env.local` from `apps/customer/.env.example` to run the app locally.
 - API spec: none yet.
 - Data: DynamoDB on demand, seven tables (`customers`, `products`, `transactions`, `complaints`, `staff`, `rooms`, `messages`), defined in `infra/`, no migrations; a separate seed process loads them (owner not decided). Analytics on DuckDB over Parquet in `data/`.
 - Keys: every table but `staff` has partition key `customer_id`; sort keys are `product_id`, `transaction_key`, `complaint_id`, `room_id` and `message_key` (`<room_id>#<sent_at>#<message_id>`); `customers` has none; `staff` is keyed by `staff_id`; `complaints` has GSI `by-area-priority` (`area`, `priority_score` number).
