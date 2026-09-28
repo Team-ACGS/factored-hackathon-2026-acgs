@@ -1,25 +1,27 @@
 ---
 updated: 2026-09-27
-source: task 0004
+source: 0003_walking_skeleton
 ---
 
 # Messaging: technical
 
-Status: infrastructure built (task 0002), code not built.
+Status: built for customers (task 0003); agent sending comes with the support app.
 
 ## Structure
 
 | Path | What |
 |---|---|
-| `lambdas/messages` | API lambda behind `/messages/*`: writes a message (and the room when it is new) through the messaging code in `core`, and reads a room's history. Assumes `role-customer` for a customer token and `role-agent` for an agent token. |
+| `lambdas/messages` | API lambda behind `/messages/*`. Accepts only `customers` pool tokens (403 otherwise) and assumes `role-customer` tagged with the token's `sub`. |
 | `lambdas/chat_notifier` | Consumer of the `messages` stream (inserts): publishes each new message to its room's AppSync Events channel. It can read the stream and publish, nothing else. |
-| messaging code in `lambdas/core` | The only code that writes `messages` and `rooms`, with conditional writes on deterministic ids. |
-| AppSync Events API `clara-prd` | Namespace `rooms`, one channel per room: `/rooms/{customer_id}/{room_id}`. Publishing is IAM only. Subscribing takes a Cognito id token; the namespace's `onSubscribe` handler (`infra/stacks/backend/handlers/rooms.js`) rejects a customer whose `sub` differs from the `customer_id` segment, and lets staff tokens through. |
+| `core.messaging` in `lambdas/core` | The only code that writes `messages` and `rooms`: validates ids and text, derives reply ids, conditional writes. |
+| AppSync Events API `clara-prd` | Namespace `rooms`, one channel per room: `/rooms/{customer_id}/{room_id}`. Publishing is IAM only (SigV4 from `chat-notifier`). Subscribing takes a Cognito token; the namespace's `onSubscribe` handler (`infra/stacks/backend/handlers/rooms.js`) rejects a customer whose `sub` differs from the `customer_id` segment and lets staff tokens through; the customer app subscribes to `/rooms/{sub}/*`. |
 
 ## Endpoints owned
 
-- `POST /messages`: send a message to a room, creating the room with the first message.
-- `GET /messages/...`: a room's history in order (exact path set by the code).
+- `POST /messages`: send a message with a client-minted `room_id` and `message_id`; creates the room with the first message; 201 when stored, 200 with the stored message on a retry, 400 when the id is more than 2 minutes from server time or the text is empty or over 2000 characters.
+- `GET /messages/rooms/latest`: the customer's latest room, its whole history in order, and `server_time` for the client clock.
+
+No generated API spec yet.
 
 Both sit behind the API's Cognito authorizer (both pools) on `api.factoredai.sdfles.com`.
 
@@ -41,9 +43,11 @@ Jobs and listeners:
 
 ## Configuration
 
-- `messages`: the table names, `ROLE_CUSTOMER_ARN`, `ROLE_AGENT_ARN`, pool and client ids.
+- `messages`: `TABLE_ROOMS`, `TABLE_MESSAGES`, `ROLE_CUSTOMER_ARN`, `CUSTOMERS_POOL_ID`, `STAFF_POOL_ID`.
 - `chat-notifier`: `REALTIME_HTTP_URL`, `REALTIME_NAMESPACE`.
 
 ## Testing
 
-No code yet.
+- `lambdas/tests/` on moto: `core/test_messaging.py`, `messages/`, `chat_notifier/`, and `test_round_trip.py`, which sends through the API, replays the stream into `chatbot` and `chat-notifier`, and checks retries, order and the absence of a loop.
+- `apps/customer/src/chat/*.test.ts`: the conversation reducer (pending, sent, dedupe by `message_id`), the API retries and the clock.
+- Commands: `docs/TRD.md`, Verification targets.

@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-27
-source: setup
+source: 0003_walking_skeleton
 ---
 
 # Identity: product
 
-Status: designed, not built.
+Status: customer sign-up and sign-in built (task 0003); staff sign-in designed, not built.
 
 ## Purpose
 
@@ -19,7 +19,7 @@ It is also the proof the hackathon asks for that access control lives outside th
 
 1. A customer opens factoredai.sdfles.com and signs up with an email and a password.
 2. Clara emails a verification code to that address to confirm it, once, at sign-up.
-3. The customer enters the code, confirming the account.
+3. The customer enters the code, confirming the account, and lands in the chat already signed in.
 4. From then on the customer signs in with email and password, like any password account; the emailed code never reappears at sign-in.
 
 Errors and empty states: a wrong or expired verification code at sign-up can be resent; a wrong password at sign-in is rejected without saying which part was wrong.

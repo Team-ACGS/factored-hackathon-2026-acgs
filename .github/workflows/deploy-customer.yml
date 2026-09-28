@@ -1,0 +1,89 @@
+name: Deploy customer web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/**
+      - .github/workflows/deploy-customer.yml
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-customer
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: customer-prd
+    defaults:
+      run:
+        working-directory: apps
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: apps/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: apps/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm --filter @clara/customer build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_USER_POOL_ID: ${{ vars.VITE_USER_POOL_ID }}
+          VITE_USER_POOL_CLIENT_ID: ${{ vars.VITE_USER_POOL_CLIENT_ID }}
+          VITE_REALTIME_HTTP_URL: ${{ vars.VITE_REALTIME_HTTP_URL }}
+          VITE_REALTIME_NAMESPACE: ${{ vars.VITE_REALTIME_NAMESPACE }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+
+      - name: Upload
+        env:
+          SITE_BUCKET: ${{ vars.SITE_BUCKET }}
+        run: |
+          set -euo pipefail
+
+          aws s3 sync customer/dist "s3://$SITE_BUCKET" --delete --exclude index.html \
+            --cache-control "public, max-age=31536000, immutable" --only-show-errors
+          aws s3 cp customer/dist/index.html "s3://$SITE_BUCKET/index.html" \
+            --cache-control "no-cache" --content-type "text/html; charset=utf-8" --only-show-errors
+
+      - name: Invalidate
+        env:
+          DISTRIBUTION_ID: ${{ vars.DISTRIBUTION_ID }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          set -euo pipefail
+
+          id=$(aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" \
+            --paths "/*" --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "$DISTRIBUTION_ID" --id "$id"
+
+          echo "### Deployed $SITE_URL" >> "$GITHUB_STEP_SUMMARY"

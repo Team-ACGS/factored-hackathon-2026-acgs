@@ -1,0 +1,85 @@
+name: Deploy lambdas
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - lambdas/**
+      - .github/workflows/deploy-lambdas.yml
+      - .github/actions/deploy-functions/**
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-lambdas
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: prd
+    defaults:
+      run:
+        working-directory: lambdas
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          working-directory: lambdas
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+
+      - name: Typecheck
+        run: uv run mypy
+
+      - name: Test
+        run: uv run pytest
+
+      - name: Build
+        run: uv run python build.py
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+
+      - name: Deploy
+        id: deploy
+        uses: ./.github/actions/deploy-functions
+        with:
+          function-prefix: ${{ vars.FUNCTION_PREFIX }}
+          artifacts-bucket: ${{ vars.ARTIFACTS_BUCKET }}
+          dist: lambdas/dist
+          sha: ${{ github.sha }}
+
+      - name: Report
+        env:
+          DEPLOYED: ${{ steps.deploy.outputs.deployed }}
+          SKIPPED: ${{ steps.deploy.outputs.skipped }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$DEPLOYED" ]; then
+            echo "### Nothing to deploy" >> "$GITHUB_STEP_SUMMARY"
+            echo "All $SKIPPED functions already ran this exact bundle." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "### Deployed to prd" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          for fn in $DEPLOYED; do
+            echo "- \`$fn\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "$SKIPPED were left alone, their code had not changed." >> "$GITHUB_STEP_SUMMARY"

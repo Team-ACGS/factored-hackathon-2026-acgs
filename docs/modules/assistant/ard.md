@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: task 0002
+source: 0003_walking_skeleton
 ---
 
 # assistant: architecture and debt
@@ -103,3 +103,39 @@ source: task 0002
 - Debt created: the whole module is design debt rather than implementation debt: reliability primitives (bounded retries, a fallback template, a tool-down fixture) are designed but unproven, and `hackathon/docs/kickoff-compliance.md` names reliability as the piece most likely to slip; the dataset also bounds explain-only resolution to 4.5-8% of cases, so the evaluation story should lead with zero unsafe outcomes rather than an automation rate; Portuguese coverage is entirely team-generated test data with no real examples and no Portuguese-speaking night-shift fraud agent to hand a PROTECT case to.
 - Revisit when: the first implementation round for this module begins.
 - Source: hackathon/docs/kickoff-compliance.md ("Where the proposal is weak"); docs/problem-statement.md sections 4.5-4.6
+
+## 2026-09-27: turn.completed is emitted at least once
+
+- Decision: `chatbot` emits `turn.completed` after the reply's conditional write, also when a redelivered record finds the reply already written; detail carries `customer_id`, `room_id`, `message_id`, `reply_message_id` and `trace_id`.
+- Alternatives rejected: emitting only on the first write (a failure between write and PutEvents loses the event forever).
+- Reason: losing a turn is worse than counting it twice, and `reply_message_id` is a natural dedupe key.
+- Debt created: the event stream in S3 can hold duplicates; the analysis must dedupe by `reply_message_id`.
+- Revisit when: turn events are analyzed.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: a customer message whose room does not exist fails the record
+
+- Decision: `chatbot` raises when the room of a customer message is missing, so the record retries and lands in `clara-prd-chatbot-dlq`.
+- Alternatives rejected: skipping the message silently.
+- Reason: `core.messaging` writes the room before the message, so a missing room is a bug worth seeing in the DLQ, not a case to answer.
+- Debt created: none.
+- Revisit when: rooms can be deleted.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: customer app text from typed catalogs, not i18next
+
+- Decision: `apps/customer/src/i18n/`: `en.ts` defines the keys, `es.ts` and `pt-BR.ts` must provide every one (checked by `tsc`), `{name}` placeholders; the locale comes from the browser once, English when nothing matches.
+- Alternatives rejected: i18next with a language detector.
+- Reason: three fixed languages and no plurals yet; the compiler already rejects a missing translation.
+- Debt created: none.
+- Revisit when: plurals, a language switcher or translated server text appear.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: web deploy replaces the site in place
+
+- Decision: `deploy-customer.yml` builds with the Actions environment's `VITE_` variables, syncs hashed assets with `immutable` caching and `--delete`, uploads `index.html` with `no-cache` last, and waits for a `/*` invalidation; Vite splits Amplify and React into their own chunks.
+- Alternatives rejected: keeping old assets forever; versioned prefixes per deploy.
+- Reason: the plan asks for `s3 sync --delete`; hashed names make long caching safe and `index.html` always points at the new build.
+- Debt created: none while every chunk loads with `index.html`; once routes are lazy-loaded, a tab on the previous build fails to load a deleted chunk until it reloads.
+- Revisit when: the app lazy-loads routes.
+- Source: 0003_walking_skeleton

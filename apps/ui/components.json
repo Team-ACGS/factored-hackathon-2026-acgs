@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@clara/ui/components",
+    "ui": "@clara/ui/components",
+    "utils": "@clara/ui/lib/cn",
+    "lib": "@clara/ui/lib",
+    "hooks": "@clara/ui/hooks"
+  }
+}

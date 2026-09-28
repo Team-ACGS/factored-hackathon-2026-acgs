@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: setup
+source: 0003_walking_skeleton
 ---
 
 # Identity: architecture and debt
@@ -72,3 +72,30 @@ These are design-time decisions, taken from `docs/tasks/_drafts/architecture_and
 - Debt created: none beyond what the general infra module already carries.
 - Revisit when: the auvral pattern itself changes, or the seed process gets an owner.
 - Source: setup
+
+## 2026-09-27: one AssumeRole per request or stream record, no credentials cache
+
+- Decision: `core.access` calls STS for every API request and every chatbot record, with 15 minute credentials, and builds a fresh boto3 session from them.
+- Alternatives rejected: caching credentials per customer in the warm container.
+- Reason: no cache means no bound, eviction or expiry logic, and no way for one customer's credentials to serve another's request.
+- Debt created: every request pays an STS call and a boto3 session, tens of milliseconds.
+- Revisit when: API latency or STS throttling shows in the metrics.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: a staff token maps to a role only with exactly one group
+
+- Decision: `core.access.session_for` assumes `role-agent`, `role-officer` or `role-analyst` from `cognito:groups` and denies a staff token with no group or several.
+- Alternatives rejected: a precedence order among groups.
+- Reason: a person in two groups is a provisioning mistake; guessing which role they meant would hand out the wider one silently.
+- Debt created: none.
+- Revisit when: someone legitimately needs two staff roles.
+- Source: 0003_walking_skeleton
+
+## 2026-09-27: post_confirmation creates the customer through role-customer
+
+- Decision: the `post_confirmation` trigger assumes `role-customer` tagged with the `sub` of Cognito's event and creates the `customers` row only if absent; its own role may only assume `role-customer`, and `role-customer` gains `PutItem` on `customers` (no `UpdateItem`) under the same `LeadingKeys` condition. The event joins the JWT and the stream record as a trusted source of the session tag.
+- Alternatives rejected: `PutItem` on `customers` in the trigger's own role (task 0004), which broke "no lambda touches a table with its own role".
+- Reason: one rule for every table access, and IAM still refuses a row whose key is not the tagged `sub`; the event comes from Cognito, never from a client.
+- Debt created: `terraform apply` of the role changes must land before the lambda deploy that uses them, or sign-up confirmation fails on `AssumeRole`.
+- Revisit when: a second writer of `customers` appears, such as the seed.
+- Source: 0003_walking_skeleton

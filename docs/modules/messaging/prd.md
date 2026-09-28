@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-27
-source: setup
+source: 0003_walking_skeleton
 ---
 
 # Messaging: product
 
-Status: designed, not built.
+Status: built for customers talking to Clara (task 0003); agent handoff and rating are designed, not built.
 
 ## Purpose
 
@@ -19,9 +19,10 @@ It also solves a latency problem: Claude composing a reply can take longer than 
 
 1. The customer types in the chat window and sends.
 2. The reply does not come back on that same request; it arrives moments later in the same window, pushed to the browser.
-3. The customer never sees a spinner tied to a timeout, only the reply appearing.
+3. The customer never sees a spinner tied to a timeout: the message shows a clock until the bank confirms it, then a check, and the reply appears on its own.
+4. Reloading the chat shows the latest conversation in order.
 
-Errors and empty states: not designed yet, in particular what the customer sees if the push never arrives (dropped connection) [inferido].
+Errors and empty states: a message that cannot be sent after automatic retries shows "not sent" with a retry; if the live connection drops, the chat says so and asks for a reload; there are no read receipts.
 
 ### Human agent joins the same window
 
@@ -44,7 +45,7 @@ Errors and empty states: not designed yet [inferido].
 
 - The customer-facing request that sends a message never waits for Clara's reply; it confirms the write, and the reply arrives over the room's realtime channel.
 - The room the human agent joins is the same room the customer was already in; a handoff never starts a fresh conversation the customer has to repeat themselves into (`docs/product/01-flows.md` flow 2, and the measured goal "re-asks per handoff").
-- Once an agent has joined, "the bot goes silent" (`docs/product/01-flows.md` flow 2); whether that is enforced by this module (refusing to publish further bot messages to the room) or simply by the assistant no longer being invoked for that room is not decided [inferido].
+- Once a room is delegated to a human, "the bot goes silent" (`docs/product/01-flows.md` flow 2): the assistant reads `delegated_to_human` and does not answer; messaging still delivers everything.
 - A human agent's message arrives for the customer exactly the way a bot's reply does; nothing about how a message shows up changes when a person takes over the same window (setup decision, 2026-09-27).
 - The customer's rating (1 to 5, optional comment) lives on the room; there is no separate feedback record to keep in sync (setup decision, 2026-09-27).
 

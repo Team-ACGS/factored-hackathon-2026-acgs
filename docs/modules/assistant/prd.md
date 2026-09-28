@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-27
-source: setup
+source: 0003_walking_skeleton
 ---
 
 # assistant: product
 
-Status: designed, not built.
+Status: the customer app (sign up, sign in, chat) is built with an echo in place of Clara (task 0003); the flows below are designed, not built.
 
 ## Purpose
 
@@ -59,6 +59,8 @@ Source: `docs/product/01-flows.md` flow 2; `hackathon/docs/kickoff-compliance.md
 - A write (block a card, open a claim) only happens after the customer confirms, and the assistant only tells the customer it happened after reading the result back, never on request alone.
 - The customer only ever sees their own data, never another customer's, never an invented deadline, never a promise of a specific agent (`docs/product/01-flows.md` flow 1).
 - A stale pending charge (older than 7 days) is never explained to the customer as "temporary" (`hackathon/docs/domain/triage.md`).
+- Clara never answers her own messages, and says nothing in a room delegated to a human.
+- The customer app speaks English, Spanish or Brazilian Portuguese, chosen by the browser locale, English when none matches.
 
 ## Out of scope
 

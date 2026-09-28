@@ -9,15 +9,17 @@ locals {
   access_role_defaults = {
     session_tag = null
     write       = []
+    create      = []
     scan        = false
   }
 
   access_role_specs = {
     customer = {
-      assumed_by  = ["crud", "messages", "chatbot"]
+      assumed_by  = ["crud", "messages", "chatbot", "auth-post-confirmation"]
       session_tag = "customer_id"
       read        = local.customer_owned_tables
       write       = ["products", "complaints", "rooms", "messages"]
+      create      = ["customers"]
     }
 
     agent = {
@@ -43,6 +45,11 @@ locals {
     for name, spec in local.access_role_specs : name => merge(local.access_role_defaults, spec)
   }
 
+  function_role_arns = merge(
+    { for name, fn in module.function : name => fn.role_arn },
+    { for name, fn in module.auth_function : "auth-${name}" => fn.role_arn },
+  )
+
   access_role_arns = {
     for name in keys(local.access_role_specs) :
     name => "arn:aws:iam::${local.account_id}:role/${local.name_prefix}-role-${name}"
@@ -57,7 +64,7 @@ data "aws_iam_policy_document" "access_role_trust" {
 
     principals {
       type        = "AWS"
-      identifiers = [for fn in each.value.assumed_by : module.function[fn].role_arn]
+      identifiers = [for fn in each.value.assumed_by : local.function_role_arns[fn]]
     }
 
     dynamic "condition" {
@@ -108,6 +115,26 @@ data "aws_iam_policy_document" "access_role" {
       sid       = "Write"
       actions   = local.item_write_actions
       resources = [for t in each.value.write : local.table_arns[t]]
+
+      dynamic "condition" {
+        for_each = each.value.session_tag == null ? [] : [each.value.session_tag]
+
+        content {
+          test     = "ForAllValues:StringEquals"
+          variable = "dynamodb:LeadingKeys"
+          values   = ["$${aws:PrincipalTag/${condition.value}}"]
+        }
+      }
+    }
+  }
+
+  dynamic "statement" {
+    for_each = length(each.value.create) > 0 ? [1] : []
+
+    content {
+      sid       = "Create"
+      actions   = ["dynamodb:PutItem"]
+      resources = [for t in each.value.create : local.table_arns[t]]
 
       dynamic "condition" {
         for_each = each.value.session_tag == null ? [] : [each.value.session_tag]

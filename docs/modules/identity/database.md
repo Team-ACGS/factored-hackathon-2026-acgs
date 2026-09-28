@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-27
-source: task 0004
+source: 0003_walking_skeleton
 ---
 
 # Identity: database
 
-Status: designed, not built.
+Status: roles built (task 0001), assumed by the lambdas since task 0003.
 
 Identity keeps no DynamoDB table of its own; its store is Cognito (the two user pools) plus the IAM roles Terraform will define.
 The seven tables themselves are defined by a different `infra/` leaf module and loaded by a separate seed process whose owner is not decided; identity only owns who may act on them.
@@ -30,8 +30,8 @@ There is no `cases` table and no `users` table: `cases` is a module name only (c
 ## Invariants kept in code
 
 - A request-handling lambda never reads a table with its own execution role; it always assumes `role-customer`, `role-agent`, `role-officer` or `role-analyst` first.
-- `customer_id` is the Cognito `sub` of the `customers` pool; `post_confirmation` writes the `customers` row with it, only if absent (its role can `PutItem` on `customers` and nothing else).
-- The `customer_id` session tag passed to `AssumeRole` always comes from the verified JWT's `sub`, never from a request parameter, so a lambda cannot be asked to tag a session with someone else's id.
+- `customer_id` is the Cognito `sub` of the `customers` pool; `post_confirmation` writes the `customers` row with it, only if absent, through `role-customer` tagged with that `sub`, which may create its own row and never update it; the trigger's own role touches no table.
+- The `customer_id` session tag passed to `AssumeRole` comes from the verified JWT's `sub` (`messages`), the stream record the table itself wrote (`chatbot`) or the Cognito trigger event (`post_confirmation`), never from a request parameter, so a lambda cannot be asked to tag a session with someone else's id.
 
 ## Migrations of note
 

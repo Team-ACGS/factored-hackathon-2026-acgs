@@ -7,12 +7,15 @@
 locals {
   auth_triggers = {
     post-confirmation = {
-      environment = { TABLE_CUSTOMERS = module.table["customers"].name }
+      environment = {
+        TABLE_CUSTOMERS   = module.table["customers"].name
+        ROLE_CUSTOMER_ARN = local.access_role_arns.customer
+      }
 
       policy_statements = {
-        customers_create = {
-          actions   = ["dynamodb:PutItem"]
-          resources = [module.table["customers"].arn]
+        assume_customer_role = {
+          actions   = ["sts:AssumeRole", "sts:TagSession"]
+          resources = [local.access_role_arns.customer]
         }
       }
     }
