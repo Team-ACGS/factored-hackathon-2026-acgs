@@ -19,7 +19,7 @@ Only `data/` is built; every other folder is designed and described here as agre
 
 - Layout:
   - `data/`: dataset pipeline (raw CSV to curated Parquet, contracts, figures). Built.
-  - `lambdas/`: uv workspace of Python lambdas: `core` (shared package bundled into every zip), `auth` (Cognito triggers), `crud`, `chatbot`, `notifications`.
+  - `lambdas/`: uv workspace of Python lambdas: `core` (shared package bundled into every zip), `auth` (Cognito triggers), `crud`, `messages`, `chat_notifier`, `chatbot`.
   - `apps/`: pnpm workspace of three client-side SPAs (React, Vite, TanStack Router): `customer` (factoredai.sdfles.com), `support` (support.), `backoffice` (backoffice.), plus a shared `ui` package.
   - `training/`: training code for own models; artifacts versioned in S3, never in git.
   - `evaluation/`: held-out set, baselines and harness.
@@ -36,9 +36,11 @@ Only `data/` is built; every other folder is designed and described here as agre
 ## Runtime architecture
 
 - Client SPAs on S3 behind CloudFront, one distribution per app, certificates from ACM, records in the existing Route 53 zone `sdfles.com`.
-- API Gateway (REST) on `api.factoredai.sdfles.com` with a Cognito authorizer accepting both pools: `/crud/*` to `crud`, `/chat/*` to `chatbot`.
+- API Gateway (REST) on `api.factoredai.sdfles.com` with a Cognito authorizer accepting both pools: `/crud/*` to `crud`, `/messages/*` to `messages`.
 - No lambda calls another lambda; shared behavior lives in `lambdas/core`.
-- A turn: `chatbot` understands, decides with the rules table, acts, composes with Claude Sonnet 5 on Bedrock, and publishes the reply to SQS; `notifications` writes `messages` and pushes it through an AppSync Events channel per room.
+- A message is written once: `messages` stores it (and the room when new) with a conditional write; the `messages` DynamoDB stream feeds `chat_notifier`, which pushes it to the room's AppSync Events channel, and `chatbot`, which only sees customer messages (`sender_type = customer`).
+- A turn: `chatbot` understands, decides with the rules table, acts, composes with Claude Sonnet 5 on Bedrock, and writes the reply as an ordinary message, which reaches clients through the same notifier.
+- Each stream consumer has 3 retries, bisect on error and its own SQS DLQ.
 - Isolation: the lambda reads pool and `cognito:groups` from the token and assumes `role-customer` (session tag `customer_id`, `dynamodb:LeadingKeys`), `role-agent`, `role-officer` or `role-analyst`; lambdas cannot read tables with their own role.
 - Identity: pool `customers` (self sign-up, email and password, email verification code through SES) and pool `staff` (created by us, email and password, no MFA, groups `agents`, `officers`, `analysts`); triggers `post_confirmation` and `pre_token_generation` in `lambdas/auth`.
 - Email: SES from `notifications.factoredai.sdfles.com`.
@@ -89,7 +91,7 @@ Modules belong to the application and may span folders.
 | assistant | Clara's turn: triage explain, claim or protect; rules decide, the LLM extracts and writes | `lambdas/chatbot`, `lambdas/core`, `apps/customer` | [README](modules/assistant/README.md) |
 | cases | Case record in `complaints`, lifecycle, handoff package, agent console | `lambdas/crud`, `lambdas/core`, `apps/support` | [README](modules/cases/README.md) |
 | inbox | Categorize, rank and assign cases for officers | `lambdas/`, `apps/backoffice` | [README](modules/inbox/README.md) |
-| messaging | Rooms, messages, SQS and AppSync Events, customer rating | `lambdas/notifications` | [README](modules/messaging/README.md) |
+| messaging | Rooms, messages, the messages stream and AppSync Events, customer rating | `lambdas/messages`, `lambdas/chat_notifier`, `lambdas/core` | [README](modules/messaging/README.md) |
 | identity | Cognito pools, triggers, IAM roles and per-customer isolation | `lambdas/auth`, `infra/` | [README](modules/identity/README.md) |
 | models | Intent router and injection detector (e5 plus logistic regression) | `training/` | [README](modules/models/README.md) |
 | evaluation | Held-out set, baselines, rubric metrics, improvement console (later) | `evaluation/` | [README](modules/evaluation/README.md) |

@@ -97,5 +97,5 @@ resource "aws_lambda_function" "this" {
     ignore_changes = [s3_key, s3_object_version, source_code_hash, publish]
   }
 
-  depends_on = [aws_iam_role_policy.runtime]
+  depends_on = [aws_iam_role_policy.runtime, aws_iam_role_policy.access]
 }

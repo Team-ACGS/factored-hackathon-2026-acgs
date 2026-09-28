@@ -2,6 +2,7 @@ locals {
   table_defaults = {
     range_key                = null
     global_secondary_indexes = {}
+    stream_view_type         = null
   }
 
   table_specs = {
@@ -47,9 +48,10 @@ locals {
     }
 
     messages = {
-      hash_key   = "customer_id"
-      range_key  = "message_key"
-      attributes = { customer_id = "S", message_key = "S" }
+      hash_key         = "customer_id"
+      range_key        = "message_key"
+      attributes       = { customer_id = "S", message_key = "S" }
+      stream_view_type = "NEW_IMAGE"
     }
   }
 
@@ -73,4 +75,5 @@ module "table" {
   range_key                = each.value.range_key
   attributes               = each.value.attributes
   global_secondary_indexes = each.value.global_secondary_indexes
+  stream_view_type         = each.value.stream_view_type
 }

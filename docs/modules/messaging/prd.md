@@ -21,7 +21,7 @@ It also solves a latency problem: Claude composing a reply can take longer than 
 2. The reply does not come back on that same request; it arrives moments later in the same window, pushed to the browser.
 3. The customer never sees a spinner tied to a timeout, only the reply appearing.
 
-Errors and empty states: not designed yet, in particular what the customer sees if the push never arrives (queue failure, dropped connection) [inferido].
+Errors and empty states: not designed yet, in particular what the customer sees if the push never arrives (dropped connection) [inferido].
 
 ### Human agent joins the same window
 
@@ -42,7 +42,7 @@ Errors and empty states: not designed yet [inferido].
 
 ## Rules
 
-- The customer-facing request that sends a message never waits for Clara's reply; the reply is delivered asynchronously over the room's realtime channel, which is the entire reason the chatbot publishes to a queue instead of answering inline (module brief).
+- The customer-facing request that sends a message never waits for Clara's reply; it confirms the write, and the reply arrives over the room's realtime channel.
 - The room the human agent joins is the same room the customer was already in; a handoff never starts a fresh conversation the customer has to repeat themselves into (`docs/product/01-flows.md` flow 2, and the measured goal "re-asks per handoff").
 - Once an agent has joined, "the bot goes silent" (`docs/product/01-flows.md` flow 2); whether that is enforced by this module (refusing to publish further bot messages to the room) or simply by the assistant no longer being invoked for that room is not decided [inferido].
 - A human agent's message arrives for the customer exactly the way a bot's reply does; nothing about how a message shows up changes when a person takes over the same window (setup decision, 2026-09-27).
@@ -58,4 +58,4 @@ Errors and empty states: not designed yet [inferido].
 ## Open questions
 
 - Whether a room can exist before any complaint (case) does (a customer asking a question that resolves as `EXPLAIN`, no claim ever opened), or a room is only created once a claim or handoff happens; `docs/product/01-flows.md` flow 1 shows plain Q&A happening in the same chat, which suggests rooms predate complaints, but no source states it directly [inferido].
-- Whether message content reaching this module has already passed the assistant's grounding check, or messaging is expected to do anything with it beyond store and forward; the confirmed architecture only says the chatbot "publishes the reply" [inferido].
+- Whether message content reaching this module has already passed the assistant's grounding check, or messaging is expected to do anything with it beyond store and forward; the reply is written as an ordinary message [inferido].

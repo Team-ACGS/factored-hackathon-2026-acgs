@@ -7,7 +7,7 @@ An apply is run by a person; CI only plans.
 ```
 environments/core/  Account singletons that outlive prd: API Gateway logging role, admin users
 environments/prd/   The root: providers, locals, state, the OIDC lookup
-stacks/backend/     Cognito, DynamoDB and access roles, lambdas, API, SQS, AppSync, SES, events, dashboards, deploy roles
+stacks/backend/     Cognito, DynamoDB and access roles, lambdas, API, messages stream, AppSync, SES, events, dashboards, deploy roles
 stacks/frontend/    The three webs: S3, CloudFront, Route 53, deploy roles and Actions environments
 modules/aws/*       One leaf module per service
 modules/github/     actions_environment
@@ -114,6 +114,7 @@ Each role trusts one environment through the OIDC subject `repo:Team-ACGS/factor
 | `terraform` | `fmt`, `validate`, `plan` on pull requests, any branch | `AWS_REGION`, `AWS_ROLE_ARN`, secret `TF_GITHUB_APP_PEM` |
 
 Lambda deploys follow auvral: build one zip per function with pinned mtimes, upload to `s3://$ARTIFACTS_BUCKET/functions/<sha>/<function>.zip`, and call `update-function-code` on `$FUNCTION_PREFIX-<function>` only when its `CodeSha256` differs.
-Functions are `crud`, `chatbot`, `notifications`, `auth-post-confirmation` and `auth-pre-token-generation`; Terraform ignores their code after creation, so an apply never rolls a deploy back.
+Functions are `crud`, `messages`, `chat-notifier`, `chatbot`, `auth-post-confirmation` and `auth-pre-token-generation`; Terraform ignores their code after creation, so an apply never rolls a deploy back.
+Every API and stream lambda has handler `handler.handler`; the triggers have `post_confirmation.handler` and `pre_token_generation.handler`.
 Web deploys run `aws s3 sync --delete` into `SITE_BUCKET` and invalidate `DISTRIBUTION_ID`; the build always writes `index.html`, which replaces the placeholder Terraform created.
 The plan role is `ReadOnlyAccess` minus customer data (table items, users, logs, queue messages, turn events) plus the state lock; fork pull requests get no environment secrets and no OIDC token, so they cannot plan.

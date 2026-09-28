@@ -13,6 +13,11 @@ locals {
       resources = [local.access_role_arns.customer]
     }
 
+    assume_agent_role = {
+      actions   = ["sts:AssumeRole"]
+      resources = [local.access_role_arns.agent]
+    }
+
     assume_staff_roles = {
       actions   = ["sts:AssumeRole"]
       resources = [local.access_role_arns.agent, local.access_role_arns.officer, local.access_role_arns.analyst]
@@ -26,34 +31,29 @@ locals {
       )
     }
 
-    replies_enqueue = {
-      actions   = ["sqs:SendMessage"]
-      resources = [module.replies_queue.arn]
-    }
-
-    replies_consume = {
-      actions = [
-        "sqs:ReceiveMessage",
-        "sqs:DeleteMessage",
-        "sqs:ChangeMessageVisibility",
-        "sqs:GetQueueAttributes",
-      ]
-      resources = [module.replies_queue.arn]
-    }
-
     turn_events_put = {
       actions   = ["events:PutEvents"]
       resources = [module.event_bus.arn]
     }
 
-    messages_write = {
-      actions   = ["dynamodb:PutItem"]
-      resources = [module.table["messages"].arn]
+    messages_stream_read = {
+      actions   = ["dynamodb:DescribeStream", "dynamodb:GetRecords", "dynamodb:GetShardIterator"]
+      resources = [module.table["messages"].stream_arn]
     }
 
-    rooms_update = {
-      actions   = ["dynamodb:UpdateItem"]
-      resources = [module.table["rooms"].arn]
+    streams_list = {
+      actions   = ["dynamodb:ListStreams"]
+      resources = ["*"]
+    }
+
+    chat_notifier_failures = {
+      actions   = ["sqs:SendMessage"]
+      resources = [module.stream_dlq["chat-notifier"].arn]
+    }
+
+    chatbot_failures = {
+      actions   = ["sqs:SendMessage"]
+      resources = [module.stream_dlq["chatbot"].arn]
     }
 
     realtime_publish = {
@@ -73,7 +73,6 @@ locals {
     CUSTOMER_CLIENT_ID     = module.customers_pool.client_ids["customer"]
     SUPPORT_CLIENT_ID      = module.staff_pool.client_ids["support"]
     BACKOFFICE_CLIENT_ID   = module.staff_pool.client_ids["backoffice"]
-    REPLIES_QUEUE_URL      = module.replies_queue.url
   })
 
   function_defaults = {
@@ -86,33 +85,37 @@ locals {
 
   function_specs = {
     crud = {
-      capabilities = ["assume_customer_role", "assume_staff_roles", "replies_enqueue"]
+      capabilities = ["assume_customer_role", "assume_staff_roles"]
       environment  = local.request_env
     }
 
+    messages = {
+      capabilities = ["assume_customer_role", "assume_agent_role"]
+      environment  = local.request_env
+    }
+
+    chat-notifier = {
+      capabilities = ["messages_stream_read", "streams_list", "chat_notifier_failures", "realtime_publish"]
+      timeout      = 30
+
+      environment = {
+        REALTIME_HTTP_URL  = module.realtime.http_url
+        REALTIME_NAMESPACE = module.realtime.namespace
+      }
+    }
+
     chatbot = {
-      capabilities = ["assume_customer_role", "bedrock_invoke", "replies_enqueue", "turn_events_put"]
+      capabilities = ["messages_stream_read", "streams_list", "chatbot_failures", "assume_customer_role", "bedrock_invoke", "turn_events_put"]
       namespace    = "Clara/Assistant"
       memory_size  = 1024
       timeout      = 60
 
-      environment = merge(local.request_env, {
-        BEDROCK_MODEL_ID = data.aws_bedrock_inference_profile.assistant.inference_profile_id
-        EVENT_BUS_NAME   = module.event_bus.name
-        EVENT_SOURCE     = local.turn_event_source
+      environment = merge(local.table_env, {
+        ROLE_CUSTOMER_ARN = local.access_role_arns.customer
+        BEDROCK_MODEL_ID  = data.aws_bedrock_inference_profile.assistant.inference_profile_id
+        EVENT_BUS_NAME    = module.event_bus.name
+        EVENT_SOURCE      = local.turn_event_source
       })
-    }
-
-    notifications = {
-      capabilities = ["replies_consume", "messages_write", "rooms_update", "realtime_publish"]
-      timeout      = local.notifications_timeout
-
-      environment = {
-        TABLE_MESSAGES     = module.table["messages"].name
-        TABLE_ROOMS        = module.table["rooms"].name
-        REALTIME_HTTP_URL  = module.realtime.http_url
-        REALTIME_NAMESPACE = module.realtime.namespace
-      }
     }
   }
 

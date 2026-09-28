@@ -1,46 +1,49 @@
 ---
 updated: 2026-09-27
-source: setup
+source: task 0002
 ---
 
 # Messaging: technical
 
-Status: designed, not built.
-Nothing under `lambdas/notifications` exists yet; this describes the agreed design, source `docs/tasks/_drafts/architecture_and_layout.md`, the module brief and the setup decisions of 2026-09-27.
-Turn logic (intent, state, decision; 13 intents) follows `docs/tasks/_drafts/turn_flow.md`; compute stays lambdas, SQS and AppSync Events, not that draft's ECS/SSE shape (setup decision, 2026-09-27).
+Status: infrastructure built (task 0002), code not built.
 
 ## Structure
 
 | Path | What |
 |---|---|
-| `lambdas/notifications` | Python lambda, part of the `uv` workspace, bundles the shared `core` package; SQS-triggered consumer that writes the `rooms`/`messages` tables (2 of the 7 confirmed DynamoDB tables) and publishes to the room's AppSync Events channel; uses Lambda Powertools (Logger, Metrics, Tracer) and X-Ray tracing like every lambda (the setup decisions of 2026-09-27, points 1 and 7) [inferido: exact file layout] |
-| SQS queue (name not decided) | Declared in Terraform, `infra/modules/aws/*`; `lambdas/chatbot` (assistant) publishes a bot's reply here, and a human agent's message reaches the same queue through some API Gateway route (setup decision, 2026-09-27); `lambdas/notifications` consumes it; per the "no lambda-to-lambda calls" decision no lambda calls another directly [architecture_and_layout.md] |
-| AppSync Events API (name not decided) | One events API, one channel per room, per the confirmed architecture ("Realtime: AppSync Events API (pub/sub channels per room)"); `auvral/docs/modules/infra/trd.md` documents the same shape, one Events API per environment, as the style reference [inferido: whether this project needs more than one API or namespace] |
+| `lambdas/messages` | API lambda behind `/messages/*`: writes a message (and the room when it is new) through the messaging code in `core`, and reads a room's history. Assumes `role-customer` for a customer token and `role-agent` for an agent token. |
+| `lambdas/chat_notifier` | Consumer of the `messages` stream (inserts): publishes each new message to its room's AppSync Events channel. It can read the stream and publish, nothing else. |
+| messaging code in `lambdas/core` | The only code that writes `messages` and `rooms`, with conditional writes on deterministic ids. |
+| AppSync Events API `clara-prd` | Namespace `rooms`, one channel per room: `/rooms/<room_id>`. Publishing is IAM only; subscribing takes a Cognito id token from either pool. |
 
 ## Endpoints owned
 
-None named yet.
-setup decision, 2026-09-27 states a human agent's message travels API -> SQS -> notifications, which implies some API Gateway route publishes it to the queue; which lambda owns that route (a new one, or an existing one such as `lambdas/crud`) is not decided [inferido].
+- `POST /messages`: send a message to a room, creating the room with the first message.
+- `GET /messages/...`: a room's history in order (exact path set by the code).
 
-Jobs, listeners or scheduled work:
-- `lambdas/notifications`, triggered by the SQS queue both `lambdas/chatbot` and the agent's message route publish to.
+Both sit behind the API's Cognito authorizer (both pools) on `api.factoredai.sdfles.com`.
+
+Jobs and listeners:
+
+- `chat-notifier` on the `messages` stream, inserts only, batch 10.
+- `chatbot` (assistant) on the same stream, inserts whose `sender_type` is `customer` only, batch 1.
+- Both mappings: parallelization 10 (order kept per `customer_id`), 3 retries, bisect on error, an SQS DLQ each (`clara-prd-chat-notifier-dlq`, `clara-prd-chatbot-dlq`).
 
 ## Depends on
 
-- assistant (`lambdas/chatbot`): publishes the finished, already-composed reply to SQS once a turn is decided; messaging only consumes, per the no-lambda-to-lambda-calls rule it never calls back into `chatbot` (`docs/tasks/_drafts/architecture_and_layout.md`).
-- identity: owns the IAM roles that decide who may read or write `rooms`/`messages` (setup decision, 2026-09-27); the agent side is `role-agent`, scoped to the Cognito `agents` group on `support.factoredai.sdfles.com` (setup decision, 2026-09-27). The exact per-channel realtime authorization (a customer only their own room, an agent only an assigned room) is not designed yet [inferido].
-- infra: declares the `rooms` and `messages` tables and the SQS queue; a separate seed process, owner not decided, loads them (setup decision, 2026-09-27).
+- identity: `role-customer` and `role-agent` write `messages` and `rooms`; `role-customer` only for the caller's own `customer_id`.
+- infra: the tables, the stream, the mappings and the DLQs are in `infra/stacks/backend/` (`dynamo.tf`, `streams.tf`).
 
 ## Depended on by
 
-- assistant (`apps/customer`): the customer's chat SPA subscribes to its room's channel to receive Clara's replies without polling.
-- cases (`apps/support`): the agent console joins the same room on handoff (`docs/product/01-flows.md` flow 2); `cases/trd.md` already names this dependency from its side.
+- assistant: `chatbot` is triggered by customer messages and writes its reply as an ordinary message through the same messaging code, assuming `role-customer` with the record's `customer_id`.
+- `apps/customer` and `apps/support`: send through `/messages`, subscribe to the room's channel.
 
 ## Configuration
 
-Not designed yet.
-By architecture pattern, expect the SQS queue URL, the AppSync Events API endpoint and the `rooms`/`messages` table names as environment variables set by Terraform, same as every other lambda [inferido].
+- `messages`: the table names, `ROLE_CUSTOMER_ARN`, `ROLE_AGENT_ARN`, pool and client ids.
+- `chat-notifier`: `REALTIME_HTTP_URL`, `REALTIME_NAMESPACE`.
 
 ## Testing
 
-Not designed yet; no tests exist because no code exists.
+No code yet.

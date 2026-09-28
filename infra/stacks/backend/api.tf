@@ -11,7 +11,7 @@ module "api" {
   log_retention_days     = var.log_retention_days
 
   routes = merge([
-    for prefix, fn in { crud = "crud", chat = "chatbot" } : {
+    for prefix, fn in { crud = "crud", messages = "messages" } : {
       "${prefix}" = {
         path          = prefix
         method        = "ANY"

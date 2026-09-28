@@ -14,16 +14,16 @@ locals {
 
   access_role_specs = {
     customer = {
-      assumed_by  = ["crud", "chatbot"]
+      assumed_by  = ["crud", "messages", "chatbot"]
       session_tag = "customer_id"
       read        = local.customer_owned_tables
-      write       = ["products", "complaints", "rooms"]
+      write       = ["products", "complaints", "rooms", "messages"]
     }
 
     agent = {
-      assumed_by = ["crud"]
+      assumed_by = ["crud", "messages"]
       read       = keys(local.tables)
-      write      = ["complaints", "rooms"]
+      write      = ["complaints", "rooms", "messages"]
     }
 
     officer = {

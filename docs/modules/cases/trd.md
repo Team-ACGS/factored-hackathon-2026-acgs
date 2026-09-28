@@ -33,8 +33,8 @@ Jobs, listeners or scheduled work: none found.
 - identity module: owns the IAM roles `lambdas/core`'s case code assumes to read and write the `complaints` table: `role-customer` when called from `lambdas/chatbot` (Clara opening a case), `role-agent` or `role-officer` when called from `lambdas/crud` (agent/officer reads and resolutions); neither lambda reads or writes the table directly.
 - Cognito staff pool, groups `agents` (support., live chat) and `officers` (backoffice., reviews complaints); app clients per app.
 - assistant module (`lambdas/chatbot`): decides `HANDOFF`, or an immediate `CLAIM`/`PROTECT`, and calls `lambdas/core` in-process to create the case and attach the handoff package; cases does not decide when this happens, it only owns the code that writes it [boundary given in the brief].
-- messaging module (`lambdas/notifications`): agent messages in the live chat take the same path as every other message, API -> SQS -> notifications; the chat transport itself belongs to messaging, not cases.
-- observability stack: AWS Lambda Powertools (Python), Logger/Metrics/Tracer in every lambda that calls into `lambdas/core`, plus Idempotency on case creation; CloudWatch Logs (structured JSON), EMF metrics in namespace `Clara/Backend`, X-Ray active tracing.
+- messaging module (`lambdas/messages`): agent messages in the live chat take the same path as every other message, `POST /messages`; the chat transport itself belongs to messaging, not cases.
+- observability stack: AWS Lambda Powertools (Python), Logger/Metrics/Tracer in every lambda that calls into `lambdas/core`; case creation is idempotent through a conditional write; CloudWatch Logs (structured JSON), EMF metrics in namespace `Clara/Backend`, X-Ray active tracing.
 
 ## Depended on by
 

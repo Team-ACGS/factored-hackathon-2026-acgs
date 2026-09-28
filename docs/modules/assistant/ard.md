@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: setup
+source: task 0002
 ---
 
 # assistant: architecture and debt
@@ -88,7 +88,7 @@ source: setup
 
 ## 2026-09-27: observability from day one, analysis deferred
 
-- Decision: every lambda uses AWS Lambda Powertools for Python (Logger, Metrics, Tracer, and Idempotency on the block-card and create-complaint writes), CloudWatch Logs in structured JSON, EMF metrics in namespaces `Clara/Backend` and `Clara/Assistant`, and X-Ray active tracing on the lambda and the API Gateway stage; `lambdas/chatbot` also calls EventBridge PutEvents once per turn onto bus `clara` with ids and a `trace_id`, never message text.
+- Decision: every lambda uses AWS Lambda Powertools for Python (Logger, Metrics, Tracer), CloudWatch Logs in structured JSON, EMF metrics in namespaces `Clara/Backend` and `Clara/Assistant`, and X-Ray active tracing; the block-card and create-complaint writes are idempotent through conditional writes, not Powertools Idempotency; `lambdas/chatbot` also calls EventBridge PutEvents once per turn onto bus `clara-prd` with ids and a `trace_id`, never message text.
 - Alternatives rejected: none recorded.
 - Reason: not recorded beyond the decision itself.
 - Debt created: analysis of the emitted turn events and the offline LLM judge are both deferred past this decision; see `docs/tasks/_drafts/turn_events_analysis.md`.

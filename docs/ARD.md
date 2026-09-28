@@ -13,7 +13,7 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 
 ## 2026-09-27: Serverless on Lambda, no containers, no VPC
 
-- Decision: API Gateway in front of Python lambdas (`core`, `auth`, `crud`, `chatbot`, `notifications`) with a shared package bundled into each zip; no lambda calls another lambda.
+- Decision: Python lambdas (`auth`, `crud`, `messages`, `chat_notifier`, `chatbot`) behind API Gateway or a DynamoDB stream, with a shared package `core` bundled into each zip; no lambda calls another lambda.
 - Alternatives rejected: FastAPI on ECS Fargate (`docs/product/03-architecture.md`); an EC2 instance for own models; lambda-to-lambda calls from `chatbot` to `crud`.
 - Reason: no always-on cost, no VPC or NAT gateway, one deploy shape for everything; a shared package avoids chained cold starts and cascading failures.
 - Debt created: own-model serving is designed as a Lambda container image but not in `infra/` yet.

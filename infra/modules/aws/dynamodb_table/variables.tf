@@ -29,6 +29,12 @@ variable "global_secondary_indexes" {
   default = {}
 }
 
+variable "stream_view_type" {
+  description = "What the table's stream carries (NEW_IMAGE, OLD_IMAGE, NEW_AND_OLD_IMAGES or KEYS_ONLY). Null leaves the table without a stream."
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags added to the provider default tags"
   type        = map(string)

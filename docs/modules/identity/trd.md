@@ -23,13 +23,13 @@ The two functions in `lambdas/auth/` are invoked by Cognito itself as Lambda tri
 
 Jobs, listeners or scheduled work: none.
 
-Both triggers use AWS Lambda Powertools (Python) for structured JSON logging and X-Ray active tracing, the same as every other lambda in the project; they emit no Idempotency-guarded writes of their own, so Powertools Idempotency does not apply here.
+Both triggers use AWS Lambda Powertools (Python) for structured JSON logging and X-Ray active tracing, the same as every other lambda in the project; they write nothing of their own.
 
 ## Depends on
 
 - SES: sends the sign-up verification code for the `customers` pool from `notifications.factoredai.sdfles.com`, never the apex; this is Cognito's standard email-verification message, not a passwordless sign-in flow.
 - Route 53: DKIM records for that sending subdomain; the zone already exists.
-- STS: every other lambda (`core`, `chatbot`, `crud`, `notifications`) calls `AssumeRole` against the roles this module defines; identity owns the roles, not the calls.
+- STS: the request lambdas (`crud`, `messages`) and `chatbot` call `AssumeRole` against the roles this module defines; identity owns the roles, not the calls.
 - infra/ (a different leaf module than this one): defines the seven DynamoDB tables the roles below grant access to; identity does not own the tables, only who may act on them. A separate seed process, owner not decided, loads their data; it is neither this module nor the data module.
 
 ## Depended on by

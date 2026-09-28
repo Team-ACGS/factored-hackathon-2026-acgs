@@ -1,20 +1,29 @@
 ---
 updated: 2026-09-27
-source: setup
+source: task 0002
 ---
 
 # Messaging: architecture decisions and debt
 
-Status: designed, not built; entries below record decisions and open risks from the design, not debt from running code.
+Status: infrastructure built (task 0002), code not built.
 
-## 2026-09-27: the chatbot publishes to SQS instead of replying inline
+## 2026-09-27: a message is written once and delivered from the table's stream
 
-- Decision: `lambdas/chatbot` (assistant) publishes the finished reply to an SQS queue rather than returning it in the API Gateway response; `lambdas/notifications` (this module) is the sole consumer.
-- Alternatives rejected: a synchronous request/response held open until Claude composes the reply [inferido, the module brief frames the SQS hop as the fix for exactly this]; long-polling or a direct WebSocket connection from `lambdas/chatbot` itself [inferido].
-- Reason: decouples LLM latency from the API Gateway timeout (module brief); a slow Bedrock call no longer risks failing the customer's turn on a gateway timeout.
-- Debt created: none, deliberate.
-- Revisit when: never, unless API Gateway's timeout budget or the LLM's latency profile changes enough to make a synchronous reply viable again.
-- Source: setup
+- Decision: `lambdas/messages` writes the message; the `messages` DynamoDB stream feeds two consumers, `chat-notifier` (push to the room's channel) and `chatbot` (reply); the reply is an ordinary message on the same path. Supersedes the SQS reply queue and `lambdas/notifications`.
+- Alternatives rejected: chatbot publishing replies to SQS for a notifications lambda to write and push (a dual write that can lose a message); EventBridge fan-out (a second write, no order per room).
+- Reason: the write and the event are one operation, order is kept per `customer_id`, and two consumers fit the recommended two readers per shard.
+- Debt created: a third consumer has to go through EventBridge Pipes; a poison record blocks its customer's messages until three retries send it to the DLQ.
+- Revisit when: a third reader of the stream is needed.
+- Source: task 0002
+
+## 2026-09-27: notifier and chatbot are separate stream consumers
+
+- Decision: `chat-notifier` and `chatbot` each have their own mapping, retries and DLQ; the chatbot mapping only passes messages with `sender_type = customer`.
+- Alternatives rejected: one consumer that pushes and answers.
+- Reason: a Bedrock failure never blocks the push; each role holds only what it needs; Clara cannot answer herself.
+- Debt created: none.
+- Revisit when: never, unless the reply path changes.
+- Source: task 0002
 
 ## 2026-09-27: realtime delivery is AppSync Events, not SSE or polling
 
@@ -36,7 +45,7 @@ Status: designed, not built; entries below record decisions and open risks from 
 
 ## 2026-09-27: turn logic follows turn_flow.md, compute follows the confirmed architecture
 
-- Decision: `docs/tasks/_drafts/turn_flow.md` (intent, state, decision, 13 intents) governs the assistant's turn logic that produces the message this module carries; it does not govern messaging's transport. Compute stays lambdas, SQS and AppSync Events, not that document's ECS/SSE draft.
+- Decision: `docs/tasks/_drafts/turn_flow.md` (intent, state, decision, 13 intents) governs the assistant's turn logic that produces the message this module carries; it does not govern messaging's transport. Compute stays lambdas, DynamoDB Streams and AppSync Events, not that document's ECS/SSE draft.
 - Alternatives rejected: building messaging's delivery path around `turn_flow.md`'s ECS/SSE session model.
 - Reason: settled explicitly (setup decision, 2026-09-27).
 - Debt created: none.
@@ -45,12 +54,12 @@ Status: designed, not built; entries below record decisions and open risks from 
 
 ## 2026-09-27: a human agent's message takes the same write path as the bot's
 
-- Decision: `lambdas/notifications` stays messaging's only writer; a human agent's message reaches it the same way a bot reply does, API -> SQS -> notifications.
-- Alternatives rejected: `apps/support` writing directly to the `messages` table.
-- Reason: settled explicitly (setup decision, 2026-09-27); one writer keeps ordering and any future idempotency in one place.
+- Decision: the messaging code in `lambdas/core` is the only writer of `messages`; an agent's message enters through `POST /messages` like a customer's, and Clara's reply goes through the same code.
+- Alternatives rejected: `apps/support` writing the table directly.
+- Reason: one writer keeps ordering and idempotency in one place.
 - Debt created: none.
 - Revisit when: never, unless a second writer is deliberately introduced.
-- Source: setup
+- Source: setup, updated by task 0002
 
 ## 2026-09-27: the customer's rating and comment are stored on the room
 

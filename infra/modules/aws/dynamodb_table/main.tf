@@ -4,6 +4,8 @@ resource "aws_dynamodb_table" "this" {
   hash_key                    = var.hash_key
   range_key                   = var.range_key
   deletion_protection_enabled = false
+  stream_enabled              = var.stream_view_type != null
+  stream_view_type            = var.stream_view_type
 
   dynamic "attribute" {
     for_each = var.attributes

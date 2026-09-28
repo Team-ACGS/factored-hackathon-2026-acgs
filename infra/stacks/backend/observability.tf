@@ -1,6 +1,6 @@
 locals {
   backend_functions = concat(
-    [module.function["crud"].name, module.function["notifications"].name],
+    [for name in ["crud", "messages", "chat-notifier"] : module.function[name].name],
     [for fn in module.auth_function : fn.name],
   )
 
@@ -57,14 +57,21 @@ locals {
       {
         type = "metric", width = 12, height = 6
         properties = {
-          title  = "Replies queue"
-          region = var.aws_region
-          stat   = "Maximum"
-          period = local.dashboard_period
-          metrics = [
-            ["AWS/SQS", "ApproximateAgeOfOldestMessage", "QueueName", module.replies_queue.name],
-            ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", module.replies_dlq.name],
-          ]
+          title   = "Messages stream iterator age"
+          region  = var.aws_region
+          stat    = "Maximum"
+          period  = local.dashboard_period
+          metrics = [for name in keys(local.stream_consumers) : ["AWS/Lambda", "IteratorAge", "FunctionName", module.function[name].name]]
+        }
+      },
+      {
+        type = "metric", width = 12, height = 6
+        properties = {
+          title   = "Messages stream failures"
+          region  = var.aws_region
+          stat    = "Maximum"
+          period  = local.dashboard_period
+          metrics = [for dlq in module.stream_dlq : ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", dlq.name]]
         }
       },
       {

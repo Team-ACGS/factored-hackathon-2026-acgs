@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: setup
+source: task 0002
 ---
 
 # assistant: database
@@ -19,7 +19,7 @@ The turn engine is a reader of customer-owned data and a writer through tool cal
 |---|---|---|
 | `customers`, `products`, `transactions` (PK `customer_id`) | loaded by a separate seed process, owner not decided; `infra/` defines the tables and identity owns the IAM roles that gate them | Read only, through tools Q1-Q4, with credentials scoped to one `customer_id` |
 | `complaints` (PK `customer_id`, GSI by area and priority) | cases | This table is the case record, historical and new; read through Q5, written only through the `A2 create complaint` and `A3 withdraw complaint` tools, which call the cases module's write code in the shared `lambdas/core` package (also used by `lambdas/crud`), never another lambda |
-| `rooms` / `messages` | messaging | Only reached on `HANDOFF`, when the conversation moves to a human; only `lambdas/notifications` writes `messages`, including messages a human agent sends |
+| `rooms` / `messages` | messaging | Triggered by new customer messages on the `messages` stream; reads the room to skip one delegated to a human; writes its reply through the messaging code in `lambdas/core`, the only writer of `messages` |
 
 ## Invariants kept in code
 

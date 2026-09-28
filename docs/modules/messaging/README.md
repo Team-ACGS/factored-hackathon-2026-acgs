@@ -1,20 +1,20 @@
 ---
 updated: 2026-09-27
-source: setup
+source: task 0002
 ---
 
 # Messaging
 
-Status: designed, not built.
+Status: infrastructure built (task 0002), code not built.
 
-Owns the room and message history shared by a customer, Clara and, once a handoff happens, a human agent, and the async delivery path that gets a finished reply to the client without the customer-facing request ever waiting on it.
-The chatbot lambda (assistant) publishes a finished reply to SQS; this module's `lambdas/notifications` consumes it, writes the room's history and pushes it to the client over an AppSync Events channel.
+Owns the room and message history shared by a customer, Clara and, once a handoff happens, a human agent, and the path that delivers every new message to whoever is watching the room.
+A message is stored once, in `messages`; everyone who cares learns about it from that table's stream, never from a second write.
 
 ## Boundaries
 
-- Owns: the `rooms` and `messages` tables (2 of the 7 confirmed DynamoDB tables), the customer's post-conversation rating and comment, the SQS-to-DynamoDB-to-AppSync-Events delivery path, one realtime channel per room.
-- Does not own: what Clara decides to say (assistant), the case record and its lifecycle (cases, backed by `complaints`), who may join a room as staff (identity).
-- Code: `lambdas/notifications` (does not exist yet).
+- Owns: the `rooms` and `messages` tables, the messaging code in `lambdas/core` (the single path that writes them), `lambdas/messages` (the API), `lambdas/chat_notifier` (the push), one realtime channel per room, the customer's post-conversation rating and comment.
+- Does not own: what Clara decides to say (assistant, `lambdas/chatbot`), the case record and its lifecycle (cases, `complaints`), who may act on a room (identity).
+- Code: `lambdas/messages`, `lambdas/chat_notifier`, messaging code in `lambdas/core` (none exist yet; lambdas run bootstrap bundles).
 
 ## Documents
 

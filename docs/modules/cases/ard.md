@@ -63,7 +63,7 @@ Status: designed, not built; entries below record decisions and open risks from 
 
 ## 2026-09-27: observability is Powertools plus CloudWatch and X-Ray, from day one
 
-- Decision: every lambda that bundles `lambdas/core` (`lambdas/crud`, `lambdas/chatbot`) uses AWS Lambda Powertools for Python (Logger, Metrics, Tracer); `lambdas/core`'s case-creation code applies Idempotency; structured JSON logs to CloudWatch Logs, EMF metrics in namespace `Clara/Backend`, X-Ray active tracing on each lambda and the API Gateway stage.
+- Decision: every lambda that bundles `lambdas/core` (`lambdas/crud`, `lambdas/chatbot`) uses AWS Lambda Powertools for Python (Logger, Metrics, Tracer); `lambdas/core`'s case creation is idempotent through a conditional write; structured JSON logs to CloudWatch Logs, EMF metrics in namespace `Clara/Backend`, X-Ray active tracing on each lambda and the API Gateway stage.
 - Alternatives rejected: none recorded.
 - Reason: applies uniformly to every lambda in the system, decided 2026-09-27.
 - Debt created: none.

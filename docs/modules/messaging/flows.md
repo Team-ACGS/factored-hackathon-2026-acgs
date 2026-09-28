@@ -1,36 +1,40 @@
 ---
 updated: 2026-09-27
-source: setup
+source: task 0002
 ---
 
 # Messaging: flows
 
-Status: designed, not built.
+Status: infrastructure built (task 0002), code not built.
 
 ## Message round trip
 
-Runs on every customer message, and again on every human agent message once a handoff has happened.
-The reply never travels back on the request that sent the message; it arrives over the room's realtime channel instead, which is why `lambdas/chatbot` and `lambdas/notifications` never call each other directly (module brief; `docs/tasks/_drafts/architecture_and_layout.md`, "no lambda-to-lambda calls").
+The same path carries a customer's message, Clara's reply and a human agent's message.
+The request that sends a message only waits for the write; everything else reacts to the table's stream.
 
 ```mermaid
 sequenceDiagram
-    participant C as Customer (apps/customer)
+    participant C as Customer or agent web
     participant GW as API Gateway
+    participant M as lambdas/messages
+    participant DDB as DynamoDB messages
+    participant N as lambdas/chat_notifier
     participant Bot as lambdas/chatbot (assistant)
-    participant Q as SQS
-    participant N as lambdas/notifications (messaging)
-    participant DDB as DynamoDB rooms/messages
     participant Evt as AppSync Events
 
-    C->>GW: send message
-    GW->>Bot: invoke, request returns once accepted
-    Bot->>Bot: understand, decide, compose (assistant module)
-    Bot->>Q: publish finished reply
-    Q->>N: deliver
-    N->>DDB: write message to the room
-    N->>Evt: publish to the room's channel
-    Evt-->>C: push over WebSocket subscription
+    C->>GW: POST /messages
+    GW->>M: invoke (Cognito authorizer)
+    M->>DDB: conditional write (room created if new)
+    M-->>C: 2xx, message confirmed
+    DDB-->>N: stream insert
+    N->>Evt: publish to /rooms/<room_id>
+    Evt-->>C: push over the subscription
+    DDB-->>Bot: stream insert, sender_type = customer only
+    Bot->>Bot: skip if the room is delegated to a human
+    Bot->>DDB: write the reply as a message (sender_type = assistant)
+    DDB-->>N: stream insert
+    N->>Evt: publish the reply
 ```
 
-The same queue and the same consumer carry a human agent's message once the assistant hands the room off (`docs/product/01-flows.md` flow 2): API -> SQS -> notifications, confirmed for both bot and agent (setup decision, 2026-09-27).
-Which lambda owns the API route an agent's message enters through before reaching SQS is not decided yet [inferido].
+Clara's reply never triggers Clara again: the chatbot mapping only passes `sender_type = customer`.
+A record that fails three times goes to its consumer's DLQ, which unblocks the rest of that customer's messages.

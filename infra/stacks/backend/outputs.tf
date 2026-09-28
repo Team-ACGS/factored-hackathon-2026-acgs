@@ -24,7 +24,7 @@ output "client_ids" {
 }
 
 output "realtime_http_url" {
-  description = "AppSync Events endpoint notifications publishes to"
+  description = "AppSync Events endpoint chat-notifier publishes to"
   value       = module.realtime.http_url
 }
 
