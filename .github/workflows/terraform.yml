@@ -5,12 +5,18 @@ on:
     paths:
       - infra/**
       - .github/workflows/terraform.yml
+  push:
+    branches: [main]
+    paths:
+      - infra/**
+      - .github/workflows/terraform.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: terraform-${{ github.event.pull_request.number }}
+  group: terraform-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -47,7 +53,7 @@ jobs:
   plan:
     name: plan ${{ matrix.root }}
     needs: checks
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: terraform
@@ -84,7 +90,13 @@ jobs:
       - name: plan
         env:
           TF_VAR_github_app_pem: ${{ secrets.TF_GITHUB_APP_PEM }}
-        run: terraform plan -no-color -lock-timeout=120s -out=tfplan
+        run: |
+          set -euo pipefail
+          if ! terraform plan -no-color -lock-timeout=120s -out=tfplan > plan.log 2>&1; then
+            grep -v ': Refreshing state\.\.\.' plan.log
+            exit 1
+          fi
+          terraform show -no-color tfplan
 
       - name: Summary
         if: always()
@@ -97,12 +109,11 @@ jobs:
               echo "No plan was produced; see the plan step."
               exit 0
             fi
-            terraform show -no-color tfplan | grep -E '^Plan:|^No changes' || true
+            terraform show -no-color tfplan | grep -E '^Plan:|^No changes' | head -1
             echo
-            echo "<details><summary>Full plan</summary>"
-            echo
-            echo '```'
-            terraform show -no-color tfplan | head -c 900000
-            echo '```'
-            echo "</details>"
+            terraform show -json tfplan | jq -r '.resource_changes[]? | select(.change.actions != ["no-op"] and .change.actions != ["read"]) | "- `\(.address)`: \(.change.actions | join(", "))"'
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${{ github.event_name }}" != "pull_request" ] && ! terraform show -no-color tfplan | grep -q '^No changes'; then
+            echo "::warning::${{ matrix.root }}: main and what is applied in AWS differ"
+          fi
