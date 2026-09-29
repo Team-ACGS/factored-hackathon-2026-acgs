@@ -1,12 +1,12 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # Cases: technical
 
 Status: designed, not built.
-Nothing under `lambdas/core`, `lambdas/crud` or `apps/support` exists yet; this describes the agreed design, source `docs/tasks/_drafts/architecture_and_layout.md`.
+None of the case code or routes below exist yet (`lambdas/crud` and `lambdas/core` exist and serve the customer's own data, see `modules/assistant/trd.md`); this describes the agreed design, source `docs/tasks/_drafts/architecture_and_layout.md`.
 
 ## Structure
 

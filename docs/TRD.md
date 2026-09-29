@@ -1,13 +1,13 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # Technical Requirements Document
 
 Clara, the customer service system for LATAM Bank unrecognized card charges.
 One repository, `Team-ACGS/factored-hackathon-2026-acgs`, base branch `main`.
-Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a walking skeleton (task 0003: every lambda but `crud`, the `customer` app and `ui`); `crud`, `support`, `backoffice`, `training/` and `evaluation/` are designed and described here as agreed on 2026-09-27.
+Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a walking skeleton (task 0003: every lambda, the `customer` app and `ui`; task 0006: `crud` for the customer's own data); `support`, `backoffice`, `training/` and `evaluation/` are designed and described here as agreed on 2026-09-27.
 
 ## Components
 
@@ -29,14 +29,14 @@ Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a 
 - Install: `uv sync` in `data/` and `lambdas/`; `pnpm install --frozen-lockfile` in `apps/`.
 - Workspace files: `data/.env` from `data/.env.example`; `apps/customer/.env.local` from `apps/customer/.env.example` to run the app locally.
 - API spec: none yet.
-- Data: DynamoDB on demand, seven tables (`customers`, `products`, `transactions`, `complaints`, `staff`, `rooms`, `messages`), defined in `infra/`, no migrations; a separate seed process loads them (owner not decided). Analytics on DuckDB over Parquet in `data/`.
-- Keys: every table but `staff` has partition key `customer_id`; sort keys are `product_id`, `transaction_key`, `complaint_id`, `room_id` and `message_key` (`<room_id>#<sent_at>#<message_id>`); `customers` has none; `staff` is keyed by `staff_id`; `complaints` has GSI `by-area-priority` (`area`, `priority_score` number).
+- Data: DynamoDB on demand, seven tables (`customers`, `products`, `transactions`, `complaints`, `staff`, `rooms`, `messages`), defined in `infra/`, no migrations; `crud` setup seeds each demo customer's cards and transactions (task 0006); a seed from the dataset is not built (owner not decided). Analytics on DuckDB over Parquet in `data/`.
+- Keys: every table but `staff` has partition key `customer_id`; sort keys are `product_id`, `transaction_key` (`<product_id>#<transaction_date>#<transaction_id>`, so one card reads newest first), `complaint_id`, `room_id` and `message_key` (`<room_id>#<sent_at>#<message_id>`); `customers` has none; `staff` is keyed by `staff_id`; `complaints` has GSI `by-area-priority` (`area`, `priority_score` number).
 - Delivery: see below.
 
 ## Runtime architecture
 
 - Client SPAs on S3 behind CloudFront, one distribution per app, certificates from ACM, records in the existing Route 53 zone `sdfles.com`.
-- API Gateway (REST) on `api.factoredai.sdfles.com` with a Cognito authorizer accepting both pools: `/crud/*` to `crud`, `/messages/*` to `messages`.
+- API Gateway (REST) on `api.factoredai.sdfles.com` with a Cognito authorizer accepting both pools: `/crud/*` to `crud` (today the customer's profile and setup, cards and transactions; routes in `modules/assistant/trd.md`), `/messages/*` to `messages`.
 - No lambda calls another lambda; shared behavior lives in `lambdas/core`.
 - A message is written once: `messages` stores it (and the room when new) with a conditional write; the `messages` DynamoDB stream feeds `chat_notifier`, which pushes it to the room's AppSync Events channel, and `chatbot`, which only sees customer messages (`sender_type = customer`).
 - A turn: `chatbot` understands, decides with the rules table, acts, composes with Claude Sonnet 5 on Bedrock, and writes the reply as an ordinary message, which reaches clients through the same notifier.
@@ -44,7 +44,7 @@ Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a 
 - Identity of a customer: `customer_id` is the Cognito `sub` of the `customers` pool, set by Cognito at sign-up and never chosen by a client or a lambda; `post_confirmation` creates the `customers` row with it. `staff_id` is the `sub` of the `staff` pool.
 - Realtime: one AppSync Events channel per room, `/rooms/{customer_id}/{room_id}`; publishing is IAM only (`chat_notifier`); an `onSubscribe` handler lets a customer token subscribe only when the `customer_id` segment is its own `sub`, and lets staff tokens through.
 - Isolation: the lambda reads pool and `cognito:groups` from the token and assumes `role-customer` (session tag `customer_id`, `dynamodb:LeadingKeys`), `role-agent`, `role-officer` or `role-analyst`; lambdas cannot read tables with their own role.
-- Identity: pool `customers` (self sign-up, email and password, email verification code through SES) and pool `staff` (created by us, email and password, no MFA, groups `agents`, `officers`, `analysts`); triggers `post_confirmation` and `pre_token_generation` in `lambdas/auth`.
+- Identity: pool `customers` (self sign-up, email and password, email verification code through SES) and pool `staff` (created by us, email and password, no MFA, groups `agents`, `officers`, `analysts`); triggers `post_confirmation`, `pre_token_generation` and `custom_message` (every email of both pools in the recipient's `locale`, English by default) in `lambdas/auth`.
 - Email: SES from `notifications.factoredai.sdfles.com`.
 - Own models: served later from a Lambda container image; not in `infra/` yet.
 - No VPC.

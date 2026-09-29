@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # Identity: architecture and debt
@@ -106,5 +106,15 @@ These are design-time decisions, taken from `docs/tasks/_drafts/architecture_and
 - Alternatives rejected: one trilingual template per pool (task 0004); keeping it as the fallback.
 - Reason: the customer picks the language on the login and sign-up screens; a silent fallback would hide a broken handler.
 - Debt created: until task 0006 deploys the handler, no Cognito email is sent: sign-up, password reset and staff invitations fail.
+- Resolved by: 0006_customer_data_onboarding, 2026-09-28
 - Revisit when: never, unless a language is added.
 - Source: task 0005
+
+## 2026-09-28: custom_message has one text per kind of email and never leaves one empty
+
+- Decision: the handler maps every trigger source to one of three texts per language (code for sign-up, resend, attribute verification and authentication; password reset; staff invitation with `{username}` and the temporary password); `locale` matches only exactly, and an unknown trigger source gets the code text, which always carries the code.
+- Alternatives rejected: one verification sentence for every email, as the task 0004 template had; leaving an unknown source to Cognito's default text.
+- Reason: a reset or an invitation should say what it is, and with no fallback template an email must never go out empty or without its code.
+- Debt created: none.
+- Revisit when: a fourth language, or SMS messages, appear.
+- Source: 0006_customer_data_onboarding
