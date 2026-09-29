@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: 0003_walking_skeleton
+source: task 0005
 ---
 
 # Identity
@@ -13,7 +13,7 @@ It owns no product feature of its own; every other module depends on it to know 
 
 ## Boundaries
 
-- Owns: the `customers` and `staff` Cognito user pools and their app clients, the `agents`/`officers`/`analysts` groups (`analysts` reserved, not built), the `post_confirmation` and `pre_token_generation` triggers, and the `role-customer`, `role-agent`, `role-officer`, `role-analyst` IAM roles that decide who may do what on the DynamoDB tables `infra/` defines.
+- Owns: the `customers` and `staff` Cognito user pools and their app clients, the `agents`/`officers`/`analysts` groups (`analysts` reserved, not built), the `post_confirmation`, `pre_token_generation` and `custom_message` triggers, and the `role-customer`, `role-agent`, `role-officer`, `role-analyst` IAM roles that decide who may do what on the DynamoDB tables `infra/` defines.
 - Does not own: API Gateway routes, the DynamoDB tables themselves, the seed process that loads them (owner not decided, not this module), or any business decision; it only says who is signed in and which role their request may assume.
 - Code: `lambdas/auth/`, `core.access` and `core.customers` in `lambdas/core`, `infra/stacks/backend/` (`cognito.tf`, `access.tf`).
 

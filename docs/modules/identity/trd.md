@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: 0003_walking_skeleton
+source: task 0005
 ---
 
 # Identity: technical
@@ -18,14 +18,15 @@ Status: built (tasks 0001 and 0003); the staff group against app client check wa
 ## Endpoints owned
 
 None over API Gateway.
-The two functions in `lambdas/auth/` are invoked by Cognito itself as Lambda triggers (`post_confirmation`, `pre_token_generation`), not through a route.
-`post_confirmation` runs only on the `customers` pool; on a sign-up confirmation it creates the `customers` row (`customer_id` = the event's `sub`, `email`, `created_at`) through `core.customers`, only if absent, assuming `role-customer` tagged with that `sub`. Its own role can assume `role-customer` and touch no table; `role-customer` may create its own `customers` row, never update it. A password-reset confirmation only logs.
+The three functions in `lambdas/auth/` are invoked by Cognito itself as Lambda triggers (`post_confirmation`, `pre_token_generation`, `custom_message`), not through a route.
+`post_confirmation` runs only on the `customers` pool; on a sign-up confirmation it creates the `customers` row (`customer_id` = the event's `sub`, `email`, `created_at`) through `core.customers`, only if absent, assuming `role-customer` tagged with that `sub`. Its own role can assume `role-customer` and touch no table. A password-reset confirmation only logs.
 
-Emails: every code email (sign-up verification and password reset) and the staff invitation are one trilingual template per pool, English, Spanish and Brazilian Portuguese, in `infra/stacks/backend/emails/`.
+Emails: `custom_message` runs on both pools and writes every Cognito email (sign-up and resent codes, password reset, attribute verification, staff invitation) in the user's `locale`: `en`, `es` or `pt-BR`, English when missing or unknown. It has no table permission. There is no fallback template: until its handler is deployed the bootstrap fails, and so does every email.
+Writable attributes: the `customer` client writes `email` and `locale`; `support` and `backoffice` write only `locale`.
 
 Jobs, listeners or scheduled work: none.
 
-Both triggers use AWS Lambda Powertools (Python) for structured JSON logging and X-Ray active tracing, the same as every other lambda in the project; `post_confirmation` writes one `customers` row with a conditional put, `pre_token_generation` writes nothing.
+Every trigger uses AWS Lambda Powertools (Python) for structured JSON logging and X-Ray active tracing, the same as every other lambda in the project; `post_confirmation` writes one `customers` row with a conditional put, `pre_token_generation` writes nothing.
 
 ## Depends on
 

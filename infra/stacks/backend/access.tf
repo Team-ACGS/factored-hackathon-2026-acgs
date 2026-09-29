@@ -10,6 +10,8 @@ locals {
     session_tag = null
     write       = []
     create      = []
+    update      = []
+    batch_write = []
     scan        = false
   }
 
@@ -20,6 +22,8 @@ locals {
       read        = local.customer_owned_tables
       write       = ["products", "complaints", "rooms", "messages"]
       create      = ["customers"]
+      update      = ["customers"]
+      batch_write = ["transactions"]
     }
 
     agent = {
@@ -109,32 +113,19 @@ data "aws_iam_policy_document" "access_role" {
   }
 
   dynamic "statement" {
-    for_each = length(each.value.write) > 0 ? [1] : []
-
-    content {
-      sid       = "Write"
-      actions   = local.item_write_actions
-      resources = [for t in each.value.write : local.table_arns[t]]
-
-      dynamic "condition" {
-        for_each = each.value.session_tag == null ? [] : [each.value.session_tag]
-
-        content {
-          test     = "ForAllValues:StringEquals"
-          variable = "dynamodb:LeadingKeys"
-          values   = ["$${aws:PrincipalTag/${condition.value}}"]
-        }
-      }
+    for_each = {
+      for sid, write in {
+        Write      = { tables = each.value.write, actions = local.item_write_actions }
+        Create     = { tables = each.value.create, actions = ["dynamodb:PutItem"] }
+        Update     = { tables = each.value.update, actions = ["dynamodb:UpdateItem"] }
+        BatchWrite = { tables = each.value.batch_write, actions = ["dynamodb:PutItem", "dynamodb:BatchWriteItem"] }
+      } : sid => write if length(write.tables) > 0
     }
-  }
-
-  dynamic "statement" {
-    for_each = length(each.value.create) > 0 ? [1] : []
 
     content {
-      sid       = "Create"
-      actions   = ["dynamodb:PutItem"]
-      resources = [for t in each.value.create : local.table_arns[t]]
+      sid       = statement.key
+      actions   = statement.value.actions
+      resources = [for t in statement.value.tables : local.table_arns[t]]
 
       dynamic "condition" {
         for_each = each.value.session_tag == null ? [] : [each.value.session_tag]
