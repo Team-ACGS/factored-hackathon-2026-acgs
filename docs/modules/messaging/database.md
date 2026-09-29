@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-29
+source: 0008_chat_latency
 ---
 
 # Messaging: database
@@ -17,6 +17,8 @@ Keys live in Terraform (`infra/stacks/backend/dynamo.tf`).
 
 Every message carries `sender_type`: `customer`, `assistant` or `agent`.
 It is a contract with the infrastructure: the chatbot's stream mapping filters on it.
+A message may carry `origin_trace_id`, the X-Ray root of the `POST /messages` that first stored it; a reply copies the one of the message it answers.
+It exists only to link traces across the stream: it is absent when there was no trace, never returned by `public()` and never published to a channel.
 
 ## Tables referenced
 

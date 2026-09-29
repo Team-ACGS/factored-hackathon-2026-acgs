@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-28
-source: 0006_customer_data_onboarding
+updated: 2026-09-29
+source: 0008_chat_latency
 ---
 
 # Identity: architecture and debt
@@ -79,6 +79,7 @@ These are design-time decisions, taken from `docs/tasks/_drafts/architecture_and
 - Alternatives rejected: caching credentials per customer in the warm container.
 - Reason: no cache means no bound, eviction or expiry logic, and no way for one customer's credentials to serve another's request.
 - Debt created: every request pays an STS call and a boto3 session, tens of milliseconds.
+- Resolved by: 0008_chat_latency, 2026-09-29
 - Revisit when: API latency or STS throttling shows in the metrics.
 - Source: 0003_walking_skeleton
 
@@ -118,3 +119,21 @@ These are design-time decisions, taken from `docs/tasks/_drafts/architecture_and
 - Debt created: none.
 - Revisit when: a fourth language, or SMS messages, appear.
 - Source: 0006_customer_data_onboarding
+
+## 2026-09-29: assumed role credentials are cached per warm environment
+
+- Decision: `core.access` caches the credentials of every `AssumeRole` it makes, for every caller (`messages`, `chatbot`, `crud`, `post_confirmation`, staff sessions), keyed by the whole request (role ARN, session name, tags), at most 128 entries evicted least recently used, renewed 2 minutes before the STS `Expiration` read against the wall clock; `DurationSeconds` stays 900. This supersedes "one AssumeRole per request or stream record, no credentials cache" (2026-09-27) and the per-request wording of the assistant entry of the same date.
+- Alternatives rejected: keeping one call per request; a cache keyed by customer only, which would let a person hand one role's session to another role, or by service only, which would hand one customer's session to another.
+- Reason: on `prd` (1024 MB) a warm `messages` spent about 50 ms in STS and about 200 ms building a fresh boto3 session and resource per request, most of its 332 ms; the key is exactly what STS was asked, so a cached session only ever serves the same role and the same `customer_id` tag, and IAM still enforces `LeadingKeys` on every call.
+- Debt created: the cache and the resources it holds are not thread safe; Lambda runs one invocation per environment and no handler uses threads.
+- Revisit when: a handler runs work on threads, or a caller's timeout reaches the 2 minute margin.
+- Source: 0008_chat_latency
+
+## 2026-09-29: a cached session builds its DynamoDB resource on the shared default session
+
+- Decision: `RoleSession` keeps only the role credentials and builds its DynamoDB resource once, on boto3's default session, passing those credentials explicitly; the domain code (`Messaging`, `Accounts`, `Store`, `create_customer`, `read_customer`) receives that resource instead of a session.
+- Alternatives rejected: a `boto3.Session` per customer (about 175 ms each, locally); several sessions sharing one botocore loader, because boto3 appends to the loader's search paths on every new session and the list grows without bound.
+- Reason: a new customer costs about 9 ms instead of 175 ms, models and endpoints load once per environment, and the credentials still belong to one resource only.
+- Debt created: none.
+- Revisit when: a table is reached through something other than the DynamoDB resource.
+- Source: 0008_chat_latency
