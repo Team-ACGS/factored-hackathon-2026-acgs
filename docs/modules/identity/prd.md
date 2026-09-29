@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # Identity: product
@@ -17,8 +17,8 @@ It is also the proof the hackathon asks for that access control lives outside th
 
 ### Customer sign-up and sign-in
 
-1. A customer opens factoredai.sdfles.com and signs up with an email and a password.
-2. Clara emails a verification code to that address to confirm it, once, at sign-up.
+1. A customer opens factoredai.sdfles.com, picks English, Spanish or Brazilian Portuguese, and signs up with an email and a password.
+2. Clara emails a verification code to that address to confirm it, once, at sign-up, in the language they picked.
 3. The customer enters the code, confirming the account, and lands in the chat already signed in.
 4. From then on the customer signs in with email and password, like any password account; the emailed code never reappears at sign-in.
 
@@ -43,6 +43,7 @@ Errors and empty states: a cross-customer access attempt fails outright; the cus
 ## Rules
 
 - A customer signs up and signs in with email and password; the emailed code is a one-time sign-up verification, never a recurring login step and never a step-up inside the chat.
+- Every email Clara's pools send, to customers and staff, is in the recipient's language only, English when none is known.
 - Staff accounts are provisioned by the team, never self-registered, and never carry MFA in this design.
 - A staff member's group (agent or officer) is fixed to the subdomain they use to sign in; using the wrong subdomain fails regardless of the account's real group.
 - A fourth group, `analysts`, exists for a web that is not built yet (the improvement console on analysts.factoredai.sdfles.com); it has no members and no working sign-in flow today.

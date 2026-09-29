@@ -8,6 +8,7 @@ members = [
     "clara-chat-notifier",
     "clara-chatbot",
     "clara-core",
+    "clara-crud",
     "clara-lambdas",
     "clara-messages",
 ]
@@ -280,6 +281,17 @@ requires-dist = [
 ]
 
 [[package]]
+name = "clara-crud"
+version = "0.1.0"
+source = { editable = "crud" }
+dependencies = [
+    { name = "clara-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "clara-core", editable = "core" }]
+
+[[package]]
 name = "clara-lambdas"
 version = "0.1.0"
 source = { virtual = "." }
@@ -288,6 +300,7 @@ dependencies = [
     { name = "clara-chat-notifier" },
     { name = "clara-chatbot" },
     { name = "clara-core" },
+    { name = "clara-crud" },
     { name = "clara-messages" },
 ]
 
@@ -306,6 +319,7 @@ requires-dist = [
     { name = "clara-chat-notifier", editable = "chat_notifier" },
     { name = "clara-chatbot", editable = "chatbot" },
     { name = "clara-core", editable = "core" },
+    { name = "clara-crud", editable = "crud" },
     { name = "clara-messages", editable = "messages" },
 ]
 

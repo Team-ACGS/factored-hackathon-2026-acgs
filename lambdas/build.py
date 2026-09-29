@@ -17,6 +17,7 @@ class Function:
 
 
 FUNCTIONS = {
+    "crud": Function("clara-crud", ("core", "crud"), {"handler.py": "crud.handler"}),
     "messages": Function("clara-messages", ("core", "messages"), {"handler.py": "messages.handler"}),
     "chat-notifier": Function(
         "clara-chat-notifier", ("core", "chat_notifier"), {"handler.py": "chat_notifier.handler"}
@@ -28,11 +29,15 @@ FUNCTIONS = {
     "auth-pre-token-generation": Function(
         "clara-auth", ("core", "auth"), {"pre_token_generation.py": "auth.pre_token_generation"}
     ),
+    "auth-custom-message": Function(
+        "clara-auth", ("core", "auth"), {"custom_message.py": "auth.custom_message"}
+    ),
 }
 
 SOURCES = {
     "core": ROOT / "core/src/core",
     "auth": ROOT / "auth/src/auth",
+    "crud": ROOT / "crud/src/crud",
     "messages": ROOT / "messages/src/messages",
     "chat_notifier": ROOT / "chat_notifier/src/chat_notifier",
     "chatbot": ROOT / "chatbot/src/chatbot",

@@ -3,12 +3,13 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { resendSignUpCode, signIn } from "aws-amplify/auth";
 import { useState, type FormEvent } from "react";
 
-import { t } from "../i18n";
+import { useI18n } from "../i18n";
 import { AuthCard } from "./auth-card";
 import { authErrorKey } from "./errors";
 import { Field, FormError } from "./field";
 
 export function SignInPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

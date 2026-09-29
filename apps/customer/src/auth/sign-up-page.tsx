@@ -3,12 +3,13 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { signUp } from "aws-amplify/auth";
 import { useState, type FormEvent } from "react";
 
-import { t } from "../i18n";
+import { useI18n } from "../i18n";
 import { AuthCard } from "./auth-card";
 import { authErrorKey } from "./errors";
 import { Field, FormError } from "./field";
 
 export function SignUpPage() {
+  const { locale, t } = useI18n();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +24,7 @@ export function SignUpPage() {
       await signUp({
         username: email,
         password,
-        options: { userAttributes: { email }, autoSignIn: true },
+        options: { userAttributes: { email, locale }, autoSignIn: true },
       });
       await navigate({ to: "/verify", search: { email } });
     } catch (caught) {

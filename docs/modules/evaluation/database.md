@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # evaluation: database
@@ -19,6 +19,7 @@ The held-out set and its custody protocol are described as material kept by a cu
 | Table | Owner module | Relationship |
 |---|---|---|
 | Turn events (ids only, never message text, each with `trace_id`; JSON gzip, raw, as a bronze layer) | assistant emits them (`lambdas/chatbot` `PutEvents` to EventBridge bus `clara` -> Firehose -> S3); ownership of the event contract and of the analysis is proposed for this module in `docs/tasks/_drafts/turn_events_analysis.md` but that whole document is deferred, so treat the ownership line as a proposal, not a decision [inferido] | Meant to be read to compute rubric metrics, dialect flip rate and cost per case from real conversations, and to feed an LLM judge; deferred, not dropped (Sebastian's decisions, 2026-09-27, item 7; `docs/tasks/_drafts/turn_events_analysis.md`) |
+| `transactions` (`origin`: `setup`, `manual_normal`, `manual_suspicious`) | written by `crud` (assistant) | `origin` is the ground truth of a demo conversation: whether the charge the customer asked about was generated, added as normal, or added as suspicious; read offline to grade Clara's outcome against it |
 | `complaints` (the case table; GSI by area and priority for the staff queue) | cases (single writer for case content; `inbox` writes only ranking and assignment fields) | Read to compute H1 (claim outcomes) and H2 (unsafe outcomes on writes) |
 | `rooms` (customer rating 1-5 and optional comment stored on the room) | messaging | Read as a weak signal into the improvement console's aggregation; the console itself is not built now |
 | `messages` | messaging | Read where a handoff conversation is needed to grade H4 (re-asks per handoff) against the structured package |
@@ -28,6 +29,7 @@ The held-out set and its custody protocol are described as material kept by a cu
 - A change proposed in the improvement console is never promoted to the live assistant without a fresh run on the frozen held-out plus the adversarial set that shows it is better and no less safe (`docs/product/01-flows.md` flow 4).
 - The held-out set's hash is committed by the custodian before the team touches any prompt, so no run against it can be back-fit after the fact (`docs/kickoff-compliance.md`, "Leakage prevention").
 - Every H1-H5 number is computed for the two baselines as well as for Clara, on the same material, so no number about Clara is reported without its comparison (`docs/problem-statement.md` section 9).
+- `origin` is read only by evaluation, never by Clara's tools or the customer app: the `core` read models leave it out, so Clara cannot decide from how a charge was made.
 
 ## Migrations of note
 

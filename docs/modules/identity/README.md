@@ -1,13 +1,13 @@
 ---
-updated: 2026-09-27
-source: task 0005
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # Identity
 
 Status: pools, roles and triggers built (tasks 0001 and 0003); customers sign up and sign in; staff sign-in has no web yet.
 
-Identity is Cognito, the two user pools and their app clients, the two sign-in triggers, and the IAM roles a request-handling lambda assumes to reach DynamoDB.
+Identity is Cognito, the two user pools and their app clients, its Cognito triggers, and the IAM roles a request-handling lambda assumes to reach DynamoDB.
 It is the gate every customer, agent and officer passes through, and the mechanism that keeps a customer's own data reachable only by that customer.
 It owns no product feature of its own; every other module depends on it to know who is asking and what they may see.
 

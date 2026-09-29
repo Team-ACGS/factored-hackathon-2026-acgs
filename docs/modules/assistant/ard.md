@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # assistant: architecture and debt
@@ -139,3 +139,49 @@ source: 0003_walking_skeleton
 - Debt created: none while every chunk loads with `index.html`; once routes are lazy-loaded, a tab on the previous build fails to load a deleted chunk until it reloads.
 - Revisit when: the app lazy-loads routes.
 - Source: 0003_walking_skeleton
+
+## 2026-09-28: the customer chooses the language, the profile keeps it
+
+- Decision: the signed-out screens offer a language picker (browser language by default, remembered in `localStorage` for signed-out screens only); sign-up stores it as the Cognito `locale`; the setup dialog defaults to that `locale` and switches the app live; after setup the profile's `language` drives the app through a runtime store (`src/i18n/store.ts`). This supersedes "the locale comes from the browser once" of 2026-09-27.
+- Alternatives rejected: keeping the browser locale (a tester cannot try another language); a switcher on every screen.
+- Reason: the language is the customer's choice, and the same value drives Cognito's emails, the app and later Clara's replies.
+- Debt created: none.
+- Revisit when: the customer needs to change language after setup.
+- Source: 0006_customer_data_onboarding
+
+## 2026-09-28: transaction ids are UUIDv7 and carry their date
+
+- Decision: `product_id` and `transaction_id` are UUIDv7; `transaction_date` is the id's instant, so `transaction_key` is computed from `(product_id, transaction_id)`; the page cursor is the base64url of a transaction key and is accepted only if it equals the key recomputed for the requested card.
+- Alternatives rejected: random ids with a stored date (the detail route would need the date or a scan); a signed cursor (the key is already confined to the caller's partition by IAM).
+- Reason: one card reads newest first with a Query, the detail is a GetItem, and a forged or foreign cursor is a 400 by construction.
+- Debt created: none.
+- Revisit when: a transaction's date must differ from its creation instant, such as a dataset seed.
+- Source: 0006_customer_data_onboarding
+
+## 2026-09-28: the demo account follows the dataset, with fixed planted cases
+
+- Decision: rows use the dataset's vocabulary (`Tarjeta Crédito`, `Approved`, `POS`, response codes `00` or `05/14/51/54`), ISO country codes, and Decimal money returned as strings; every card holds exactly 92 Approved, 5 Declined, 2 Pending and 1 Reversed; the fresh hold (fuel, 1 to 3 days), the reversed charge (retail) and the stale pending (delivery) sit on the three different cards; subscriptions get exactly the 4-charge minimum at a fixed amount; the account is derived from `sha256(customer_id | setup_claimed_at)` and a resumed setup keeps the first claim's country and language.
+- Alternatives rejected: approximate proportions (tests could not pin the mix); all cases on one card.
+- Reason: the tools and a future dataset seed share one vocabulary, the demo is reproducible, and each planted case is findable from the guide.
+- Debt created: balances are a setup snapshot (credit: Approved and Pending of the last 30 days) that added transactions do not move; the fresh hold stops being fresh a few days after setup.
+- Revisit when: Clara reads balances, or demo accounts must stay demo-ready for weeks.
+- Source: 0006_customer_data_onboarding
+
+## 2026-09-28: manual transactions are idempotent like messages
+
+- Decision: the app mints the transaction's UUIDv7 with the clock it syncs from `server_time` (the same clock as the chat); the server rejects ids more than 2 minutes off and returns the stored row with 200 on a retry; a suspicious merchant's 4-digit suffix is reserved first with `ADD ... NOT contains` on `customers.suspicious_suffixes` (20 draws, then 503).
+- Alternatives rejected: server-minted ids with a separate idempotency key (another attribute to look up); checking suffixes by querying the account (racy).
+- Reason: one pattern for every client write, and uniqueness enforced by DynamoDB, not by a read before write.
+- Debt created: none.
+- Revisit when: an account nears the 9000 suffixes.
+- Source: 0006_customer_data_onboarding
+
+## 2026-09-28: read models are allow-lists in core, used as projection and mapping
+
+- Decision: `core.accounts` (cards, transactions) and `core.customers` (profile) list the attributes any reader may see and use them both as `ProjectionExpression` and as the response mapping; `crud`'s endpoints and every future tool read through them; `crud` keeps a full read of `customers` only for its setup claim.
+- Alternatives rejected: deny-lists (a new internal attribute would leak by default).
+- Reason: `origin`, `setup_claimed_at` and `suspicious_suffixes` must never reveal to Clara or the customer which charges were planted.
+- Debt created: `crud` and `messages` duplicate the claims and body parsing of their handlers.
+- Revisit when: a third API lambda appears.
+- Source: 0006_customer_data_onboarding
+

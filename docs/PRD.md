@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # Product Requirements Document
@@ -25,7 +25,8 @@ Built for the Factored AI Data Hackathon 2026 on the LATAM Bank dataset (`docs/b
 
 ### Talk to Clara about a charge
 
-The customer signs in, sees their products and movements, and tells Clara about a charge.
+The customer signs in, sees their cards and movements, and tells Clara about a charge.
+A new customer gets a demo account in one step (three cards, three months of movements in their country's currency, and three planted charges to try), so anyone can test Clara on believable data.
 Clara explains it when the records settle it, opens a claim when they do not, and blocks the card and escalates when the customer says it was not them.
 Details: [modules/assistant/prd.md](modules/assistant/prd.md)
 
@@ -72,7 +73,7 @@ Details: [modules/data/prd.md](modules/data/prd.md)
 - Clara never reads another customer's data, enforced by AWS, not by the prompt.
 - A write is announced only after it is read back.
 - Legal deadlines per country come from a versioned table, pending verification against the current law (`docs/domain/legal-deadlines.md`).
-- English, Spanish and Brazilian Portuguese everywhere a customer reads text, chosen by the browser locale; no customer-facing string is hardcoded.
+- English, Spanish and Brazilian Portuguese everywhere a person reads text, emails included: the customer picks the language before signing in, it is stored at sign-up and in the profile, and English is the default; no customer-facing string is hardcoded.
 
 ## Not in the product
 

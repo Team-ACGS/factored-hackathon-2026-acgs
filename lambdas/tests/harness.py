@@ -25,6 +25,8 @@ ENVIRONMENT = {
     "POWERTOOLS_METRICS_NAMESPACE": "Clara/Test",
     "POWERTOOLS_TRACE_DISABLED": "true",
     "TABLE_CUSTOMERS": "clara-test-customers",
+    "TABLE_PRODUCTS": "clara-test-products",
+    "TABLE_TRANSACTIONS": "clara-test-transactions",
     "TABLE_ROOMS": "clara-test-rooms",
     "TABLE_MESSAGES": "clara-test-messages",
     "ROLE_CUSTOMER_ARN": f"arn:aws:iam::{ACCOUNT}:role/clara-test-role-customer",
@@ -62,14 +64,17 @@ def claims(
     return token
 
 
-def api_event(method: str, path: str, token: dict[str, str], body: object = None) -> dict[str, Any]:
+def api_event(
+    method: str, path: str, token: dict[str, str], body: object = None, query: dict[str, str] | None = None
+) -> dict[str, Any]:
+    prefix = "/" + path.strip("/").split("/", 1)[0]
     return {
-        "resource": "/messages/{proxy+}" if path != "/messages" else "/messages",
+        "resource": f"{prefix}/{{proxy+}}" if path != prefix else prefix,
         "path": path,
         "httpMethod": method,
         "headers": {"Content-Type": "application/json", "Origin": "https://factoredai.sdfles.com"},
         "multiValueHeaders": {},
-        "queryStringParameters": None,
+        "queryStringParameters": query,
         "multiValueQueryStringParameters": None,
         "pathParameters": None,
         "stageVariables": None,
@@ -96,6 +101,8 @@ class LambdaContext:
 @dataclass
 class Aws:
     customers: "Table"
+    products: "Table"
+    transactions: "Table"
     rooms: "Table"
     messages: "Table"
     turn_events: "SQSClient"

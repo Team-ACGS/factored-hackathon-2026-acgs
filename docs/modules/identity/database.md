@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: task 0005
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # Identity: database
@@ -8,7 +8,7 @@ source: task 0005
 Status: roles built (task 0001), assumed by the lambdas since task 0003.
 
 Identity keeps no DynamoDB table of its own; its store is Cognito (the two user pools) plus the IAM roles Terraform will define.
-The seven tables themselves are defined by a different `infra/` leaf module and loaded by a separate seed process whose owner is not decided; identity only owns who may act on them.
+The seven tables themselves are defined by a different `infra/` leaf module; `crud` setup seeds each demo customer's rows; identity only owns who may act on them.
 Pool attributes, app client settings and role policies will live in Terraform, not in this file.
 
 ## Tables owned
@@ -35,7 +35,7 @@ There is no `cases` table and no `users` table: `cases` is a module name only (c
 
 | Table | Read | Write |
 |---|---|---|
-| `customers` | get, query | put (create), update (setup profile) |
+| `customers` | get, query | put (create, `post_confirmation`), update (setup profile and suspicious suffixes, `crud` only) |
 | `transactions` | get, query | put, batch write (batch write can also delete) |
 | `products`, `complaints`, `rooms`, `messages` | get, query | put, update |
 

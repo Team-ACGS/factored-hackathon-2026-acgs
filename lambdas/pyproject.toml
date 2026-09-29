@@ -5,6 +5,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "clara-core",
     "clara-auth",
+    "clara-crud",
     "clara-messages",
     "clara-chat-notifier",
     "clara-chatbot",
@@ -23,18 +24,19 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["core", "auth", "messages", "chat_notifier", "chatbot"]
+members = ["core", "auth", "crud", "messages", "chat_notifier", "chatbot"]
 
 [tool.uv.sources]
 clara-core = { workspace = true }
 clara-auth = { workspace = true }
+clara-crud = { workspace = true }
 clara-messages = { workspace = true }
 clara-chat-notifier = { workspace = true }
 clara-chatbot = { workspace = true }
 
 [tool.ruff]
 line-length = 110
-src = [".", "tests", "core/src", "auth/src", "messages/src", "chat_notifier/src", "chatbot/src"]
+src = [".", "tests", "core/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -47,10 +49,10 @@ ignore = ["S101"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["build.py", "conftest.py", "tests", "core/src", "auth/src", "messages/src", "chat_notifier/src", "chatbot/src"]
+files = ["build.py", "conftest.py", "tests", "core/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
 exclude = ["/\\.venv/", "^dist/"]
 explicit_package_bases = true
-mypy_path = ["tests", "core/src", "auth/src", "messages/src", "chat_notifier/src", "chatbot/src"]
+mypy_path = ["tests", "core/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
 
 [[tool.mypy.overrides]]
 module = ["moto", "moto.*"]

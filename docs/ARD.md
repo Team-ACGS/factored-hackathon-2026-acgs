@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # Architecture and Debt Record
@@ -100,10 +100,13 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | Module | Date | Debt | Revisit when |
 |---|---|---|---|
 | global | 2026-09-27 | Legal deadlines cited from memory, not verified (`docs/domain/legal-deadlines.md`) | before any deadline reaches a reply or a ranking |
-| global | 2026-09-27 | Owner of the DynamoDB seed process not decided | before the first deploy with data |
+| global | 2026-09-27 | Owner of a seed from the dataset not decided; demo customers are seeded by `crud` setup (0006) | before dataset rows must reach DynamoDB |
 | global | 2026-09-27 | Lambda zips are about 18 MB each and no smoke test follows a lambda deploy | when cold starts matter or a deploy breaks unnoticed |
 | assistant | 2026-09-27 | No adversarial fixture for tool-output injection | before the evaluation run |
 | assistant | 2026-09-27 | `turn.completed` is at least once; duplicates reach S3 and must be deduped by `reply_message_id` | when turn events are analyzed |
+| assistant | 2026-09-28 | Card balances are a setup snapshot; added transactions do not move them | when Clara reads balances or limits |
+| assistant | 2026-09-28 | The planted fresh hold ages out of the 7-day window a few days after setup | when demo accounts must stay demo-ready for weeks |
+| assistant | 2026-09-28 | `crud` and `messages` duplicate the claims and body parsing of their handlers | when a third API lambda appears |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | One STS AssumeRole and boto3 session per request or record, no credentials cache | when API latency or STS throttling shows |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |

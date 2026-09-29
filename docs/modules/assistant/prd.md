@@ -1,11 +1,11 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-28
+source: 0006_customer_data_onboarding
 ---
 
 # assistant: product
 
-Status: the customer app (sign up, sign in, chat) is built with an echo in place of Clara (task 0003); the flows below are designed, not built.
+Status: the customer app is built (sign up, sign in, demo account, cards and transactions, chat) with an echo in place of Clara (tasks 0003 and 0006); the conversation flows below are designed, not built.
 
 ## Purpose
 
@@ -14,6 +14,15 @@ A customer who sees a card charge they do not recognize gets, in the same chat, 
 The module also protects the customer within one turn when the words say fraud, instead of waiting on a score that only catches 55% of it (`docs/problem-statement.md` 4.4).
 
 ## User flows
+
+### First entry: a demo account to try Clara on
+
+1. A new customer signs in and gets a setup dialog: country (Peru, Mexico, Colombia, Argentina, United States, Brazil) and language.
+2. Setup creates two credit cards and one debit card with three months of purchases at the country's usual merchants, in its currency, with the dataset's mix of approved, declined, pending and reversed charges.
+3. A one-time guide shows the three charges planted for Clara to explain (a recent hold, a refunded charge, an old pending charge) and what Clara should do with each; it is never shown again.
+4. From a card, the customer adds a normal purchase or a suspicious one (an online merchant they never used, with the bank's score chosen from three options), opens any charge, and from "Don't recognize it?" goes to the chat.
+
+Errors and empty states: setup runs once; a second attempt is refused and a half-done one finishes with the same data.
 
 ### Unrecognized charge, explained
 
@@ -60,7 +69,8 @@ Source: `docs/product/01-flows.md` flow 2; `hackathon/docs/kickoff-compliance.md
 - The customer only ever sees their own data, never another customer's, never an invented deadline, never a promise of a specific agent (`docs/product/01-flows.md` flow 1).
 - A stale pending charge (older than 7 days) is never explained to the customer as "temporary" (`hackathon/docs/domain/triage.md`).
 - Clara never answers her own messages, and says nothing in a room delegated to a human.
-- The customer app speaks English, Spanish or Brazilian Portuguese, chosen by the browser locale, English when none matches.
+- The customer app speaks English, Spanish or Brazilian Portuguese: before sign-in the customer picks it (browser language by default), sign-up stores it as the Cognito `locale`, the setup confirms it into the profile, and the profile drives the app from then on; there is no other switcher.
+- Nothing the customer sees or Clara reads reveals which charges were planted or added as suspicious.
 
 ## Out of scope
 
