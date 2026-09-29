@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, createApi } from "./api";
+import { ApiError, createHttp } from "../api/http";
+import { createChatApi } from "./api";
 
 const stored = {
   room_id: "r",
@@ -16,7 +17,9 @@ function respond(status: number, body: unknown = {}): Response {
 }
 
 function api(fetch: typeof globalThis.fetch) {
-  return createApi({ baseUrl: "https://api.test", token: () => Promise.resolve("id-token"), fetch, sleep: () => Promise.resolve() });
+  return createChatApi(
+    createHttp({ baseUrl: "https://api.test", token: () => Promise.resolve("id-token"), fetch, sleep: () => Promise.resolve() }),
+  );
 }
 
 describe("api.send", () => {

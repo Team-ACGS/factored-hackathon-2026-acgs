@@ -21,6 +21,30 @@ def aws() -> Iterator[Aws]:
             AttributeDefinitions=[{"AttributeName": "customer_id", "AttributeType": "S"}],
             BillingMode="PAY_PER_REQUEST",
         )
+        products = dynamodb.create_table(
+            TableName=ENVIRONMENT["TABLE_PRODUCTS"],
+            KeySchema=[
+                {"AttributeName": "customer_id", "KeyType": "HASH"},
+                {"AttributeName": "product_id", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "customer_id", "AttributeType": "S"},
+                {"AttributeName": "product_id", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        transactions = dynamodb.create_table(
+            TableName=ENVIRONMENT["TABLE_TRANSACTIONS"],
+            KeySchema=[
+                {"AttributeName": "customer_id", "KeyType": "HASH"},
+                {"AttributeName": "transaction_key", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "customer_id", "AttributeType": "S"},
+                {"AttributeName": "transaction_key", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
         rooms = dynamodb.create_table(
             TableName=ENVIRONMENT["TABLE_ROOMS"],
             KeySchema=[
@@ -66,7 +90,13 @@ def aws() -> Iterator[Aws]:
         )
 
         yield Aws(
-            customers=customers, rooms=rooms, messages=messages, turn_events=sqs, turn_events_url=queue_url
+            customers=customers,
+            products=products,
+            transactions=transactions,
+            rooms=rooms,
+            messages=messages,
+            turn_events=sqs,
+            turn_events_url=queue_url,
         )
 
     from chat_notifier import handler as notifier

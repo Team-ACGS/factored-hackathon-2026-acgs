@@ -1,20 +1,17 @@
 import { Button } from "@clara/ui/components/button";
 import { Input } from "@clara/ui/components/input";
 import { cn } from "@clara/ui/lib/cn";
-import { useNavigate } from "@tanstack/react-router";
-import { signOut } from "aws-amplify/auth";
-import { AlertCircle, Check, Clock, LogOut, SendHorizontal } from "lucide-react";
+import { AlertCircle, Check, Clock, SendHorizontal } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { locale, t } from "../i18n";
+import { useI18n } from "../i18n";
 import type { ChatMessage } from "./conversation";
 import { useChat } from "./use-chat";
 
 const MAX_TEXT_LENGTH = 2000;
-const timeFormat = new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" });
 
 export function ChatPage({ customerId }: { customerId: string }) {
-  const navigate = useNavigate();
+  const { t } = useI18n();
   const chat = useChat(customerId);
   const [draft, setDraft] = useState("");
   const end = useRef<HTMLDivElement>(null);
@@ -31,28 +28,10 @@ export function ChatPage({ customerId }: { customerId: string }) {
     void chat.send(text);
   }
 
-  async function leave() {
-    await signOut();
-    await navigate({ to: "/sign-in" });
-  }
-
   return (
-    <div className="flex h-dvh flex-col bg-muted/40">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-base font-semibold">Clara</h1>
-            <p className="text-xs text-muted-foreground">{t("chat.subtitle")}</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => void leave()}>
-            <LogOut />
-            {t("chat.signOut")}
-          </Button>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-6" aria-live="polite">
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-6" aria-live="polite">
           {chat.problem === "load" ? (
             <div className="flex flex-col items-center gap-3 py-16 text-center text-sm text-muted-foreground">
               <p>{t("chat.loadFailed")}</p>
@@ -71,15 +50,15 @@ export function ChatPage({ customerId }: { customerId: string }) {
           )}
           <div ref={end} />
         </div>
-      </main>
+      </div>
 
       <footer className="border-t bg-background">
         {chat.problem === "live" && (
-          <p role="status" className="mx-auto max-w-2xl px-4 pt-3 text-xs text-muted-foreground">
+          <p role="status" className="mx-auto max-w-3xl px-4 pt-3 text-xs text-muted-foreground">
             {t("chat.liveUpdatesLost")}
           </p>
         )}
-        <form className="mx-auto flex max-w-2xl gap-2 px-4 py-3" onSubmit={submit}>
+        <form className="mx-auto flex max-w-3xl gap-2 px-4 py-3" onSubmit={submit}>
           <Input
             aria-label={t("chat.placeholder")}
             placeholder={t("chat.placeholder")}
@@ -99,8 +78,11 @@ export function ChatPage({ customerId }: { customerId: string }) {
 }
 
 function Bubble({ message, onRetry }: { message: ChatMessage; onRetry: () => void }) {
+  const { locale } = useI18n();
   const mine = message.senderType === "customer";
-  const time = timeFormat.format(new Date(message.createdAt ?? message.sentAt));
+  const time = new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(
+    new Date(message.createdAt ?? message.sentAt),
+  );
 
   return (
     <div className={cn("flex flex-col gap-1", mine ? "items-end" : "items-start")}>
@@ -121,6 +103,7 @@ function Bubble({ message, onRetry }: { message: ChatMessage; onRetry: () => voi
 }
 
 function DeliveryMark({ message, onRetry }: { message: ChatMessage; onRetry: () => void }) {
+  const { t } = useI18n();
   if (message.delivery === "pending") {
     return <Clock className="size-3" aria-label={t("chat.pending")} role="img" />;
   }

@@ -7,11 +7,13 @@ import build
 
 def test_every_deployed_function_has_an_entry_that_exposes_its_handler() -> None:
     assert set(build.FUNCTIONS) == {
+        "crud",
         "messages",
         "chat-notifier",
         "chatbot",
         "auth-post-confirmation",
         "auth-pre-token-generation",
+        "auth-custom-message",
     }
     for function in build.FUNCTIONS.values():
         for module in function.entries.values():
