@@ -167,3 +167,22 @@ resource "aws_cloudwatch_dashboard" "assistant" {
   dashboard_name = "${local.name_prefix}-assistant"
   dashboard_body = jsonencode({ widgets = local.assistant_widgets })
 }
+
+# Lambda's own sampling (1 request per second plus 5%) cannot be changed, so
+# the rule covers the API; messages inherits its decision, the stream
+# consumers keep Lambda's.
+resource "aws_xray_sampling_rule" "api" {
+  rule_name      = "${local.name_prefix}-api"
+  priority       = 100
+  version        = 1
+  reservoir_size = 1
+  fixed_rate     = 1
+  service_name   = "*"
+  service_type   = "AWS::ApiGateway::Stage"
+  resource_arn   = module.api.stage_arn
+  host           = "*"
+  http_method    = "*"
+  url_path       = "*"
+
+  tags = { Name = "${local.name_prefix}-api" }
+}

@@ -8,6 +8,11 @@ output "name" {
   value       = aws_api_gateway_rest_api.this.name
 }
 
+output "stage_arn" {
+  description = "ARN of the stage, the resource an X-Ray sampling rule matches"
+  value       = aws_api_gateway_stage.this.arn
+}
+
 output "execution_arn" {
   description = "Execution ARN, the prefix of every method ARN in this API"
   value       = aws_api_gateway_rest_api.this.execution_arn
