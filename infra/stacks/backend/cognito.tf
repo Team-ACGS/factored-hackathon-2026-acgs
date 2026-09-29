@@ -87,7 +87,7 @@ module "staff_pool" {
   from_email_address  = local.cognito_from_email_address
   ses_identity_arn    = module.ses.identity_arn
 
-  client_write_attributes = ["locale"]
+  client_write_attributes = ["email", "locale"]
 
   triggers = {
     custom_message       = module.auth_function["custom-message"].arn

@@ -22,7 +22,7 @@ The three functions in `lambdas/auth/` are invoked by Cognito itself as Lambda t
 `post_confirmation` runs only on the `customers` pool; on a sign-up confirmation it creates the `customers` row (`customer_id` = the event's `sub`, `email`, `created_at`) through `core.customers`, only if absent, assuming `role-customer` tagged with that `sub`. Its own role can assume `role-customer` and touch no table. A password-reset confirmation only logs.
 
 Emails: `custom_message` runs on both pools and writes every Cognito email (sign-up and resent codes, password reset, attribute verification, staff invitation) in the user's `locale`: `en`, `es` or `pt-BR`, English when missing or unknown. It has no table permission. There is no fallback template: until its handler is deployed the bootstrap fails, and so does every email.
-Writable attributes: the `customer` client writes `email` and `locale`; `support` and `backoffice` write only `locale`.
+Writable attributes: every client writes only `email` and `locale`; Cognito requires `email` in the list because it is required, and it cannot change after creation (immutable in the pool schema).
 
 Jobs, listeners or scheduled work: none.
 

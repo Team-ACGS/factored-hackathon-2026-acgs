@@ -14,7 +14,7 @@ variable "clients" {
 }
 
 variable "client_write_attributes" {
-  description = "Attributes every app client of the pool may write, at sign-up or later. Anything else stays read-only to the user."
+  description = "Attributes every app client of the pool may write, at sign-up or later; Cognito requires the pool's required attributes (email) in the list. Anything else stays read-only to the user."
   type        = list(string)
 }
 
