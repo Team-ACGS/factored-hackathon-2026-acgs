@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-28
-source: 0006_customer_data_onboarding
+updated: 2026-09-29
+source: 0008_chat_latency
 ---
 
 # Architecture and Debt Record
@@ -108,8 +108,8 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-09-28 | The planted fresh hold ages out of the 7-day window a few days after setup | when demo accounts must stay demo-ready for weeks |
 | assistant | 2026-09-28 | `crud` and `messages` duplicate the claims and body parsing of their handlers | when a third API lambda appears |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
-| identity | 2026-09-27 | One STS AssumeRole and boto3 session per request or record, no credentials cache | when API latency or STS throttling shows |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |
+| identity | 2026-09-29 | The credentials cache of `core.access` and its resources are not thread safe | when a handler runs work on threads |
 | messaging | 2026-09-27 | Room history is not paginated | when the support app reads other rooms or a room passes a few hundred messages |
 | messaging | 2026-09-27 | The chat does not resubscribe and reread history after the live connection drops | when customers report missing replies, or before the demo |
 | models | 2026-09-27 | Serving designed but not in `infra/` | when the first model artifact exists |

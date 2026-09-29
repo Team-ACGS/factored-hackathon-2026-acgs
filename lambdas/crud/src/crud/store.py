@@ -3,14 +3,13 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import boto3
 from botocore.exceptions import ClientError
 
 from core.conditional import put_if_absent
 from core.customers import public_customer
 
 if TYPE_CHECKING:
-    from mypy_boto3_dynamodb.service_resource import Table
+    from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table
 
 
 class CustomerNotFound(Exception):
@@ -43,8 +42,7 @@ class Store:
         self._transactions = transactions
 
     @classmethod
-    def from_session(cls, session: boto3.Session) -> "Store":
-        dynamodb = session.resource("dynamodb")
+    def from_dynamodb(cls, dynamodb: "DynamoDBServiceResource") -> "Store":
         return cls(
             dynamodb.Table(os.environ["TABLE_CUSTOMERS"]),
             dynamodb.Table(os.environ["TABLE_PRODUCTS"]),

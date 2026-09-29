@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-29
+source: 0008_chat_latency
 ---
 
 # Identity: flows
@@ -38,7 +38,7 @@ sequenceDiagram
 
 ## A lambda assumes a role to read the customer's own data
 
-Runs on every authenticated request that needs DynamoDB, after API Gateway's Cognito authorizer has already validated the JWT.
+Runs when an authenticated request needs DynamoDB and its warm environment holds no unexpired session for that role and tag, after API Gateway's Cognito authorizer has already validated the JWT; otherwise the cached tagged credentials are reused.
 This replaces the older "Engine (FastAPI)" framing in `docs/product/02-technical-flows.md`: the caller here is a Python lambda behind API Gateway, and it performs the `AssumeRole` itself, not a separate IdP or engine process.
 
 ```mermaid

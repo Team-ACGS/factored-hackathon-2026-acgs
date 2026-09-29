@@ -1,7 +1,6 @@
 import json
 import os
 from datetime import UTC, datetime
-from functools import cache
 from typing import TYPE_CHECKING, Any
 
 import boto3
@@ -13,7 +12,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from core.access import customer_session
 from core.messaging import Message, Messaging, reply_to
-from core.observability import logger, metrics, trace_id, tracer
+from core.observability import annotate_origin, logger, metrics, trace_id, tracer
 
 if TYPE_CHECKING:
     from mypy_boto3_events import EventBridgeClient
@@ -21,6 +20,7 @@ if TYPE_CHECKING:
 SERVICE = "chatbot"
 
 processor = BatchProcessor(event_type=EventType.DynamoDBStreams)
+_events: "EventBridgeClient" = boto3.client("events")
 
 
 class RoomNotFound(Exception):
@@ -31,17 +31,13 @@ class TurnEventRejected(Exception):
     pass
 
 
-@cache
-def _events() -> "EventBridgeClient":
-    return boto3.client("events")
-
-
 @tracer.capture_method(capture_response=False)
 def answer(record: DynamoDBRecord) -> None:
     stream = record.dynamodb
     if stream is None:
         raise ValueError("stream record without dynamodb data")
     message = Message.from_item(stream.new_image)
+    annotate_origin(message.origin_trace_id)
     logger.append_keys(
         customer_id=message.customer_id, room_id=message.room_id, message_id=message.message_id
     )
@@ -49,7 +45,7 @@ def answer(record: DynamoDBRecord) -> None:
         logger.info("skipped, not a customer message", sender_type=message.sender_type)
         return
 
-    messaging = Messaging.from_session(customer_session(message.customer_id, SERVICE))
+    messaging = Messaging.from_dynamodb(customer_session(message.customer_id, SERVICE).dynamodb)
     room = messaging.room(message.customer_id, message.room_id)
     if room is None:
         raise RoomNotFound(message.room_id)
@@ -72,7 +68,7 @@ def _turn_completed(message: Message, reply: Message) -> None:
         "reply_message_id": reply.message_id,
         "trace_id": trace_id(),
     }
-    response = _events().put_events(
+    response = _events.put_events(
         Entries=[
             {
                 "EventBusName": os.environ["EVENT_BUS_NAME"],

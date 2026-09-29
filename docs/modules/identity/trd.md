@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-28
-source: 0006_customer_data_onboarding
+updated: 2026-09-29
+source: 0008_chat_latency
 ---
 
 # Identity: technical
@@ -32,7 +32,7 @@ Every trigger uses AWS Lambda Powertools (Python) for structured JSON logging an
 
 - SES: sends the sign-up verification code for the `customers` pool from `notifications.factoredai.sdfles.com`, never the apex; this is Cognito's standard email-verification message, not a passwordless sign-in flow.
 - Route 53: DKIM records for that sending subdomain; the zone already exists.
-- STS: the request lambdas (`crud`, `messages`), `chatbot` and `post_confirmation` call `AssumeRole` against the roles this module defines; identity owns the roles, not the calls.
+- STS: the request lambdas (`crud`, `messages`), `chatbot` and `post_confirmation` call `AssumeRole` against the roles this module defines through `core.access`, which caches the credentials per warm environment (`database.md`, invariants); identity owns the roles, not the calls.
 - infra/ (a different leaf module than this one): defines the seven DynamoDB tables the roles below grant access to; identity does not own the tables, only who may act on them. A separate seed process, owner not decided, loads their data; it is neither this module nor the data module.
 
 ## Depended on by

@@ -1,13 +1,13 @@
 import base64
 import json
 import threading
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import boto3
 import pytest
 
-from core.access import customer_session
+from core.access import RoleSession, customer_session
 from core.customers import create_customer
 from crud import handler as crud
 from crud.catalog import COUNTRIES, SUSPICIOUS_POOL
@@ -34,7 +34,9 @@ def call(
 
 
 def signed_up(customer_id: str) -> None:
-    create_customer(boto3.Session(), customer_id, f"{customer_id}@example.com", "2026-09-28T12:00:00.000Z")
+    create_customer(
+        boto3.resource("dynamodb"), customer_id, f"{customer_id}@example.com", "2026-09-28T12:00:00.000Z"
+    )
 
 
 def set_up(context: LambdaContext, customer_id: str = SUB, country: str = "MX") -> dict[str, Any]:
@@ -78,7 +80,7 @@ def customer(aws: Aws) -> None:
 def sessions(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     tagged: list[str] = []
 
-    def recording(customer_id: str, service: str) -> boto3.Session:
+    def recording(customer_id: str, service: str) -> RoleSession:
         tagged.append(customer_id)
         return customer_session(customer_id, service)
 
@@ -153,6 +155,14 @@ def test_a_setup_that_failed_halfway_resumes_to_the_same_data(
     assert {item["currency"] for item in items(aws.transactions)} == {"COP"}
 
 
+def atomic(method: Callable[..., Any], lock: threading.Lock) -> Callable[..., Any]:
+    def serialized(*args: Any, **kwargs: Any) -> Any:
+        with lock:
+            return method(*args, **kwargs)
+
+    return serialized
+
+
 def test_two_concurrent_setups_complete_once_with_one_account(
     aws: Aws, customer: None, context: LambdaContext, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -164,6 +174,9 @@ def test_two_concurrent_setups_complete_once_with_one_account(
         original(store, cards, transactions)
 
     monkeypatch.setattr(Store, "write_account", synchronized)
+    conditional_write = threading.Lock()
+    for name in ("claim_setup", "complete_setup"):
+        monkeypatch.setattr(Store, name, atomic(getattr(Store, name), conditional_write))
     statuses: list[int] = []
 
     def request() -> None:

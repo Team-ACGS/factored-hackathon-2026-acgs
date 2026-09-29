@@ -1,10 +1,20 @@
 import os
+from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 import boto3
+from botocore.credentials import ReadOnlyCredentials
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource
+
+MAX_SESSIONS = 128
+REFRESH_MARGIN = timedelta(minutes=2)
 
 STAFF_ROLE_ENV = {
     "agents": "ROLE_AGENT_ARN",
@@ -38,37 +48,66 @@ class Principal:
         return cls(pool=pool, subject=subject, groups=_groups(claims.get("cognito:groups")))
 
 
-def customer_session(customer_id: str, service: str) -> boto3.Session:
+class RoleSession:
+    def __init__(self, credentials: ReadOnlyCredentials, expires_at: datetime) -> None:
+        self.credentials = credentials
+        self.expires_at = expires_at
+
+    @cached_property
+    def dynamodb(self) -> "DynamoDBServiceResource":
+        return boto3.resource(
+            "dynamodb",
+            aws_access_key_id=self.credentials.access_key,
+            aws_secret_access_key=self.credentials.secret_key,
+            aws_session_token=self.credentials.token,
+        )
+
+
+AssumeRequest = tuple[str, str, tuple[tuple[str, str], ...]]
+
+_sts = boto3.client("sts")
+_sessions: OrderedDict[AssumeRequest, RoleSession] = OrderedDict()
+
+
+def customer_session(customer_id: str, service: str) -> RoleSession:
     return _assume(
         os.environ["ROLE_CUSTOMER_ARN"],
         f"{service}-{customer_id}",
-        [{"Key": "customer_id", "Value": customer_id}],
+        (("customer_id", customer_id),),
     )
 
 
-def session_for(principal: Principal, service: str) -> boto3.Session:
+def session_for(principal: Principal, service: str) -> RoleSession:
     if principal.pool is Pool.CUSTOMERS:
         return customer_session(principal.subject, service)
     roles = [env for group, env in STAFF_ROLE_ENV.items() if group in principal.groups]
     if len(roles) != 1:
         raise AccessDenied("a staff token must carry exactly one group")
-    return _assume(os.environ[roles[0]], f"{service}-{principal.subject}", [])
+    return _assume(os.environ[roles[0]], f"{service}-{principal.subject}", ())
 
 
-def _assume(role_arn: str, session_name: str, tags: list[dict[str, str]]) -> boto3.Session:
-    request: dict[str, Any] = {
-        "RoleArn": role_arn,
-        "RoleSessionName": session_name[:64],
-        "DurationSeconds": 900,
-    }
+def _assume(role_arn: str, session_name: str, tags: tuple[tuple[str, str], ...]) -> RoleSession:
+    name = session_name[:64]
+    key: AssumeRequest = (role_arn, name, tags)
+    cached = _sessions.get(key)
+    if cached is not None and datetime.now(UTC) + REFRESH_MARGIN < cached.expires_at:
+        _sessions.move_to_end(key)
+        return cached
+    request: dict[str, Any] = {"RoleArn": role_arn, "RoleSessionName": name, "DurationSeconds": 900}
     if tags:
-        request["Tags"] = tags
-    credentials = boto3.client("sts").assume_role(**request)["Credentials"]
-    return boto3.Session(
-        aws_access_key_id=credentials["AccessKeyId"],
-        aws_secret_access_key=credentials["SecretAccessKey"],
-        aws_session_token=credentials["SessionToken"],
+        request["Tags"] = [{"Key": tag, "Value": value} for tag, value in tags]
+    credentials = _sts.assume_role(**request)["Credentials"]
+    fresh = RoleSession(
+        ReadOnlyCredentials(
+            credentials["AccessKeyId"], credentials["SecretAccessKey"], credentials["SessionToken"]
+        ),
+        credentials["Expiration"],
     )
+    _sessions[key] = fresh
+    _sessions.move_to_end(key)
+    while len(_sessions) > MAX_SESSIONS:
+        _sessions.popitem(last=False)
+    return fresh
 
 
 def _groups(claim: object) -> frozenset[str]:

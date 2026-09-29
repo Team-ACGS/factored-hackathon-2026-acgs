@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-29
+source: 0008_chat_latency
 ---
 
 # Messaging: architecture decisions and debt
@@ -114,3 +114,21 @@ Status: built for customers (task 0003).
 - Debt created: none.
 - Revisit when: debugging needs text, which then goes through the table, not the logs.
 - Source: 0003_walking_skeleton
+
+## 2026-09-29: a message's traces are linked by an annotation, not by X-Ray
+
+- Decision: `messages` stores the root of its trace as `origin_trace_id` on the message and annotates its own subsegment with it (on a retry, the stored value, so the retry joins the first trace's filter); `chatbot` and `chat-notifier` annotate the per-record subsegment, not the invocation segment, because a notifier batch mixes messages; the reply copies the answered message's value.
+- Alternatives rejected: relying on X-Ray to link across the stream, which it does not; annotating only the two consumers, which leaves `messages` out of the one filter.
+- Reason: one filter expression, `annotation.origin_trace_id = "<root>"`, returns every trace of a message, and only an id crosses the stream.
+- Debt created: none.
+- Revisit when: a consumer processes records in parallel, or a new stream consumer appears.
+- Source: 0008_chat_latency
+
+## 2026-09-29: Tracer patches botocore only; the AppSync publish has its own subsegment
+
+- Decision: `core.observability` builds `Tracer(patch_modules=["botocore"])`, and `chat-notifier` wraps the publish in `capture_method` instead of relying on the `httplib` patch.
+- Alternatives rejected: Powertools' default `patch_all`, which imports `requests` and `sqlite3` only to patch them (43 to 225 ms of init locally); patching `httplib` for the one HTTP call the code makes.
+- Reason: init only pays for what the handler path uses, and the publish still shows as a named subsegment.
+- Debt created: none.
+- Revisit when: a lambda calls another HTTP service it needs traced.
+- Source: 0008_chat_latency

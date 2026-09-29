@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-09-29
+source: 0008_chat_latency
 ---
 
 # Messaging: technical
@@ -45,6 +45,19 @@ Jobs and listeners:
 
 - `messages`: `TABLE_ROOMS`, `TABLE_MESSAGES`, `ROLE_CUSTOMER_ARN`, `CUSTOMERS_POOL_ID`, `STAFF_POOL_ID`.
 - `chat-notifier`: `REALTIME_HTTP_URL`, `REALTIME_NAMESPACE`.
+
+## Latency and tracing
+
+Measured on `prd` on 2026-09-29, before the credentials cache of task 0008, with the three chat functions at 1024 MB x86_64 (probe and queries in the docs root, `docs/tasks/0008_chat_latency/`).
+Warm p50 from send to Clara's echo on screen: 1728 ms; cold: 4995 ms.
+Handlers warm: `messages` 332 ms, `chatbot` 366 ms, `chat-notifier` 255 ms; cold init about 1 s each.
+Outside the code: each stream hop waits 140 to 310 ms warm and up to 1 s cold (DynamoDB Streams polling), and the browser's edges (network, API Gateway with its authorizer, AppSync delivery) add about 400 ms.
+Targets: under 1 s warm and 3 s cold.
+
+A message yields three traces, because X-Ray does not follow DynamoDB Streams.
+`messages` stores its trace root as `origin_trace_id` on the item and annotates it; `chatbot` and `chat-notifier` annotate each record's subsegment with the same value, and the reply carries it to its own notifier trace.
+One filter expression returns them all: `annotation.origin_trace_id = "<root>"`.
+Only the id travels, never text.
 
 ## Testing
 

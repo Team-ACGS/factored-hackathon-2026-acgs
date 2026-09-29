@@ -1,6 +1,5 @@
 import json
 import os
-from functools import cache
 from typing import Any
 
 import boto3
@@ -14,7 +13,7 @@ from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 
 from core.messaging import Message
-from core.observability import logger, metrics, tracer
+from core.observability import annotate_origin, logger, metrics, tracer
 
 processor = BatchProcessor(event_type=EventType.DynamoDBStreams)
 
@@ -30,6 +29,7 @@ class Publisher:
         self._session = session
         self._http = http
 
+    @tracer.capture_method(capture_response=False)
     def publish(self, channel: str, events: list[dict[str, str]]) -> None:
         credentials = self._session.get_credentials()
         if credentials is None:
@@ -49,11 +49,9 @@ class Publisher:
             raise PublishRejected(json.dumps(failed))
 
 
-@cache
-def _publisher() -> Publisher:
-    return Publisher(
-        os.environ["REALTIME_HTTP_URL"], os.environ["AWS_REGION"], boto3.Session(), urllib3.PoolManager()
-    )
+_publisher = Publisher(
+    os.environ["REALTIME_HTTP_URL"], os.environ["AWS_REGION"], boto3.Session(), urllib3.PoolManager()
+)
 
 
 def channel_for(message: Message) -> str:
@@ -66,7 +64,8 @@ def notify(record: DynamoDBRecord) -> None:
     if stream is None:
         raise ValueError("stream record without dynamodb data")
     message = Message.from_item(stream.new_image)
-    _publisher().publish(channel_for(message), [message.public()])
+    annotate_origin(message.origin_trace_id)
+    _publisher.publish(channel_for(message), [message.public()])
     logger.info(
         "message published",
         customer_id=message.customer_id,

@@ -11,7 +11,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from core.access import AccessDenied, Pool, Principal, customer_session
 from core.ids import format_instant
 from core.messaging import InvalidMessage, Messaging, customer_message
-from core.observability import logger, metrics, tracer
+from core.observability import annotate_origin, logger, metrics, trace_id, tracer
 
 SERVICE = "messages"
 
@@ -31,7 +31,7 @@ def _customer() -> Principal:
 
 
 def _messaging(principal: Principal) -> Messaging:
-    return Messaging.from_session(customer_session(principal.subject, SERVICE))
+    return Messaging.from_dynamodb(customer_session(principal.subject, SERVICE).dynamodb)
 
 
 def _body() -> dict[str, Any]:
@@ -59,10 +59,12 @@ def send_message() -> Response[str]:
             str(fields["message_id"]),
             str(fields["text"]),
             datetime.now(UTC),
+            trace_id(),
         )
     except InvalidMessage as error:
         raise BadRequestError(str(error)) from error
     stored, created = _messaging(principal).send(message)
+    annotate_origin(stored.origin_trace_id)
     logger.info("message stored", room_id=stored.room_id, message_id=stored.message_id, first_write=created)
     metrics.add_metric(name="MessagesSent" if created else "MessagesRetried", unit=MetricUnit.Count, value=1)
     return Response(

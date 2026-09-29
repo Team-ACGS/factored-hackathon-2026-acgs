@@ -1,6 +1,9 @@
 import json
 from typing import Any
 
+import pytest
+
+from core.observability import tracer
 from harness import STAFF_POOL_ID, Aws, LambdaContext, api_event, claims, uuid7
 from messages.handler import handler
 
@@ -99,3 +102,34 @@ def test_responses_carry_cors_headers(aws: Aws, context: LambdaContext) -> None:
     _, _, headers = call(api_event("GET", "/messages/rooms/latest", claims()), context)
 
     assert headers["Access-Control-Allow-Origin"] == ["*"]
+
+
+def test_a_message_stores_the_root_of_its_first_trace_and_never_returns_it(
+    aws: Aws, context: LambdaContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    annotations: list[tuple[str, object]] = []
+    monkeypatch.setattr(tracer, "put_annotation", lambda key, value: annotations.append((key, value)))
+    body = {"room_id": uuid7(), "message_id": uuid7(), "text": "hola"}
+    monkeypatch.setenv("_X_AMZN_TRACE_ID", "Root=1-6abbeeb1-first;Parent=4f25c32c;Sampled=1")
+    _, first = send(claims(sub="customer-1"), body, context)
+    monkeypatch.setenv("_X_AMZN_TRACE_ID", "Root=1-6abbeeb2-retry;Parent=4f25c32d;Sampled=1")
+
+    status, retry = send(claims(sub="customer-1"), body, context)
+
+    assert status == 200
+    [item] = aws.message_items()
+    assert item["origin_trace_id"] == "1-6abbeeb1-first"
+    assert "origin_trace_id" not in first["message"]
+    assert "origin_trace_id" not in retry["message"]
+    assert annotations == [("origin_trace_id", "1-6abbeeb1-first")] * 2
+
+
+def test_a_message_without_a_trace_stores_no_origin(
+    aws: Aws, context: LambdaContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("_X_AMZN_TRACE_ID", raising=False)
+
+    send(claims(), {"room_id": uuid7(), "message_id": uuid7(), "text": "hola"}, context)
+
+    [item] = aws.message_items()
+    assert "origin_trace_id" not in item
