@@ -5,14 +5,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal, cast, get_args
 
-import boto3
 from boto3.dynamodb.conditions import Key
 
 from core.conditional import put_if_absent
 from core.ids import InvalidId, format_instant, parse_uuid7, successor, uuid7_time
 
 if TYPE_CHECKING:
-    from mypy_boto3_dynamodb.service_resource import Table
+    from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table
 
 SenderType = Literal["customer", "assistant", "agent"]
 
@@ -33,13 +32,14 @@ class Message:
     text: str
     sent_at: str
     created_at: str
+    origin_trace_id: str | None = None
 
     @property
     def message_key(self) -> str:
         return f"{self.room_id}#{self.sent_at}#{self.message_id}"
 
     def to_item(self) -> dict[str, str]:
-        return {
+        item = {
             "customer_id": self.customer_id,
             "message_key": self.message_key,
             "room_id": self.room_id,
@@ -49,6 +49,9 @@ class Message:
             "sent_at": self.sent_at,
             "created_at": self.created_at,
         }
+        if self.origin_trace_id:
+            item["origin_trace_id"] = self.origin_trace_id
+        return item
 
     @classmethod
     def from_item(cls, item: Mapping[str, Any]) -> "Message":
@@ -63,6 +66,7 @@ class Message:
             text=str(item["text"]),
             sent_at=str(item["sent_at"]),
             created_at=str(item["created_at"]),
+            origin_trace_id=str(item["origin_trace_id"]) if item.get("origin_trace_id") else None,
         )
 
     def public(self) -> dict[str, str]:
@@ -96,7 +100,14 @@ class Room:
         return {"room_id": self.room_id, "created_at": self.created_at}
 
 
-def customer_message(customer_id: str, room_id: str, message_id: str, text: str, now: datetime) -> Message:
+def customer_message(
+    customer_id: str,
+    room_id: str,
+    message_id: str,
+    text: str,
+    now: datetime,
+    origin_trace_id: str | None = None,
+) -> Message:
     try:
         parse_uuid7(room_id)
         sent_at = uuid7_time(parse_uuid7(message_id))
@@ -117,6 +128,7 @@ def customer_message(customer_id: str, room_id: str, message_id: str, text: str,
         text=body,
         sent_at=format_instant(sent_at),
         created_at=format_instant(now),
+        origin_trace_id=origin_trace_id,
     )
 
 
@@ -129,6 +141,7 @@ def reply_to(message: Message, sender_type: SenderType, text: str, now: datetime
         text=text,
         sent_at=message.sent_at,
         created_at=format_instant(now),
+        origin_trace_id=message.origin_trace_id,
     )
 
 
@@ -138,8 +151,7 @@ class Messaging:
         self._messages = messages
 
     @classmethod
-    def from_session(cls, session: boto3.Session) -> "Messaging":
-        dynamodb = session.resource("dynamodb")
+    def from_dynamodb(cls, dynamodb: "DynamoDBServiceResource") -> "Messaging":
         return cls(dynamodb.Table(os.environ["TABLE_ROOMS"]), dynamodb.Table(os.environ["TABLE_MESSAGES"]))
 
     def send(self, message: Message) -> tuple[Message, bool]:

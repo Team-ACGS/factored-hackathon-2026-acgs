@@ -99,11 +99,9 @@ def aws() -> Iterator[Aws]:
             turn_events_url=queue_url,
         )
 
-    from chat_notifier import handler as notifier
-    from chatbot import handler as chatbot
+    from core import access
 
-    chatbot._events.cache_clear()
-    notifier._publisher.cache_clear()
+    access._sessions.clear()
 
 
 @pytest.fixture

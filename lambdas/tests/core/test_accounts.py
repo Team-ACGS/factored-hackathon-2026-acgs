@@ -22,7 +22,7 @@ def test_reads_never_return_origin_even_when_it_is_stored(aws: Aws) -> None:
         aws.products.put_item(Item=card)
     stored = ACCOUNT.transactions[0]
     aws.transactions.put_item(Item=stored)
-    accounts = Accounts.from_session(boto3.Session())
+    accounts = Accounts.from_dynamodb(boto3.resource("dynamodb"))
 
     detail = accounts.transaction("customer-1", stored["product_id"], stored["transaction_id"])
     listed, _ = accounts.newest_transactions("customer-1", stored["product_id"], 20)

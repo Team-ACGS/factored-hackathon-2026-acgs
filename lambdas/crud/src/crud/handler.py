@@ -87,7 +87,7 @@ def _now() -> datetime:
 @tracer.capture_method(capture_response=False)
 def get_profile() -> dict[str, Any]:
     principal = _customer()
-    customer = read_customer(customer_session(principal.subject, SERVICE), principal.subject)
+    customer = read_customer(customer_session(principal.subject, SERVICE).dynamodb, principal.subject)
     if customer is None:
         raise NotFoundError("customer not found")
     return {"profile": _profile(customer)}
@@ -108,7 +108,7 @@ def complete_setup() -> Response[str]:
         raise BadRequestError(
             f"country must be one of {sorted(COUNTRIES)} and language one of {list(LANGUAGES)}"
         )
-    store = Store.from_session(customer_session(principal.subject, SERVICE))
+    store = Store.from_dynamodb(customer_session(principal.subject, SERVICE).dynamodb)
     try:
         claimed = store.claim_setup(principal.subject, country, language, format_instant(_now()))
     except CustomerNotFound as error:
@@ -139,7 +139,7 @@ def complete_setup() -> Response[str]:
 @tracer.capture_method(capture_response=False)
 def list_cards() -> dict[str, Any]:
     principal = _customer()
-    accounts = Accounts.from_session(customer_session(principal.subject, SERVICE))
+    accounts = Accounts.from_dynamodb(customer_session(principal.subject, SERVICE).dynamodb)
     return {"cards": accounts.cards(principal.subject)}
 
 
@@ -153,7 +153,7 @@ def get_card(product_id: str) -> dict[str, Any]:
         after_key = decode_cursor(cursor, product_id) if cursor is not None else None
     except InvalidCursor as error:
         raise BadRequestError(str(error)) from error
-    accounts = Accounts.from_session(customer_session(principal.subject, SERVICE))
+    accounts = Accounts.from_dynamodb(customer_session(principal.subject, SERVICE).dynamodb)
     card = accounts.card(principal.subject, product_id)
     if card is None:
         raise NotFoundError("card not found")
@@ -172,7 +172,7 @@ def get_transaction(product_id: str, transaction_id: str) -> dict[str, Any]:
     principal = _customer()
     _uuid7_path(product_id, "card")
     _uuid7_path(transaction_id, "transaction")
-    accounts = Accounts.from_session(customer_session(principal.subject, SERVICE))
+    accounts = Accounts.from_dynamodb(customer_session(principal.subject, SERVICE).dynamodb)
     transaction = accounts.transaction(principal.subject, product_id, transaction_id)
     if transaction is None:
         raise NotFoundError("transaction not found")
@@ -199,8 +199,8 @@ def add_transaction(product_id: str) -> Response[str]:
     if abs(_now() - minted_at) > MAX_CLOCK_SKEW:
         raise BadRequestError("transaction_id is too far from server time")
 
-    session = customer_session(principal.subject, SERVICE)
-    accounts, store = Accounts.from_session(session), Store.from_session(session)
+    dynamodb = customer_session(principal.subject, SERVICE).dynamodb
+    accounts, store = Accounts.from_dynamodb(dynamodb), Store.from_dynamodb(dynamodb)
     if accounts.card(principal.subject, product_id) is None:
         raise NotFoundError("card not found")
     stored = accounts.transaction(principal.subject, product_id, str(transaction_id))

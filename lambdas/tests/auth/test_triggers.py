@@ -1,12 +1,11 @@
 import json
 from typing import Any
 
-import boto3
 import pytest
 from botocore.exceptions import ClientError
 
 from auth import post_confirmation, pre_token_generation
-from core.access import customer_session
+from core.access import RoleSession, customer_session
 from harness import CUSTOMERS_POOL_ID, Aws, LambdaContext
 
 SUB = "0f3c5e1a-0000-4000-8000-000000000001"
@@ -29,7 +28,7 @@ def trigger(source: str) -> dict[str, Any]:
 def sessions(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     tagged: list[str] = []
 
-    def recording(customer_id: str, service: str) -> boto3.Session:
+    def recording(customer_id: str, service: str) -> RoleSession:
         tagged.append(customer_id)
         return customer_session(customer_id, service)
 

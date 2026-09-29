@@ -26,7 +26,7 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         return event
 
     created = create_customer(
-        customer_session(customer_id, SERVICE),
+        customer_session(customer_id, SERVICE).dynamodb,
         customer_id,
         trigger.request.user_attributes["email"],
         format_instant(datetime.now(UTC)),

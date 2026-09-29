@@ -2,14 +2,13 @@ import os
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-import boto3
 from boto3.dynamodb.conditions import Key
 
 from core.ids import format_instant, parse_uuid7, uuid7_time
 from core.read_model import projection, public
 
 if TYPE_CHECKING:
-    from mypy_boto3_dynamodb.service_resource import Table
+    from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table
 
 CARD_ATTRIBUTES = (
     "product_id",
@@ -63,8 +62,7 @@ class Accounts:
         self._transactions = transactions
 
     @classmethod
-    def from_session(cls, session: boto3.Session) -> "Accounts":
-        dynamodb = session.resource("dynamodb")
+    def from_dynamodb(cls, dynamodb: "DynamoDBServiceResource") -> "Accounts":
         return cls(
             dynamodb.Table(os.environ["TABLE_PRODUCTS"]), dynamodb.Table(os.environ["TABLE_TRANSACTIONS"])
         )

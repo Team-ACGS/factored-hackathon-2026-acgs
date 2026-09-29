@@ -32,7 +32,7 @@ def test_a_message_is_confirmed_echoed_and_pushed_in_order(
     aws: Aws, context: LambdaContext, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     channels = Channels()
-    monkeypatch.setattr(notifier, "_publisher", lambda: channels)
+    monkeypatch.setattr(notifier, "_publisher", channels)
     token = claims()
     room_id, message_id = uuid7(), uuid7()
     body = {"room_id": room_id, "message_id": message_id, "text": "hola"}

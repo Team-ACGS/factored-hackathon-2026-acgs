@@ -28,7 +28,7 @@ def message(room_id: str, message_id: str, text: str = "hola") -> Message:
 
 @pytest.fixture
 def messaging(aws: Aws) -> Messaging:
-    return Messaging.from_session(boto3.Session())
+    return Messaging.from_dynamodb(boto3.resource("dynamodb"))
 
 
 def test_sent_at_comes_from_the_message_id() -> None:

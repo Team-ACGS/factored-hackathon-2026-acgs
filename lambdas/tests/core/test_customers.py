@@ -29,7 +29,7 @@ def test_the_public_customer_keeps_only_the_allow_list() -> None:
 def test_reading_a_customer_never_returns_the_planted_suffixes_or_the_setup_claim(aws: Aws) -> None:
     aws.customers.put_item(Item=STORED)
 
-    customer = read_customer(boto3.Session(), "customer-1")
+    customer = read_customer(boto3.resource("dynamodb"), "customer-1")
 
     assert customer == {name: STORED[name] for name in CUSTOMER_ATTRIBUTES}
     assert "4821" not in str(customer)
