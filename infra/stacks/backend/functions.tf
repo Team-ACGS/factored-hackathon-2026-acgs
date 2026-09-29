@@ -92,10 +92,12 @@ locals {
     messages = {
       capabilities = ["assume_customer_role", "assume_agent_role"]
       environment  = local.request_env
+      memory_size  = 1024
     }
 
     chat-notifier = {
       capabilities = ["messages_stream_read", "streams_list", "chat_notifier_failures", "realtime_publish"]
+      memory_size  = 1024
       timeout      = 30
 
       environment = {

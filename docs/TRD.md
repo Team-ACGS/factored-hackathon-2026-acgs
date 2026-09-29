@@ -54,7 +54,10 @@ Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a 
 - Every lambda uses Powertools for AWS Lambda (Python): Logger (structured JSON with `xray_trace_id`), Metrics (EMF), Tracer (X-Ray).
 - Writes are idempotent through conditional writes with deterministic ids ("only if absent"), not Powertools Idempotency, which would need an eighth table.
 - CloudWatch Logs; custom metrics in namespaces `Clara/Backend` and `Clara/Assistant`, shown on dashboards `clara-prd-backend` and `clara-prd-assistant`.
-- X-Ray active tracing on every lambda and the API Gateway stage, set in Terraform.
+- X-Ray active tracing on every lambda and the API Gateway stage, set in Terraform. The sampling rule `clara-prd-api` traces 100% of API requests, and `messages` inherits that decision. The stream consumers (`chatbot`, `chat_notifier`) keep Lambda's fixed sampling, 1 request per second plus 5%, which AWS does not let you change.
+- A message yields three traces, not one: X-Ray does not link traces through DynamoDB Streams. `messages` stores its trace id on the item and both consumers annotate it as `origin_trace_id` (task 0008), so the filter `annotation.origin_trace_id = "<trace id>"` plus the API trace itself finds the three.
+- A trace of `POST /messages` has API Gateway (`api.factoredai.sdfles.com`) as its entry point, with `messages` inside it; searching for traces that enter at `clara-prd-messages` finds nothing.
+- Memory: 1024 MB for `messages`, `chatbot` and `chat_notifier` (the chat path), 512 MB for the rest; every function runs on x86_64.
 - Turn events from day one: `chatbot` publishes to EventBridge bus `clara-prd` with source `clara.chatbot` at the end of each turn, a rule delivers to Data Firehose, Firehose writes gzip JSON lines to `turns/` in the events bucket; ids only, never message text, each with `trace_id`.
 - Analysis of those events and the LLM judge are deferred (`docs/tasks/_drafts/turn_events_analysis.md` in the docs root).
 
