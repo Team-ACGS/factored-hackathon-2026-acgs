@@ -16,6 +16,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from core.access import AccessDenied, Pool, Principal, customer_session
 from core.accounts import Accounts, public_transaction
+from core.customers import read_customer
 from core.ids import InvalidId, format_instant, parse_uuid7, uuid7_time
 from core.observability import logger, metrics, tracer
 from crud.catalog import COUNTRIES, LANGUAGES
@@ -70,6 +71,14 @@ def _uuid7_path(value: str, what: str) -> str:
     return value
 
 
+def _profile(customer: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "country": customer["country"],
+        "language": customer["language"],
+        "setup_completed": customer["setup_completed_at"] is not None,
+    }
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 
@@ -78,10 +87,10 @@ def _now() -> datetime:
 @tracer.capture_method(capture_response=False)
 def get_profile() -> dict[str, Any]:
     principal = _customer()
-    profile = Store.from_session(customer_session(principal.subject, SERVICE)).profile(principal.subject)
-    if profile is None:
+    customer = read_customer(customer_session(principal.subject, SERVICE), principal.subject)
+    if customer is None:
         raise NotFoundError("customer not found")
-    return {"profile": profile.public()}
+    return {"profile": _profile(customer)}
 
 
 @app.post("/crud/profile/setup")
@@ -90,13 +99,18 @@ def complete_setup() -> Response[str]:
     principal = _customer()
     body = _body()
     country, language = body.get("country"), body.get("language")
-    if country not in COUNTRIES or language not in LANGUAGES:
+    if (
+        not isinstance(country, str)
+        or not isinstance(language, str)
+        or country not in COUNTRIES
+        or language not in LANGUAGES
+    ):
         raise BadRequestError(
             f"country must be one of {sorted(COUNTRIES)} and language one of {list(LANGUAGES)}"
         )
     store = Store.from_session(customer_session(principal.subject, SERVICE))
     try:
-        claimed = store.claim_setup(principal.subject, str(country), str(language), format_instant(_now()))
+        claimed = store.claim_setup(principal.subject, country, language, format_instant(_now()))
     except CustomerNotFound as error:
         raise NotFoundError("customer not found") from error
     except SetupAlreadyCompleted as error:
@@ -105,7 +119,7 @@ def complete_setup() -> Response[str]:
     account = generate(claim)
     store.write_account(account.cards, account.transactions)
     try:
-        profile = store.complete_setup(principal.subject, format_instant(_now()))
+        customer = store.complete_setup(principal.subject, format_instant(_now()))
     except SetupAlreadyCompleted as error:
         raise Conflict("setup already completed") from error
     logger.info("setup completed", country=claim.country.code, transactions=len(account.transactions))
@@ -113,7 +127,7 @@ def complete_setup() -> Response[str]:
     return _json(
         201,
         {
-            "profile": profile.public(),
+            "profile": _profile(customer),
             "cases": [
                 {"kind": kind.value, "transaction": public_transaction(item)} for kind, item in account.cases
             ],
@@ -192,10 +206,10 @@ def add_transaction(product_id: str) -> Response[str]:
     stored = accounts.transaction(principal.subject, product_id, str(transaction_id))
     if stored is not None:
         return _json(200, {"transaction": stored})
-    profile = store.profile(principal.subject)
-    if profile is None:
+    stored_claim = store.claim(principal.subject)
+    if stored_claim is None:
         raise NotFoundError("customer not found")
-    claim = _claim(principal.subject, profile.country, profile.setup_claimed_at)
+    claim = _claim(principal.subject, stored_claim.country, stored_claim.setup_claimed_at)
 
     rng = secrets.SystemRandom()
     if kind == "normal":

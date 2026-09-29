@@ -1,12 +1,12 @@
 import os
-from collections.abc import Mapping, Sequence
-from decimal import Decimal
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 import boto3
 from boto3.dynamodb.conditions import Key
 
 from core.ids import format_instant, parse_uuid7, uuid7_time
+from core.read_model import projection, public
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.service_resource import Table
@@ -50,11 +50,11 @@ def transaction_key(product_id: str, transaction_id: str) -> str:
 
 
 def public_card(item: Mapping[str, Any]) -> dict[str, Any]:
-    return _public(item, CARD_ATTRIBUTES)
+    return public(item, CARD_ATTRIBUTES)
 
 
 def public_transaction(item: Mapping[str, Any]) -> dict[str, Any]:
-    return _public(item, TRANSACTION_ATTRIBUTES)
+    return public(item, TRANSACTION_ATTRIBUTES)
 
 
 class Accounts:
@@ -72,7 +72,7 @@ class Accounts:
     def cards(self, customer_id: str) -> list[dict[str, Any]]:
         request = {
             "KeyConditionExpression": Key("customer_id").eq(customer_id),
-            **_projection(CARD_ATTRIBUTES),
+            **projection(CARD_ATTRIBUTES),
         }
         page = self._products.query(**request)
         items = list(page["Items"])
@@ -83,7 +83,7 @@ class Accounts:
 
     def card(self, customer_id: str, product_id: str) -> dict[str, Any] | None:
         item = self._products.get_item(
-            Key={"customer_id": customer_id, "product_id": product_id}, **_projection(CARD_ATTRIBUTES)
+            Key={"customer_id": customer_id, "product_id": product_id}, **projection(CARD_ATTRIBUTES)
         ).get("Item")
         return public_card(item) if item else None
 
@@ -91,7 +91,7 @@ class Accounts:
         item = self._transactions.get_item(
             Key={"customer_id": customer_id, "transaction_key": transaction_key(product_id, transaction_id)},
             ConsistentRead=True,
-            **_projection(TRANSACTION_ATTRIBUTES),
+            **projection(TRANSACTION_ATTRIBUTES),
         ).get("Item")
         return public_transaction(item) if item else None
 
@@ -104,7 +104,7 @@ class Accounts:
             "ScanIndexForward": False,
             "ConsistentRead": True,
             "Limit": limit + 1,
-            **_projection(TRANSACTION_ATTRIBUTES),
+            **projection(TRANSACTION_ATTRIBUTES),
         }
         if after_key is not None:
             request["ExclusiveStartKey"] = {"customer_id": customer_id, "transaction_key": after_key}
@@ -114,18 +114,3 @@ class Accounts:
             return page, None
         last = page[-1]
         return page, transaction_key(last["product_id"], last["transaction_id"])
-
-
-def _projection(attributes: Sequence[str]) -> dict[str, Any]:
-    names = {f"#a{index}": name for index, name in enumerate(attributes)}
-    return {"ProjectionExpression": ", ".join(names), "ExpressionAttributeNames": names}
-
-
-def _public(item: Mapping[str, Any], attributes: Sequence[str]) -> dict[str, Any]:
-    return {name: _plain(item.get(name)) for name in attributes}
-
-
-def _plain(value: object) -> object:
-    if isinstance(value, Decimal):
-        return format(value, "f")
-    return value

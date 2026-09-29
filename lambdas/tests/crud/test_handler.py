@@ -17,6 +17,7 @@ from harness import STAFF_POOL_ID, Aws, LambdaContext, api_event, claims, uuid7
 
 SUB = "0f3c5e1a-0000-4000-8000-000000000001"
 OTHER = "0f3c5e1a-0000-4000-8000-000000000002"
+HIDDEN = ("origin", "suspicious_suffixes", "setup_claimed_at")
 
 
 def call(
@@ -28,7 +29,7 @@ def call(
     token: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, Any]]:
     response = crud.handler(api_event(method, path, token or claims(sub=SUB), body, query), context)
-    assert "origin" not in response["body"]
+    assert not any(hidden in response["body"] for hidden in HIDDEN)
     return response["statusCode"], json.loads(response["body"] or "null")
 
 
@@ -180,7 +181,15 @@ def test_two_concurrent_setups_complete_once_with_one_account(
 
 
 @pytest.mark.parametrize(
-    "body", [{"country": "CL", "language": "es"}, {"country": "MX", "language": "fr"}, {"country": "MX"}, []]
+    "body",
+    [
+        {"country": "CL", "language": "es"},
+        {"country": "MX", "language": "fr"},
+        {"country": "MX"},
+        {"country": ["MX"], "language": "es"},
+        {"country": "MX", "language": {"code": "es"}},
+        [],
+    ],
 )
 def test_a_setup_outside_the_catalog_is_rejected(
     aws: Aws, customer: None, context: LambdaContext, body: object
@@ -369,6 +378,8 @@ def test_suspicious_transactions_use_outside_merchants_with_suffixes_unique_in_t
     assert all(str(transaction["merchant_name"]).rpartition(" ")[0] in pool for transaction in added)
     stored = aws.customers.get_item(Key={"customer_id": SUB})["Item"]["suspicious_suffixes"]
     assert stored == {"4821", "1234", "7777"}
+    status, body = call("GET", "/crud/profile", context)
+    assert (status, body) == (200, {"profile": {"country": "MX", "language": "es", "setup_completed": True}})
 
 
 @pytest.mark.parametrize(

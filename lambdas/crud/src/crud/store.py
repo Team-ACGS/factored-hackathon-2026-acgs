@@ -7,6 +7,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 from core.conditional import put_if_absent
+from core.customers import public_customer
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.service_resource import Table
@@ -21,27 +22,18 @@ class SetupAlreadyCompleted(Exception):
 
 
 @dataclass(frozen=True)
-class CustomerProfile:
+class SetupClaim:
     country: str | None
-    language: str | None
     setup_claimed_at: str | None
     setup_completed_at: str | None
 
     @classmethod
-    def from_item(cls, item: Mapping[str, Any]) -> "CustomerProfile":
+    def from_item(cls, item: Mapping[str, Any]) -> "SetupClaim":
         return cls(
             country=_optional(item.get("country")),
-            language=_optional(item.get("language")),
             setup_claimed_at=_optional(item.get("setup_claimed_at")),
             setup_completed_at=_optional(item.get("setup_completed_at")),
         )
-
-    def public(self) -> dict[str, Any]:
-        return {
-            "country": self.country,
-            "language": self.language,
-            "setup_completed": self.setup_completed_at is not None,
-        }
 
 
 class Store:
@@ -59,11 +51,11 @@ class Store:
             dynamodb.Table(os.environ["TABLE_TRANSACTIONS"]),
         )
 
-    def profile(self, customer_id: str) -> CustomerProfile | None:
+    def claim(self, customer_id: str) -> SetupClaim | None:
         item = self._customers.get_item(Key={"customer_id": customer_id}, ConsistentRead=True).get("Item")
-        return CustomerProfile.from_item(item) if item else None
+        return SetupClaim.from_item(item) if item else None
 
-    def claim_setup(self, customer_id: str, country: str, language: str, now: str) -> CustomerProfile:
+    def claim_setup(self, customer_id: str, country: str, language: str, now: str) -> SetupClaim:
         try:
             attributes = self._customers.update_item(
                 Key={"customer_id": customer_id},
@@ -78,18 +70,18 @@ class Store:
                 ExpressionAttributeValues={":country": country, ":language": language, ":now": now},
                 ReturnValues="ALL_NEW",
             )["Attributes"]
-            return CustomerProfile.from_item(attributes)
+            return SetupClaim.from_item(attributes)
         except ClientError as error:
             if not _condition_failed(error):
                 raise
-        stored = self.profile(customer_id)
+        stored = self.claim(customer_id)
         if stored is None:
             raise CustomerNotFound(customer_id)
         if stored.setup_completed_at is not None:
             raise SetupAlreadyCompleted(customer_id)
         return stored
 
-    def complete_setup(self, customer_id: str, now: str) -> CustomerProfile:
+    def complete_setup(self, customer_id: str, now: str) -> dict[str, Any]:
         try:
             attributes = self._customers.update_item(
                 Key={"customer_id": customer_id},
@@ -103,7 +95,7 @@ class Store:
             if _condition_failed(error):
                 raise SetupAlreadyCompleted(customer_id) from error
             raise
-        return CustomerProfile.from_item(attributes)
+        return public_customer(attributes)
 
     def write_account(
         self, cards: Iterable[Mapping[str, Any]], transactions: Iterable[Mapping[str, Any]]
