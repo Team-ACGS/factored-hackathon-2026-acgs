@@ -13,6 +13,11 @@ variable "clients" {
   type        = list(string)
 }
 
+variable "client_write_attributes" {
+  description = "Attributes every app client of the pool may write, at sign-up or later; Cognito requires the pool's required attributes (email) in the list. Anything else stays read-only to the user."
+  type        = list(string)
+}
+
 variable "groups" {
   description = "Cognito groups of the pool, read from cognito:groups in the token"
   type        = list(string)
@@ -23,23 +28,6 @@ variable "allow_password_auth" {
   description = "Enables USER_PASSWORD and ADMIN_USER_PASSWORD on every client, for scripts and tests; the webs use SRP"
   type        = bool
   default     = false
-}
-
-variable "code_email" {
-  description = "Subject and body of every email carrying a code: sign-up verification and password reset. The body must contain {####}."
-  type = object({
-    subject = string
-    message = string
-  })
-}
-
-variable "invite_email" {
-  description = "Subject and body of the email a user created by an administrator receives. The body must contain {username} and {####}. Null keeps Cognito's default."
-  type = object({
-    subject = string
-    message = string
-  })
-  default = null
 }
 
 variable "from_email_address" {
@@ -53,12 +41,12 @@ variable "ses_identity_arn" {
 }
 
 variable "triggers" {
-  description = "Function ARN per Cognito trigger, keyed post_confirmation or pre_token_generation. pre_token_generation is required. A trigger's failure fails the operation that fired it, so every bootstrap bundle returns the event unchanged."
+  description = "Function ARN per Cognito trigger, keyed custom_message, pre_token_generation (both required) or post_confirmation. A trigger's failure fails the operation that fired it."
   type        = map(string)
 
   validation {
-    condition     = contains(keys(var.triggers), "pre_token_generation") && alltrue([for k in keys(var.triggers) : contains(["post_confirmation", "pre_token_generation"], k)])
-    error_message = "triggers takes pre_token_generation and optionally post_confirmation."
+    condition     = contains(keys(var.triggers), "custom_message") && contains(keys(var.triggers), "pre_token_generation") && alltrue([for k in keys(var.triggers) : contains(["custom_message", "post_confirmation", "pre_token_generation"], k)])
+    error_message = "triggers takes custom_message and pre_token_generation, and optionally post_confirmation."
   }
 }
 

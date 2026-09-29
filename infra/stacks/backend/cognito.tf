@@ -24,11 +24,11 @@ locals {
       environment       = {}
       policy_statements = {}
     }
-  }
 
-  code_email = {
-    subject = "Clara: your code · tu código · seu código"
-    message = file("${path.module}/emails/code.html")
+    custom-message = {
+      environment       = {}
+      policy_statements = {}
+    }
   }
 }
 
@@ -66,9 +66,11 @@ module "customers_pool" {
   allow_password_auth = var.cognito_allow_password_auth
   from_email_address  = local.cognito_from_email_address
   ses_identity_arn    = module.ses.identity_arn
-  code_email          = local.code_email
+
+  client_write_attributes = ["email", "locale"]
 
   triggers = {
+    custom_message       = module.auth_function["custom-message"].arn
     post_confirmation    = module.auth_function["post-confirmation"].arn
     pre_token_generation = module.auth_function["pre-token-generation"].arn
   }
@@ -84,14 +86,11 @@ module "staff_pool" {
   allow_password_auth = var.cognito_allow_password_auth
   from_email_address  = local.cognito_from_email_address
   ses_identity_arn    = module.ses.identity_arn
-  code_email          = local.code_email
 
-  invite_email = {
-    subject = "Clara: your staff account · tu cuenta de staff · sua conta de equipe"
-    message = file("${path.module}/emails/invite.html")
-  }
+  client_write_attributes = ["email", "locale"]
 
   triggers = {
+    custom_message       = module.auth_function["custom-message"].arn
     pre_token_generation = module.auth_function["pre-token-generation"].arn
   }
 }

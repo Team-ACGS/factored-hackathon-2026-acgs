@@ -13,22 +13,12 @@ resource "aws_cognito_user_pool" "this" {
 
   admin_create_user_config {
     allow_admin_create_user_only = !var.self_sign_up
-
-    dynamic "invite_message_template" {
-      for_each = var.invite_email == null ? [] : [var.invite_email]
-
-      content {
-        email_subject = invite_message_template.value.subject
-        email_message = invite_message_template.value.message
-        sms_message   = "Clara: {username} {####}"
-      }
-    }
   }
 
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
-    email_subject        = var.code_email.subject
-    email_message        = var.code_email.message
+    email_subject        = "Your verification code"
+    email_message        = "Your verification code is {####}."
   }
 
   email_configuration {
@@ -38,6 +28,7 @@ resource "aws_cognito_user_pool" "this" {
   }
 
   lambda_config {
+    custom_message    = var.triggers["custom_message"]
     post_confirmation = lookup(var.triggers, "post_confirmation", null)
 
     pre_token_generation_config {
@@ -88,6 +79,7 @@ resource "aws_cognito_user_pool_client" "this" {
   generate_secret               = false
   enable_token_revocation       = true
   prevent_user_existence_errors = "ENABLED"
+  write_attributes              = var.client_write_attributes
 
   explicit_auth_flows = concat(
     ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"],

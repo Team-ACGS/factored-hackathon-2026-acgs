@@ -93,9 +93,18 @@ These are design-time decisions, taken from `docs/tasks/_drafts/architecture_and
 
 ## 2026-09-27: post_confirmation creates the customer through role-customer
 
-- Decision: the `post_confirmation` trigger assumes `role-customer` tagged with the `sub` of Cognito's event and creates the `customers` row only if absent; its own role may only assume `role-customer`, and `role-customer` gains `PutItem` on `customers` (no `UpdateItem`) under the same `LeadingKeys` condition. The event joins the JWT and the stream record as a trusted source of the session tag.
+- Decision: the `post_confirmation` trigger assumes `role-customer` tagged with the `sub` of Cognito's event and creates the `customers` row only if absent; its own role may only assume `role-customer`, and `role-customer` gains `PutItem` on `customers` under the same `LeadingKeys` condition (`UpdateItem` followed in task 0005 for the setup profile). The event joins the JWT and the stream record as a trusted source of the session tag.
 - Alternatives rejected: `PutItem` on `customers` in the trigger's own role (task 0004), which broke "no lambda touches a table with its own role".
 - Reason: one rule for every table access, and IAM still refuses a row whose key is not the tagged `sub`; the event comes from Cognito, never from a client.
 - Debt created: `terraform apply` of the role changes must land before the lambda deploy that uses them, or sign-up confirmation fails on `AssumeRole`.
 - Revisit when: a second writer of `customers` appears, such as the seed.
 - Source: 0003_walking_skeleton
+
+## 2026-09-28: Cognito emails in the user's language, no trilingual fallback
+
+- Decision: a `custom_message` trigger on both pools writes each Cognito email in the user's `locale` (`en`, `es`, `pt-BR`, English by default); the trilingual templates of task 0004 are removed, and the bootstrap fails instead of falling back.
+- Alternatives rejected: one trilingual template per pool (task 0004); keeping it as the fallback.
+- Reason: the customer picks the language on the login and sign-up screens; a silent fallback would hide a broken handler.
+- Debt created: until task 0006 deploys the handler, no Cognito email is sent: sign-up, password reset and staff invitations fail.
+- Revisit when: never, unless a language is added.
+- Source: task 0005

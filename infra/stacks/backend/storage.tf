@@ -31,12 +31,14 @@ locals {
     cognito = {
       "post_confirmation.py"    = "def handler(event, context):\n    return event\n"
       "pre_token_generation.py" = "def handler(event, context):\n    return event\n"
+      "custom_message.py"       = "def handler(event, context):\n    raise RuntimeError(\"custom_message is not deployed yet\")\n"
     }
   }
 }
 
-# A Cognito trigger cannot answer 503 like the API bootstrap: Cognito fails the
-# sign-up or sign-in when a trigger returns anything but the event.
+# Cognito fails the operation whenever a trigger does not return the event, so
+# the trigger bundles pass it through; custom_message fails on purpose, so no
+# email goes out until its real handler is deployed.
 data "archive_file" "bootstrap" {
   for_each = local.bootstrap_bundles
 

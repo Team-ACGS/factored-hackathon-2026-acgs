@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-27
-source: 0003_walking_skeleton
+source: task 0005
 ---
 
 # Identity: database
@@ -30,7 +30,16 @@ There is no `cases` table and no `users` table: `cases` is a module name only (c
 ## Invariants kept in code
 
 - A request-handling lambda never reads a table with its own execution role; it always assumes `role-customer`, `role-agent`, `role-officer` or `role-analyst` first.
-- `customer_id` is the Cognito `sub` of the `customers` pool; `post_confirmation` writes the `customers` row with it, only if absent, through `role-customer` tagged with that `sub`, which may create its own row and never update it; the trigger's own role touches no table.
+- `customer_id` is the Cognito `sub` of the `customers` pool; `post_confirmation` writes the `customers` row with it, only if absent, through `role-customer` tagged with that `sub`; the trigger's own role touches no table.
+- `role-customer` reaches only items whose partition key is its `customer_id` tag (`dynamodb:LeadingKeys` on every statement):
+
+| Table | Read | Write |
+|---|---|---|
+| `customers` | get, query | put (create), update (setup profile) |
+| `transactions` | get, query | put, batch write (batch write can also delete) |
+| `products`, `complaints`, `rooms`, `messages` | get, query | put, update |
+
+"Only if absent" is the code's conditional write; IAM cannot force it, so any lambda holding `role-customer` could rewrite that customer's own row.
 - The `customer_id` session tag passed to `AssumeRole` comes from the verified JWT's `sub` (`messages`), the stream record the table itself wrote (`chatbot`) or the Cognito trigger event (`post_confirmation`), never from a request parameter, so a lambda cannot be asked to tag a session with someone else's id.
 
 ## Migrations of note
