@@ -12,7 +12,7 @@ import { useI18n } from "../i18n";
 import { DemoFooter } from "./demo-footer";
 
 const navClass =
-  "flex h-9 items-center rounded-full px-3 text-sm font-semibold whitespace-nowrap text-ink-2 hover:bg-muted hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-[0_1px_2px_rgb(0_0_0/0.06)]";
+  "flex h-9 items-center rounded-full px-3 text-sm font-semibold whitespace-nowrap text-ink-2 hover:bg-muted hover:text-ink aria-[current=page]:bg-muted aria-[current=page]:text-ink";
 
 export function AppLayout({ profile }: { profile: Profile }) {
   const { t } = useI18n();
@@ -30,8 +30,8 @@ export function AppLayout({ profile }: { profile: Profile }) {
 
   return (
     <div className={cn("flex min-h-dvh flex-col bg-background", onChat && "h-dvh")}>
-      <header className="w-full px-4">
-        <div className="mx-auto flex h-[72px] max-w-[960px] items-center justify-between gap-4">
+      <header className={cn("w-full flex-none border-b border-line bg-surface px-4", onChat && "min-[901px]:px-5")}>
+        <div className={cn("mx-auto flex h-[72px] items-center justify-between gap-4", !onChat && "max-w-[960px]")}>
           <div className="flex min-w-0 items-center gap-3 sm:gap-7">
             <Link to="/" className="flex items-center gap-2 text-base font-bold tracking-[0.01em] whitespace-nowrap">
               <span className="brand-mark size-6 rounded-[7px]" aria-hidden />
@@ -65,7 +65,7 @@ export function AppLayout({ profile }: { profile: Profile }) {
         </main>
       ) : (
         <>
-          <main className="mx-auto w-full max-w-[960px] flex-1 px-4 pt-3 pb-12">
+          <main className="mx-auto w-full max-w-[992px] flex-1 px-4 pt-7 pb-12">
             <Outlet />
           </main>
           <DemoFooter />

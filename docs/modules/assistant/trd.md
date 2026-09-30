@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0010_customer_redesign
+updated: 2026-09-30
+source: 0011_customer_redesign_fidelity
 ---
 
 # assistant: technical
@@ -64,7 +64,7 @@ Jobs and listeners: `chatbot` consumes the `messages` stream, only inserts with 
 
 - `lambdas/tests/chatbot/`: echo placement, delegated rooms, no loop, redelivery, `turn.completed` without text, partial batch failures.
 - `lambdas/tests/crud/`: the generated account (counts, status mix, merchant minimums, planted cases, determinism per country), first, second, resumed and concurrent setup, paging and cursor tampering, cross-customer reads, adds and suffix uniqueness, staff 403, and no hidden attribute in any response; `lambdas/tests/core/` proves the read models drop them.
-- `apps/customer`: `vitest` in node on `*.test.ts`: the locale store and catalogs (no "fraud" in Clara's text, no due date or legal term), the bank API client, money formatting and the bank queries against a real `QueryClient`; the Clara session, overlay, seeded claim and topics; the mock chat's triage precedence, typed answers, and engine flows (flagged charge to block and handoff, claim with the one question, lost card, confirmation before any action, a queue that never drops, references reopening with current state, gap cases, reload mid-write, reset). Screens have no tests; Sebastian validates the UI on the PR.
+- `apps/customer`: `vitest` in node on `*.test.ts`: the locale store and catalogs (no "fraud" in Clara's text, no due date or legal term), the bank API client, money formatting and the bank queries against a real `QueryClient`; the Clara session, overlay, seeded claim and topics; the mock chat's triage precedence, typed answers, and engine flows (flagged charge to block and handoff, claim with the one question, lost card, confirmation before any action, no bar while a confirmed choice is handled, a queue that never drops, references reopening with current state, gap cases, reload mid-write, reset). Screens have no tests; Sebastian validates the UI on the PR.
 - `apps/ui`: `vitest` on the entity geometry (states, outlines, interpolation).
 - Commands: `docs/TRD.md`, Verification targets.
 `docs/problem-statement.md` (H1-H5) and `hackathon/docs/kickoff-compliance.md` name a baseline comparison (rules bot, naive LLM) and a held-out evaluation as required, owned operationally by `evaluation/`, exercising this module as a whole.

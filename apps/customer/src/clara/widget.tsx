@@ -57,7 +57,7 @@ function Fab({ unread, launched, onOpen }: { unread: number; launched: boolean; 
         data-unread={unread > 0 || undefined}
         aria-label={unread > 0 ? t("clara.openUnread", { count: String(unread) }) : t("clara.open")}
         className={cn(
-          "clara-fab peer fixed right-3 bottom-[calc(14px+env(safe-area-inset-bottom))] z-40 size-[88px] rounded-full transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.3,1.4,0.5,1)] outline-none hover:scale-[1.07] focus-visible:ring-[3px] focus-visible:ring-ring/40 min-[561px]:right-[18px]",
+          "clara-fab peer fixed right-3 bottom-[calc(14px+env(safe-area-inset-bottom))] z-[45] size-[88px] rounded-full outline-none hover:scale-[1.07] focus-visible:ring-[3px] focus-visible:ring-ring/40 min-[561px]:right-[18px]",
           launched && "pointer-events-none scale-[0.4] opacity-0",
         )}
       >
@@ -70,7 +70,7 @@ function Fab({ unread, launched, onOpen }: { unread: number; launched: boolean; 
       </button>
       <span
         aria-hidden
-        className="pointer-events-none fixed right-[112px] bottom-[calc(46px+env(safe-area-inset-bottom))] z-40 translate-x-1 rounded-full bg-ink px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap text-white opacity-0 transition-[opacity,transform] duration-200 peer-hover:translate-x-0 peer-hover:opacity-100 peer-focus-visible:translate-x-0 peer-focus-visible:opacity-100"
+        className="pointer-events-none fixed right-[112px] bottom-[calc(46px+env(safe-area-inset-bottom))] z-[44] translate-x-1 rounded-full bg-ink px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap text-white opacity-0 transition-[opacity,translate] duration-200 peer-hover:translate-x-0 peer-hover:opacity-100 peer-focus-visible:translate-x-0 peer-focus-visible:opacity-100"
       >
         {t("clara.tip")}
       </span>

@@ -79,7 +79,7 @@ export function starters(t: Translate): Bar {
 
 export function barOf(state: ChatState, ctx: Context | null, t: Translate): Bar | null {
   if (state.pick) return { kind: "pick", pick: state.pick };
-  if (state.panel.mode === "searching" || state.panel.mode === "calling") return null;
+  if (state.held || state.panel.mode === "searching" || state.panel.mode === "calling") return null;
   const view = currentView(state);
   if (!view) return state.human ? null : starters(t);
   if (state.ask?.viewId === view.id) return askBar(state.ask, ctx, t);

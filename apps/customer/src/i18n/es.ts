@@ -98,7 +98,6 @@ export const es: Record<MessageKey, string> = {
   "nav.home": "Inicio",
   "nav.help": "Ayuda y aclaraciones",
   "nav.helpShort": "Ayuda",
-  "home.hello": "Hola",
   "home.cards": "Tus tarjetas",
   "home.recent": "Últimos movimientos",
   "home.noMovements": "Todavía no hay movimientos.",

@@ -1,6 +1,6 @@
 import { cn } from "@clara/ui/lib/cn";
 import { Check, ChevronLeft } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { brand } from "../../bank/brand";
 import type { Card, Transaction } from "../../bank/types";
@@ -8,16 +8,18 @@ import { useI18n } from "../../i18n";
 import { cardLabel, whenText } from "./text";
 import { useMoney } from "./use-money";
 
-export const box = "rounded-[20px] border border-line bg-surface shadow-bank";
+export const box = "rounded-[20px] border border-line bg-surface shadow-clara";
+
+const staggered = (index: number) => ({ "--i": index }) as CSSProperties;
 
 export function Caption({ children }: { children: ReactNode }) {
   return <span className="text-xs font-semibold tracking-[0.06em] text-ink-3 uppercase">{children}</span>;
 }
 
-export function Source({ claim = false }: { claim?: boolean }) {
+export function Source({ claim = false, index }: { claim?: boolean; index?: number }) {
   const { t } = useI18n();
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-ink-3">
+    <span className="inline-flex items-center gap-1.5 text-xs text-ink-3" style={index === undefined ? undefined : staggered(index)}>
       <i className="size-[7px] rounded-full bg-[#1f9f7c]" aria-hidden />
       {t(claim ? "clara.chat.claimData" : "clara.chat.accountData", { bank: brand.name })}
     </span>
@@ -80,11 +82,15 @@ export function ChargeHead({ tx, card, now }: { tx: Transaction; card: Card | un
   );
 }
 
-export function Ticks({ items }: { items: readonly string[] }) {
+export function Ticks({ items, stagger }: { items: readonly string[]; stagger?: number }) {
   return (
     <ul className="grid gap-2.5">
-      {items.map((item) => (
-        <li key={item} className="grid grid-cols-[22px_1fr] gap-2.5 text-[14.5px] text-ink-2">
+      {items.map((item, index) => (
+        <li
+          key={item}
+          className={cn("grid grid-cols-[22px_1fr] gap-2.5 text-[14.5px] text-ink-2", stagger !== undefined && "chat-stg")}
+          style={stagger === undefined ? undefined : staggered(stagger + index)}
+        >
           <Check className="size-5 text-[#1f9f7c]" aria-hidden />
           <span>{item}</span>
         </li>
@@ -99,13 +105,17 @@ export interface TimelineItem {
   sub?: string;
 }
 
-export function Timeline({ items }: { items: readonly TimelineItem[] }) {
+export function Timeline({ items, stagger }: { items: readonly TimelineItem[]; stagger?: number }) {
   return (
     <ol className="grid">
-      {items.map((item) => (
+      {items.map((item, index) => (
         <li
           key={item.title}
-          className="relative grid grid-cols-[22px_1fr] gap-3 pb-4 before:absolute before:top-[22px] before:bottom-0 before:left-2.5 before:w-0.5 before:bg-line last:pb-0 last:before:hidden"
+          className={cn(
+            "relative grid grid-cols-[22px_1fr] gap-3 pb-4 before:absolute before:top-[22px] before:bottom-0 before:left-2.5 before:w-0.5 before:bg-line last:pb-0 last:before:hidden",
+            stagger !== undefined && "chat-stg",
+          )}
+          style={stagger === undefined ? undefined : staggered(stagger + index)}
         >
           <span
             className={cn(

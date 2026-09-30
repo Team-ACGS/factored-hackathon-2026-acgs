@@ -24,7 +24,7 @@ export function DemoFooter() {
   }
 
   return (
-    <footer className="mx-auto flex max-w-[960px] flex-wrap justify-between gap-4 px-4 pt-2 pb-[104px] text-[13px] text-ink-3">
+    <footer className="mx-auto flex max-w-[992px] flex-wrap justify-between gap-4 px-4 pt-2 pb-[104px] text-[13px] text-ink-3">
       <span>{t("demo.note")}</span>
       <span className="flex flex-wrap gap-4">
         <Suspense fallback={null}>

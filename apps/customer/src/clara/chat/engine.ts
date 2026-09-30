@@ -162,6 +162,7 @@ export function createMockChat(ports: MockChatPorts) {
       current: id,
       panel: { mode: "docked" },
       face,
+      held: false,
       selected: null,
       pick: null,
     }));
@@ -174,7 +175,7 @@ export function createMockChat(ports: MockChatPorts) {
   }
 
   function ask(next: Omit<Ask, "viewId">, viewId: string) {
-    set({ ask: { ...next, viewId }, selected: null });
+    set({ ask: { ...next, viewId }, held: false, selected: null });
   }
 
   async function runSteps(r: Run, spec: ViewSpec, status: string, count: number) {
@@ -438,8 +439,7 @@ export function createMockChat(ports: MockChatPorts) {
 
   function onView(transactionId: string): string | null {
     const view = state.views.find((item) => item.id === state.current);
-    const spec = view?.spec;
-    return spec && "transactionId" in spec && spec.transactionId === transactionId ? view.id : null;
+    return view?.spec.kind === "movement" && view.spec.transactionId === transactionId ? view.id : null;
   }
 
   async function unrecognizedMovement(r: Run, productId: string, transactionId: string) {
@@ -562,7 +562,9 @@ export function createMockChat(ports: MockChatPorts) {
         const ctx = await context(r);
         const tx = findEntry(ctx, transactionId);
         if (!tx) return notFound(r);
-        return afterHistory(tx, ctx) === "protect" ? protect(r, productId, transactionId, false) : oneQuestion(r, tx);
+        if (afterHistory(tx, ctx) === "protect") return protect(r, productId, transactionId, false);
+        await think(r, "clara.chat.think.default", latency.thinkShort);
+        return oneQuestion(r, tx);
       }
       case "haveCard":
         if (!transactionId) return unknown(r);
@@ -659,7 +661,7 @@ export function createMockChat(ports: MockChatPorts) {
         }
       }
       if (mine !== token) return;
-      set({ inflight: null });
+      set({ inflight: null, held: state.held && state.queue.length > 0 });
       persist();
     }
     if (mine !== token) return;
@@ -668,13 +670,14 @@ export function createMockChat(ports: MockChatPorts) {
     persist();
   }
 
-  function enqueue(input: Input, echo?: string) {
+  function enqueue(input: Input, echo?: string, hold = false) {
     set((current) => ({
       ...current,
       entries: echo ? [...current.entries, { id: `c${current.sequence + 1}`, kind: "me", text: echo }] : current.entries,
       sequence: echo ? current.sequence + 1 : current.sequence,
       queue: [...current.queue, input],
       chips: echo ? [] : current.chips,
+      held: current.held || hold,
       selected: null,
       pick: null,
     }));
@@ -706,13 +709,13 @@ export function createMockChat(ports: MockChatPorts) {
       const trimmed = message.trim();
       if (trimmed) enqueue({ type: "text", text: trimmed }, trimmed);
     },
-    input: enqueue,
+    input: (input: Input, echo?: string) => enqueue(input, echo, true),
     select: (id: string) => {
       set({ selected: id });
     },
     confirm: (choice: BarChoice) => {
       if (state.selected !== choice.id) return;
-      enqueue(choice.input, choice.echo);
+      enqueue(choice.input, choice.echo, true);
     },
     pick: (next: PanelPick) => {
       set({ pick: next, selected: null });
@@ -722,7 +725,7 @@ export function createMockChat(ports: MockChatPorts) {
     },
     confirmPick: () => {
       const chosen = state.pick;
-      if (chosen) enqueue(chosen.input, chosen.echo);
+      if (chosen) enqueue(chosen.input, chosen.echo, true);
     },
     navigate: (spec: ViewSpec, face: EntityState) => {
       if (state.panel.mode === "searching" || state.panel.mode === "calling") return;

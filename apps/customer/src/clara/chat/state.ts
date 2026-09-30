@@ -118,12 +118,13 @@ export interface ChatState {
   queue: Input[];
   inflight: Input | null;
   busy: boolean;
+  held: boolean;
   selected: string | null;
   pick: PanelPick | null;
   sequence: number;
 }
 
-export type PersistedChat = Omit<ChatState, "thinking" | "humanTyping" | "busy" | "selected" | "pick">;
+export type PersistedChat = Omit<ChatState, "thinking" | "humanTyping" | "busy" | "held" | "selected" | "pick">;
 
 export const initialChat: ChatState = {
   entries: [],
@@ -140,13 +141,14 @@ export const initialChat: ChatState = {
   queue: [],
   inflight: null,
   busy: false,
+  held: false,
   selected: null,
   pick: null,
   sequence: 0,
 };
 
 export function settled(state: ChatState): PersistedChat {
-  const { thinking: _thinking, humanTyping: _typing, busy: _busy, selected: _selected, pick: _pick, ...kept } = state;
+  const { thinking: _thinking, humanTyping: _typing, busy: _busy, held: _held, selected: _selected, pick: _pick, ...kept } = state;
   const panel: Panel =
     state.panel.mode === "searching" || state.panel.mode === "calling"
       ? state.current
@@ -170,6 +172,7 @@ export function restored(persisted: PersistedChat): ChatState {
     thinking: null,
     humanTyping: false,
     busy: false,
+    held: false,
     selected: null,
     pick: null,
   };

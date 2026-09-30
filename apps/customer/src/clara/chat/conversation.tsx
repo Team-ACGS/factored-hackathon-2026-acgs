@@ -28,7 +28,7 @@ export function Conversation({ chat, ctx, onReference }: ConversationProps) {
   }, [state.entries, state.thinking, state.humanTyping]);
 
   return (
-    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6">
+    <div ref={scroller} className="min-h-0 flex-1 scroll-smooth overflow-y-auto px-5 pt-4 pb-6">
       <div className="mx-auto flex max-w-[680px] flex-col gap-[18px]" aria-live="polite">
         {chat.notice && (
           <p role="status" className="flex flex-wrap items-center justify-center gap-2 text-center text-sm text-ink-3">
@@ -85,7 +85,7 @@ function EntryRow({ entry, chat, ctx, onReference }: { entry: Entry; chat: Clara
   switch (entry.kind) {
     case "me":
       return (
-        <div className="chat-rise flex flex-col items-end gap-1 self-end">
+        <div className="chat-me flex flex-col items-end gap-1">
           <p className="max-w-[80%] rounded-[20px_20px_6px_20px] border border-line bg-surface px-4 py-2.5 whitespace-pre-wrap [overflow-wrap:anywhere]">
             {entry.text}
           </p>
@@ -102,13 +102,13 @@ function EntryRow({ entry, chat, ctx, onReference }: { entry: Entry; chat: Clara
       );
     case "system":
       return (
-        <div className="chat-rise flex w-full items-center gap-2.5 text-[12.5px] text-ink-3 before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
+        <div className="chat-msg flex w-full items-center gap-2.5 text-[12.5px] text-ink-3 before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
           {entry.text}
         </div>
       );
     case "human":
       return (
-        <div className="chat-rise grid grid-cols-[26px_minmax(0,1fr)] gap-3">
+        <div className="chat-msg grid grid-cols-[26px_minmax(0,1fr)] gap-3">
           <Avatar />
           <div>
             <small className="mb-0.5 block text-xs text-ink-3">
@@ -122,7 +122,7 @@ function EntryRow({ entry, chat, ctx, onReference }: { entry: Entry; chat: Clara
       const streaming = entry.shown < entry.words;
       const ref = entry.ref && !streaming ? referenceOf(entry.ref, chat.state) : null;
       return (
-        <div className="chat-rise grid grid-cols-[26px_minmax(0,1fr)] items-start gap-3">
+        <div className="chat-msg grid grid-cols-[26px_minmax(0,1fr)] items-start gap-3">
           <span className="mt-0.5">
             <ClaraGlyph />
           </span>

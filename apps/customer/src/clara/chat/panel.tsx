@@ -2,6 +2,7 @@ import { ClaraEntity } from "@clara/ui/components/clara-entity";
 import type { EntityMode, EntityState } from "@clara/ui/lib/entity";
 import { cn } from "@clara/ui/lib/cn";
 import { ChevronDown, Clock, CreditCard, HelpCircle, Store } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { brand } from "../../bank/brand";
 import { useI18n } from "../../i18n";
@@ -11,7 +12,7 @@ import { agent } from "./engine";
 import type { Context } from "./insight";
 import { viewMeta } from "./meta";
 import { box } from "./parts";
-import { currentView, type Skeleton } from "./state";
+import { currentView, type ChatState, type Skeleton, type View } from "./state";
 import { PanelView } from "./views";
 
 interface PanelProps {
@@ -29,13 +30,58 @@ function entityModeOf(mode: ClaraChat["state"]["panel"]["mode"]): EntityMode {
   return "hero";
 }
 
+type Content = { kind: "view"; view: View } | { kind: "skeleton"; skeleton: Skeleton } | null;
+
+const LEAVE_MS = 200;
+
+function contentOf(state: ChatState): Content {
+  const panel = state.panel;
+  if (panel.mode === "searching" && panel.skeleton) return { kind: "skeleton", skeleton: panel.skeleton };
+  const view = currentView(state);
+  return view && (panel.mode === "docked" || panel.mode === "searching") ? { kind: "view", view } : null;
+}
+
+function contentKey(content: Content): string {
+  if (!content) return "none";
+  return content.kind === "view" ? `view:${content.view.id}` : `skeleton:${content.skeleton}`;
+}
+
+function useLeaving(target: Content): { shown: Content; leaving: boolean } {
+  const [previous, setPrevious] = useState(target);
+  const [leaving, setLeaving] = useState<Content>(null);
+  if (contentKey(previous) !== contentKey(target)) {
+    setPrevious(target);
+    if (!leaving && previous?.kind === "view" && target) setLeaving(previous);
+  }
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(() => setLeaving(null), LEAVE_MS);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+  return leaving ? { shown: leaving, leaving: true } : { shown: target, leaving: false };
+}
+
+function useLastBar(bar: Bar | null): Bar | null {
+  const [last, setLast] = useState(bar);
+  if (bar && (!last || barKey(bar) !== barKey(last))) setLast(bar);
+  return bar ?? last;
+}
+
 export function ChatPanel({ chat, ctx, bar, face, sheet, onCloseSheet }: PanelProps) {
   const { t } = useI18n();
   const { state } = chat;
   const panel = state.panel;
-  const view = currentView(state);
+  const { shown, leaving } = useLeaving(contentOf(state));
+  const shownBar = useLastBar(bar);
+  const body = useRef<HTMLDivElement>(null);
+  const shownKey = contentKey(shown);
+  const view = shown?.kind === "view" ? shown.view : currentView(state);
   const meta = view ? viewMeta(view.spec, ctx, t) : null;
   const docked = panel.mode === "docked" || panel.mode === "searching";
+
+  useLayoutEffect(() => {
+    if (body.current) body.current.scrollTop = 0;
+  }, [shownKey]);
 
   return (
     <aside
@@ -49,7 +95,7 @@ export function ChatPanel({ chat, ctx, bar, face, sheet, onCloseSheet }: PanelPr
         <ClaraEntity
           state={face}
           mode={entityModeOf(panel.mode)}
-          motion={state.thinking ? "thinking" : "idle"}
+          motion={state.thinking ? "thinking" : undefined}
           label={t("clara.name")}
         />
       </div>
@@ -92,14 +138,11 @@ export function ChatPanel({ chat, ctx, bar, face, sheet, onCloseSheet }: PanelPr
           )}
         </div>
       )}
-      <div className="chat-body">
-        {panel.mode === "searching" && panel.skeleton ? (
-          <SkeletonView kind={panel.skeleton} />
-        ) : (
-          docked && view && <PanelView key={view.id} view={view} chat={chat} ctx={ctx} />
-        )}
+      <div ref={body} className="chat-body" data-leaving={leaving || undefined}>
+        {shown?.kind === "skeleton" && <SkeletonView kind={shown.skeleton} />}
+        {shown?.kind === "view" && <PanelView key={shown.view.id} view={shown.view} chat={chat} ctx={ctx} />}
       </div>
-      {bar && <ActionBar key={barKey(bar)} bar={bar} chat={chat} />}
+      {shownBar && <ActionBar bar={shownBar} gone={!bar} chat={chat} />}
     </aside>
   );
 }
@@ -116,11 +159,19 @@ const optionClass =
 const confirmClass =
   "chat-confirm h-[46px] w-full rounded-full bg-ink px-6 text-[14.5px] font-semibold text-white transition-opacity duration-200 disabled:cursor-default disabled:opacity-30 sm:w-auto sm:min-w-[240px]";
 
-function ActionBar({ bar, chat }: { bar: Bar; chat: ClaraChat }) {
+function ActionBar({ bar, gone, chat }: { bar: Bar; gone: boolean; chat: ClaraChat }) {
   const { t } = useI18n();
+  const frame = {
+    className: "chat-bar",
+    role: "group",
+    "aria-label": t("clara.chat.actions"),
+    "aria-hidden": gone || undefined,
+    "data-gone": gone || undefined,
+    inert: gone,
+  };
   if (bar.kind === "pick") {
     return (
-      <div className="chat-bar" role="group" aria-label={t("clara.chat.actions")}>
+      <div {...frame}>
         <span className="text-[13.5px] font-semibold text-ink-2">{bar.pick.prompt}</span>
         <span className="-mt-1.5 text-base font-semibold">{bar.pick.label}</span>
         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -136,7 +187,7 @@ function ActionBar({ bar, chat }: { bar: Bar; chat: ClaraChat }) {
   }
   const selected = bar.options.find((option) => option.id === chat.state.selected);
   return (
-    <div className="chat-bar" role="group" aria-label={t("clara.chat.actions")}>
+    <div {...frame}>
       <span className="text-[13.5px] font-semibold text-ink-2">{bar.prompt}</span>
       <div className="flex flex-wrap items-center justify-center gap-2">
         {bar.options.map((option) => {
@@ -179,7 +230,7 @@ function Bone({ className }: { className: string }) {
 function SkeletonView({ kind }: { kind: Skeleton }) {
   const rows = (count: number) => Array.from({ length: count }, (_, index) => index);
   return (
-    <div className="chat-rise mx-auto grid max-w-[620px] gap-4" aria-hidden>
+    <div className="chat-skeletons mx-auto grid max-w-[620px] gap-4" aria-hidden>
       {kind === "list" && (
         <>
           <div className="flex gap-2">

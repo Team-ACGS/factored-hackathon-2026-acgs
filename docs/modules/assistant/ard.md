@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0010_customer_redesign
+updated: 2026-09-30
+source: 0011_customer_redesign_fidelity
 ---
 
 # assistant: architecture and debt
@@ -256,3 +256,22 @@ source: 0010_customer_redesign
 - Debt created: none
 - Revisit when: the turn owns cases.
 - Source: 0010_customer_redesign
+
+## 2026-09-30: a confirmed choice hides the chat's action bar until Clara shows the next view or question
+
+- Decision: confirming an option, a pick or an entry topic sets a transient `held` flag in the chat state; `barOf` returns no bar while it is set, and it clears when Clara opens a view, asks, or finishes that input; a question left open on the view a pick came from stays pending there.
+- Alternatives rejected: dropping the open question on a pick, as the prototype's `answered()` did (reopening that view would lose its question); hiding the bar whenever the engine is busy (the bar must show while Clara streams after asking).
+- Reason: the bar is derived from the current view, so it came back with the old question while Clara worked and the flow looked stuck.
+- Debt created: none
+- Revisit when: the turn returns UI blocks and the bar comes from the server.
+- Source: 0011_customer_redesign_fidelity
+
+## 2026-09-30: panel motion follows the prototype in CSS, and shared bank parts take a chat tone
+
+- Decision: the glass bar stays mounted and leaves with `data-gone`; the old view fades out for 200 ms before the next view or skeleton; stagger uses a `--i` index so nested items keep document order; `CardFace`, `CardUsage` and `MovementContent` take `tone: "bank" | "clara"` for the chat's sizes, bars and status note; transitions name `translate` and `scale`, never `transform`, because Tailwind 4 moves those utilities to the individual properties.
+- Alternatives rejected: a motion library (the prototype is plain CSS); overriding inner classes of shared parts from the chat (two sources for one look); delaying the entity until the old view has left (couples the entity to the panel for a 200 ms difference).
+- Reason: parity with the validated prototype is the bar, and the bank pages must keep their own look.
+- Debt created: none
+- Revisit when: the chat panel is redesigned.
+- Source: 0011_customer_redesign_fidelity
+

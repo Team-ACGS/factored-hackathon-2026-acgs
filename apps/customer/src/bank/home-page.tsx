@@ -34,17 +34,10 @@ export function HomePage({ productId, transactionId }: HomePageProps) {
 
   return (
     <div className="grid gap-9">
-      <section className="grid gap-1.5">
-        <p className="text-[13.5px] text-ink-3 first-letter:uppercase">
-          {new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(new Date())}
-        </p>
-        <h1 className="text-[clamp(28px,4.6vw,36px)] leading-[1.1] font-semibold tracking-tight">{t("home.hello")}</h1>
-      </section>
-
       <section className="grid gap-3.5" aria-labelledby="home-cards">
-        <h2 id="home-cards" className="text-lg font-semibold">
+        <h1 id="home-cards" className="text-lg font-semibold">
           {t("home.cards")}
-        </h2>
+        </h1>
         {cards.length === 0 ? (
           <p className="py-9 text-center text-ink-3">{t("cards.empty")}</p>
         ) : (
@@ -57,7 +50,7 @@ export function HomePage({ productId, transactionId }: HomePageProps) {
                     to="/cards/$productId"
                     params={{ productId: card.product_id }}
                     aria-label={t("card.viewMovementsOf", { card: cardName(card) })}
-                    className="rounded-[14px] outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                    className="rounded-[14px] outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-[3px] focus-visible:ring-ring/40"
                   >
                     <CardFace card={card} material={materialOf(cards, card.product_id)} lock={lock} />
                   </Link>

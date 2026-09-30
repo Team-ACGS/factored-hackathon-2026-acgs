@@ -113,7 +113,7 @@ function ChatLayout({ chat, ctx }: { chat: ClaraChat; ctx: Context }) {
                     key={chip.label}
                     type="button"
                     style={{ animationDelay: `${index * 60}ms` }}
-                    className="chat-rise h-9 rounded-full border border-line bg-surface px-3.5 text-[13.5px] font-semibold transition-colors hover:border-[#4c8fe6] hover:bg-[#edf4fd]"
+                    className="chat-chip h-9 rounded-full border border-line bg-surface px-3.5 text-[13.5px] font-semibold transition-colors hover:border-[#4c8fe6] hover:bg-[#edf4fd]"
                     onClick={() => chat.send(chip.label)}
                   >
                     {chip.label}
@@ -127,7 +127,7 @@ function ChatLayout({ chat, ctx }: { chat: ClaraChat; ctx: Context }) {
               onClick={() => setSheet("open")}
               aria-label={t("clara.chat.showPanel")}
             >
-              <ClaraEntity state={face} motion={state.thinking ? "thinking" : "idle"} className="size-10" />
+              <ClaraEntity state={face} motion={state.thinking ? "thinking" : undefined} className="size-10" />
               <span className={state.panel.mode === "searching" ? "chat-shimmer truncate text-sm" : "truncate text-sm font-semibold"}>
                 {peek}
               </span>
@@ -135,7 +135,7 @@ function ChatLayout({ chat, ctx }: { chat: ClaraChat; ctx: Context }) {
             </button>
             <form
               onSubmit={submit}
-              className="flex items-end gap-2.5 rounded-3xl border border-line bg-surface py-3 pr-3 pl-[18px] shadow-bank transition-colors focus-within:border-[#c9d4e3]"
+              className="flex items-end gap-2.5 rounded-3xl border border-line bg-surface py-3 pr-3 pl-[18px] shadow-clara transition-colors duration-200 focus-within:border-[#c9d4e3]"
             >
               <textarea
                 ref={input}
