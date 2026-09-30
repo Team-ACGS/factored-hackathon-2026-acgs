@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0010_customer_redesign
+updated: 2026-09-30
+source: 0011_customer_redesign_fidelity
 ---
 
 # assistant: product
@@ -22,7 +22,7 @@ The module also protects the customer within one turn when the words say fraud, 
 3. A one-time guide shows the three charges planted for Clara to explain (a recent hold, a refunded charge, an old pending charge) and what Clara should do with each; it is never shown again.
 4. From the demo links in the footer, the customer adds a normal purchase or a suspicious one (an online merchant they never used, with the bank's score chosen from three options), which shows at once while the bank fills it in.
 5. Clara appears in the bank only as her button and the bank's own entry points ("Talk to Clara" on a movement, "Ask Clara" on a claim, the Clara card in Help); each opens the chat with that topic already started.
-6. The chat shows the conversation on the left and a panel on the right (a bottom sheet on phones) with cards, movements, the charge, confirmations, receipts and the person who takes over; every choice asks for confirmation, and a block or claim made there shows in the bank pages for the session.
+6. The chat shows the conversation on the left and a panel on the right (a bottom sheet on phones) with cards, movements, the charge, confirmations, receipts and the person who takes over; every choice asks for confirmation, the confirmed choice steps aside while Clara works, and a block or claim made there shows in the bank pages for the session.
 
 Errors and empty states: setup runs once; a second attempt is refused and a half-done one finishes with the same data.
 
