@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-29
-source: 0009_client_data_cache
+source: 0010_customer_redesign
 ---
 
 # assistant: architecture and debt
@@ -193,3 +193,66 @@ source: 0009_client_data_cache
 - Debt created: a focus refetch that starts while an add is in flight can hide its placeholder until the add succeeds; a failed cards refetch after setup leaves the list empty with no error.
 - Revisit when: a customer reports a missing row or card.
 - Source: 0009_client_data_cache
+
+## 2026-09-29: the customer chat runs on a client mock behind one switch
+
+- Decision: Clara's turns and writes are simulated in `src/clara/chat` (engine, triage, lexicon) on the customer's real cards and movements; `mockChat` in `src/clara/switch.ts` picks the mock or `src/chat/live.ts`, and with the mock on no request reaches `/messages` and no AppSync subscription opens.
+- Alternatives rejected: waiting for the turn to show the redesign; commented-out code; a mock with the prototype's fixed data.
+- Reason: the whole experience can be shown now and agree with the bank pages beside it, and the backend is switched on in one place.
+- Debt created: the mock replaces the turn: its rules, wording and typed-answer matching live in the client, and its blocks, claims and recognized charges exist only in `sessionStorage`. To activate the backend, set `mockChat` to `false`: the chat then sends text through `/messages` and shows replies as text only, without panel views, until `chatbot` returns UI blocks (views, question and options) and the live adapter renders them.
+- Revisit when: the turn returns UI blocks, or the mock drifts from what the turn decides.
+- Source: 0010_customer_redesign
+
+## 2026-09-29: Clara's session store holds the conversation, and the input being handled survives a reload
+
+- Decision: one store per customer in `sessionStorage` holds the seeded claim, chat blocks and claims, reviewed and recognized charges, the pending topic and the settled conversation; the engine is a singleton that keeps the input it is handling as `inflight` until it finishes and puts it back at the head of the queue on restore; answers carry the ask they answer, and writes are idempotent (a block keeps its first time, a claim is reused per transaction).
+- Alternatives rejected: conversation in component state (lost on every navigation); dropping the in-flight input (a confirmed block could vanish on reload).
+- Reason: actions are never dropped, and a rerun after a reload must not write twice.
+- Debt created: a reload mid-flow can repeat the Clara messages of the step that was running.
+- Revisit when: the conversation moves to the server with the turn.
+- Source: 0010_customer_redesign
+
+## 2026-09-29: the mock explains a movement first and triages only when the customer does not recognize it
+
+- Decision: opening a movement explains it (hold, refunded, never charged, pending that counts as charged, earlier purchases, nothing unusual); "I don't recognize this charge" then applies triage.md; a movement whose triage is protect opens the charge view and asks whether the customer made it; after earlier purchases, "No" goes to protect with signals or to the one question; a declined movement offers "I didn't try to make this purchase", which protects; a blocked card goes to the handoff with its case; an unusual hour or a new merchant is shown as a reason but does not decide protect.
+- Alternatives rejected: triage on every tap (a customer asking what a charge is would be offered a claim); asking "did you make it?" again after history.
+- Reason: tapping is a question about the movement, not a statement that it is unknown, and triage.md decides only on score, country and channel.
+- Debt created: none
+- Revisit when: the turn's rules table replaces the mock.
+- Source: 0010_customer_redesign
+
+## 2026-09-29: the seeded claim is anchored to the setup instant read from the card's UUIDv7
+
+- Decision: the claim is the newest approved in-store purchase with no signals at least 7 days older than the seeded card's `product_id` time, opened a day after the charge, assigned at +2 days, in review from +6 days; no step carries a due date.
+- Alternatives rejected: the current time as anchor (the claim would move between reloads); a stored claim on the server (no endpoint).
+- Reason: its id and timeline must be stable across reloads with only the read models.
+- Debt created: none
+- Revisit when: claims are stored on the server.
+- Source: 0010_customer_redesign
+
+## 2026-09-29: money uses the currency's country conventions
+
+- Decision: `formatMoney` formats with the language plus the currency's region and the narrow symbol, so a Spanish MXN account reads `$1,063.50`.
+- Alternatives rejected: the UI locale alone (MXN in Spanish rendered as `MXN 1.063,50`).
+- Reason: amounts must look like the customer's bank, whatever the UI language.
+- Debt created: none
+- Revisit when: a country's bank formats differently.
+- Source: 0010_customer_redesign
+
+## 2026-09-29: bank sheets are a local Radix sheet and ledgers of every card load in parallel
+
+- Decision: `src/bank/bank-sheet.tsx` wraps Radix Dialog as a side sheet that becomes a bottom sheet at 560 px; `LedgersOf` starts every card's first page during render and reads them through a recursive suspense chain, because `useQueries` takes no infinite queries.
+- Alternatives rejected: the shared `ui` Sheet (no bottom-sheet mode); sequential suspense (one card after the other).
+- Reason: the design needs a phone bottom sheet, and home, the button and the chat need every card's movements at once.
+- Debt created: none
+- Revisit when: TanStack Query supports infinite queries in `useQueries`.
+- Source: 0010_customer_redesign
+
+## 2026-09-29: entry points hand their topic to the chat through the session store
+
+- Decision: the launcher, the bank's entry points and typed text start a topic in the session store and navigate to `/chat`, which takes it once; a charge counts as reviewed when its topic starts or the chat shows it; the footer adds purchases to the card in view, else the first; a block made in the chat shows on the card, with a case id derived from the charge and the block time, not as a claim in Help.
+- Alternatives rejected: topics in the URL (typed text would land in history); a block listed as a claim.
+- Reason: typed text stays out of history, and a block is a protection with its own case, not a claim.
+- Debt created: none
+- Revisit when: the turn owns cases.
+- Source: 0010_customer_redesign
