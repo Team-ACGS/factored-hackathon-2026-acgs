@@ -16,12 +16,13 @@ import { useId, useState, type FormEvent } from "react";
 
 import { applyProfileLanguage } from "../app/profile-language";
 import { FormError } from "../auth/field";
+import { resolveSeededClaim } from "../clara/services";
 import { localeStore, useI18n } from "../i18n";
 import { isLocale, languageNames, locales } from "../i18n/locale";
 import { formatMoney } from "./format";
 import { countryName, guessCountry } from "./labels";
 import { bankQueries } from "./services";
-import { StatusBadge } from "./status-badge";
+import { MovementPill } from "./movement-pill";
 import { countries, type Country, type PlantedCase, type Profile } from "./types";
 
 const keepOpen = (event: Event) => event.preventDefault();
@@ -48,6 +49,7 @@ function SetupForm({ onCreated }: { onCreated: (cases: PlantedCase[]) => void })
     if (!outcome) return;
     if (outcome.cases) onCreated(outcome.cases);
     await applyProfileLanguage(outcome.profile);
+    await resolveSeededClaim(queryClient, outcome.profile);
   }
 
   const busy = setup.isPending;
@@ -132,7 +134,7 @@ function PlantedCasesGuide({ cases, onClose }: { cases: PlantedCase[]; onClose: 
                     {dateFormat.format(new Date(transaction.transaction_date))}
                   </p>
                 </div>
-                <StatusBadge status={transaction.transaction_status} />
+                <MovementPill status={transaction.transaction_status} showApproved />
               </div>
               <p className="text-sm">
                 <span className="font-medium">{t("guide.clara")}: </span>

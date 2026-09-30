@@ -1,11 +1,25 @@
-import { infiniteQueryOptions, queryOptions, type MutationOptions, type QueryClient } from "@tanstack/react-query";
+import {
+  InfiniteQueryObserver,
+  infiniteQueryOptions,
+  queryOptions,
+  type MutationOptions,
+  type QueryClient,
+} from "@tanstack/react-query";
 
 import { ApiError } from "../api/http";
 import { minutes, seconds } from "../api/query-client";
 import { idTime, type Clock } from "../chat/clock";
 import type { Locale } from "../i18n/locale";
 import type { BankApi } from "./api";
-import { withAdded, withoutPlaceholder, withPlaceholder, type Ledger, type LedgerPage } from "./ledger";
+import {
+  entriesOf,
+  withAdded,
+  withoutPlaceholder,
+  withPlaceholder,
+  type Ledger,
+  type LedgerEntry,
+  type LedgerPage,
+} from "./ledger";
 import type { Country, NewTransaction, PlantedCase, Profile, Transaction } from "./types";
 
 export const bankKeys = {
@@ -100,3 +114,20 @@ export function createBankQueries(bank: BankApi, clock: Clock) {
 }
 
 export type BankQueries = ReturnType<typeof createBankQueries>;
+
+export type LedgerOptions = ReturnType<BankQueries["ledger"]>;
+
+export async function ensureLedgerUntil(
+  queryClient: QueryClient,
+  options: LedgerOptions,
+  done: (entries: LedgerEntry[]) => boolean,
+): Promise<LedgerEntry[]> {
+  await queryClient.ensureInfiniteQueryData(options);
+  const observer = new InfiniteQueryObserver(queryClient, options);
+  let result = observer.getCurrentResult();
+  while (!done(entriesOf(result.data)) && result.hasNextPage) {
+    result = await observer.fetchNextPage();
+    if (result.isFetchNextPageError) throw result.error;
+  }
+  return entriesOf(result.data);
+}

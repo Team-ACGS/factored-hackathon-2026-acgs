@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-29
-source: 0009_client_data_cache
+source: 0010_customer_redesign
 ---
 
 # assistant: technical
@@ -19,8 +19,8 @@ Built as a skeleton in task 0003; the turn steps are still planned.
 | `lambdas/chatbot/` | Stream consumer: skips non-customer messages and delegated rooms, writes the reply through `core.messaging`, emits `turn.completed`, reports failed records one by one. Today the reply is an echo; the turn (ingress, understand, retrieve, decide, act, compose, egress) replaces it. |
 | `lambdas/crud/` | The customer's own data behind `/crud/*`: profile and one-time setup, cards, transactions; the generator (`catalog.py`, `generator.py`) builds a demo account deterministically from the setup claim. |
 | `lambdas/core/` | Shared package bundled into every lambda zip: today the read models every reader of customer data must use (`core.accounts` for cards and transactions, `core.customers` for the profile, each an attribute allow-list); later the policy table, state machine, tool clients, grounding check and contact digest. |
-| `apps/customer/` | SPA at `factoredai.sdfles.com` (React, Vite, TanStack Router, TanStack Query, Amplify v6 for Cognito and AppSync Events): sign up, email code, sign in, setup dialog and guide, cards, card transactions with a detail sheet, chat at `/chat`; bank data through the queries and mutations of `src/bank/queries.ts` (conventions in `docs/TRD.md`); text from typed catalogs in `src/i18n/`, language held in a runtime store. |
-| `apps/ui/` | Shared Tailwind theme and shadcn/ui components (copied into the repo, `components.json` for the shadcn CLI) for every web. |
+| `apps/customer/` | SPA at `factoredai.sdfles.com` (React, Vite, TanStack Router, TanStack Query, Amplify v6): auth, setup, the bank shell in `src/bank` (home, card movements, help and claims, sheets; server data only through `src/bank/queries.ts`), Clara in `src/clara` (button, launcher, entry points, the session store in `sessionStorage` that the bank pages overlay, the seeded claim) and the chat in `src/clara/chat` (pure engine, triage, lexicon, bar and references, plus the page, panel and views). The chat consumes one contract with two implementations picked by `src/clara/switch.ts`: the mock engine, and `src/chat/live.ts`, today's text path (`/messages` plus AppSync) adapted to it. Text from typed catalogs in `src/i18n/`. |
+| `apps/ui/` | Shared Tailwind theme, self-hosted fonts (`@fontsource`: Hanken Grotesk, Newsreader, IBM Plex Mono), shadcn/ui components, and Clara's entity: pure geometry in `src/lib/entity.ts` (palette, nine states, sampled outlines, faces, interpolation) and `ClaraEntity` / `ClaraGlyph` in `src/components/clara-entity.tsx`, morphed by one JS interpolation path in every browser. |
 
 ## Endpoints owned
 
@@ -64,6 +64,7 @@ Jobs and listeners: `chatbot` consumes the `messages` stream, only inserts with 
 
 - `lambdas/tests/chatbot/`: echo placement, delegated rooms, no loop, redelivery, `turn.completed` without text, partial batch failures.
 - `lambdas/tests/crud/`: the generated account (counts, status mix, merchant minimums, planted cases, determinism per country), first, second, resumed and concurrent setup, paging and cursor tampering, cross-customer reads, adds and suffix uniqueness, staff 403, and no hidden attribute in any response; `lambdas/tests/core/` proves the read models drop them.
-- `apps/customer`: `vitest` on the locale store, the chat logic, the bank API client and money formatting, and the bank queries against a real `QueryClient` with browser defaults (paging, cache lifetime, optimistic add, rollback, targeted invalidation, setup); screens have no tests, Sebastian validates the UI on the PR.
+- `apps/customer`: `vitest` in node on `*.test.ts`: the locale store and catalogs (no "fraud" in Clara's text, no due date or legal term), the bank API client, money formatting and the bank queries against a real `QueryClient`; the Clara session, overlay, seeded claim and topics; the mock chat's triage precedence, typed answers, and engine flows (flagged charge to block and handoff, claim with the one question, lost card, confirmation before any action, a queue that never drops, references reopening with current state, gap cases, reload mid-write, reset). Screens have no tests; Sebastian validates the UI on the PR.
+- `apps/ui`: `vitest` on the entity geometry (states, outlines, interpolation).
 - Commands: `docs/TRD.md`, Verification targets.
 `docs/problem-statement.md` (H1-H5) and `hackathon/docs/kickoff-compliance.md` name a baseline comparison (rules bot, naive LLM) and a held-out evaluation as required, owned operationally by `evaluation/`, exercising this module as a whole.

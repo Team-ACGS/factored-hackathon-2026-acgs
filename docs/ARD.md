@@ -118,6 +118,7 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-09-28 | `crud` and `messages` duplicate the claims and body parsing of their handlers | when a third API lambda appears |
 | assistant | 2026-09-29 | The chat of `customer` is not on TanStack Query yet | when the chat is next changed |
 | assistant | 2026-09-29 | A failed background refetch after an add or a setup is silent (a focus refetch can briefly hide an add in flight; cards can stay empty after setup) | when a customer reports a missing row or card |
+| assistant | 2026-09-29 | The customer chat runs on a client mock (`mockChat` in `src/clara/switch.ts`); its writes live only in `sessionStorage`, a reload mid-flow can repeat the running step's messages, and the live path is text only | when the turn returns UI blocks, or the mock drifts from the turn |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |
 | identity | 2026-09-29 | The credentials cache of `core.access` and its resources are not thread safe | when a handler runs work on threads |

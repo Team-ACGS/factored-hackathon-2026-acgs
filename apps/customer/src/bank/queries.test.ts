@@ -6,7 +6,7 @@ import { createQueryClient, minutes } from "../api/query-client";
 import { mintId, type Clock } from "../chat/clock";
 import type { BankApi } from "./api";
 import type { Ledger } from "./ledger";
-import { bankKeys, createBankQueries } from "./queries";
+import { bankKeys, createBankQueries, ensureLedgerUntil } from "./queries";
 import type { Card, CardPage, Setup, Transaction } from "./types";
 
 vi.hoisted(() => {
@@ -298,5 +298,54 @@ describe("bank queries", () => {
       expect(client.getQueryData(bankKeys.profile())).toEqual(before);
       expect(invalidated(bankKeys.cards())).toBe(false);
     });
+  });
+});
+
+describe("ensureLedgerUntil", () => {
+  function pagedWorld() {
+    const shared = world();
+    const pages = [page(["a", "b"], "c1"), page(["c", "d"], "c2"), page(["e"], null)];
+    const cursors = [null, "c1", "c2"];
+    shared.api.card.mockImplementation((_, cursor) => Promise.resolve(pages[cursors.indexOf(cursor ?? null)] ?? page([], null)));
+    return shared;
+  }
+
+  it("fetches pages only until the wanted row is loaded", async () => {
+    const { api, client, queries, ids } = pagedWorld();
+
+    const entries = await ensureLedgerUntil(client, queries.ledger("card-1"), (rows) =>
+      rows.some((entry) => entry.transaction_id === "c"),
+    );
+
+    expect(entries.map((entry) => entry.transaction_id)).toEqual(["a", "b", "c", "d"]);
+    expect(api.card).toHaveBeenCalledTimes(2);
+    expect(ids()).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("stops at the last page when nothing matches", async () => {
+    const { api, client, queries } = pagedWorld();
+
+    const entries = await ensureLedgerUntil(client, queries.ledger("card-1"), () => false);
+
+    expect(entries).toHaveLength(5);
+    expect(api.card).toHaveBeenCalledTimes(3);
+  });
+
+  it("reads nothing more when the cached pages already hold the row", async () => {
+    const { api, client, queries } = pagedWorld();
+    await client.ensureInfiniteQueryData(queries.ledger("card-1"));
+
+    await ensureLedgerUntil(client, queries.ledger("card-1"), (rows) => rows.length > 0);
+
+    expect(api.card).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails when a later page cannot be read", async () => {
+    const { api, client, queries } = pagedWorld();
+    api.card.mockImplementation((_, cursor) =>
+      cursor ? Promise.reject(new ApiError(503)) : Promise.resolve(page(["a"], "c1")),
+    );
+
+    await expect(ensureLedgerUntil(client, queries.ledger("card-1"), () => false)).rejects.toEqual(new ApiError(503));
   });
 });

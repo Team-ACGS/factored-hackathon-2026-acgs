@@ -23,6 +23,14 @@ export function isPending(entry: LedgerEntry): entry is PendingTransaction {
   return "pending" in entry;
 }
 
+export function findTransaction(entries: readonly LedgerEntry[], transactionId: string | undefined): Transaction | undefined {
+  return entries.find((entry): entry is Transaction => !isPending(entry) && entry.transaction_id === transactionId);
+}
+
+export function entriesOf(ledger: { pages: readonly LedgerPage[] } | undefined): LedgerEntry[] {
+  return ledger?.pages.flatMap((page) => page.transactions) ?? [];
+}
+
 function mapFirstPage(ledger: Ledger, change: (page: LedgerPage) => LedgerPage): Ledger {
   const [first, ...rest] = ledger.pages;
   return first ? { ...ledger, pages: [change(first), ...rest] } : ledger;
