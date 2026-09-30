@@ -13,10 +13,11 @@ interface CardFaceProps {
   card: Card;
   material: Material;
   lock: CardLock;
+  animateLock?: boolean;
   className?: string;
 }
 
-export function CardFace({ card, material, lock, className }: CardFaceProps) {
+export function CardFace({ card, material, lock, animateLock = false, className }: CardFaceProps) {
   const { t } = useI18n();
   const lockTime = useLockTime();
 
@@ -43,7 +44,12 @@ export function CardFace({ card, material, lock, className }: CardFaceProps) {
         </span>
       </span>
       {lock.blocked && (
-        <span className="absolute inset-0 z-[2] grid place-items-center bg-[rgb(9_13_11/0.66)] p-3 text-center text-on-mat">
+        <span
+          className={cn(
+            "absolute inset-0 z-[2] grid place-items-center bg-[rgb(9_13_11/0.66)] p-3 text-center text-on-mat",
+            animateLock && "lock-in",
+          )}
+        >
           <span className="flex flex-col items-center gap-1.5 font-semibold">
             <Lock className="size-6" aria-hidden />
             {t("card.blocked")}

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { initialChat, settled } from "./chat/state";
 import { claimOf } from "./claims";
 import { cardAt, purchase } from "./fixtures";
 import { cardLock, claimForTransaction, flaggedCharges, openClaims } from "./overlay";
@@ -40,11 +41,13 @@ describe("clara session", () => {
     session.block(credit.product_id, "2026-09-29T10:31:00.000Z");
     session.addClaim(claimOf(purchase(credit, 1), "2026-09-29T10:40:00.000Z"));
     session.markReviewed("t-1");
+    session.recognize("t-2");
+    session.saveChat(settled({ ...initialChat, entries: [{ id: "c1", kind: "me", text: "hola" }] }));
     session.startTopic({ kind: "cards" });
 
     session.resetDemo();
 
-    expect(session.current()).toEqual({ seeded, claims: [], blocks: {}, reviewed: [], topic: null });
+    expect(session.current()).toEqual({ seeded, claims: [], blocks: {}, reviewed: [], recognized: [], topic: null, chat: null });
   });
 
   it("forgets every customer on sign-out", () => {

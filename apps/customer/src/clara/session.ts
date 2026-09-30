@@ -1,3 +1,4 @@
+import type { PersistedChat } from "./chat/state";
 import type { Claim } from "./claims";
 import type { Topic } from "./topics";
 
@@ -6,7 +7,9 @@ export interface ClaraSessionState {
   claims: Claim[];
   blocks: Record<string, string>;
   reviewed: string[];
+  recognized: string[];
   topic: Topic | null;
+  chat: PersistedChat | null;
 }
 
 export interface SessionStorage {
@@ -37,7 +40,9 @@ export const emptySession: ClaraSessionState = {
   claims: [],
   blocks: {},
   reviewed: [],
+  recognized: [],
   topic: null,
+  chat: null,
 };
 
 function quietly(action: () => void) {
@@ -57,7 +62,9 @@ function parse(raw: string | null): ClaraSessionState {
       claims: Array.isArray(stored.claims) ? stored.claims : [],
       blocks: stored.blocks && typeof stored.blocks === "object" ? stored.blocks : {},
       reviewed: Array.isArray(stored.reviewed) ? stored.reviewed : [],
+      recognized: Array.isArray(stored.recognized) ? stored.recognized : [],
       topic: stored.topic ?? null,
+      chat: stored.chat && typeof stored.chat === "object" ? stored.chat : null,
     };
   } catch {
     return emptySession;
@@ -118,6 +125,16 @@ export function createClaraSession(storage: SessionStorage) {
           ? current
           : { ...current, reviewed: [...current.reviewed, transactionId] },
       );
+    },
+    recognize(transactionId: string) {
+      update((current) =>
+        current.recognized.includes(transactionId)
+          ? current
+          : { ...current, recognized: [...current.recognized, transactionId] },
+      );
+    },
+    saveChat(chat: PersistedChat | null) {
+      update((current) => ({ ...current, chat }));
     },
     startTopic(topic: Topic) {
       update((current) => ({ ...current, topic }));

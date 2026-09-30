@@ -7,7 +7,8 @@ import { bankQueries } from "../bank/services";
 import { SuspiciousDialog } from "../bank/suspicious-dialog";
 import type { ScoreOption } from "../bank/types";
 import { mintId } from "../chat/clock";
-import { claraSession, launcher } from "../clara/store";
+import { resetClaraDemo } from "../clara/services";
+import { launcher } from "../clara/store";
 import { useI18n } from "../i18n";
 
 const linkClass = "text-[13px] text-ink-2 underline underline-offset-[3px] hover:text-ink disabled:opacity-50";
@@ -18,7 +19,7 @@ export function DemoFooter() {
 
   function reset() {
     launcher.close();
-    claraSession.resetDemo();
+    resetClaraDemo();
     void navigate({ to: "/" });
   }
 

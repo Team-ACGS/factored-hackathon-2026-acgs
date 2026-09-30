@@ -1,5 +1,6 @@
 import { cn } from "@clara/ui/lib/cn";
 import { Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { useI18n } from "../i18n";
 import { formatMoney } from "./format";
@@ -21,9 +22,10 @@ interface MovementContentProps {
   entry: LedgerEntry;
   meta: string;
   inClaim: boolean;
+  tag?: ReactNode;
 }
 
-export function MovementContent({ entry, meta, inClaim }: MovementContentProps) {
+export function MovementContent({ entry, meta, inClaim, tag }: MovementContentProps) {
   const { locale, t } = useI18n();
   const icon = "grid size-9 place-items-center rounded-xl bg-muted text-[15px] font-semibold text-ink-2 sm:size-10";
 
@@ -51,6 +53,7 @@ export function MovementContent({ entry, meta, inClaim }: MovementContentProps) 
       <span className="min-w-0">
         <span className="block truncate font-semibold">{entry.merchant_name}</span>
         <span className="text-[13px] text-ink-3">{meta}</span>
+        {tag}
       </span>
       <span className="flex flex-col items-end gap-1">
         <span className={cn("font-semibold whitespace-nowrap tabular-nums", struck && "font-medium text-ink-3 line-through")}>

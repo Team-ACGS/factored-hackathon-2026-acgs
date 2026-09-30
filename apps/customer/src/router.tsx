@@ -12,8 +12,8 @@ import { CardPage } from "./bank/card-page";
 import { HelpPage } from "./bank/help-page";
 import { HomePage } from "./bank/home-page";
 import { bankQueries } from "./bank/services";
-import { ChatPage } from "./chat/chat-page";
-import { resolveSeededClaim } from "./clara/services";
+import { ClaraChatPage } from "./clara/chat/chat-page";
+import { forgetClara, resolveSeededClaim } from "./clara/services";
 import { claraSession } from "./clara/store";
 import { localeStore } from "./i18n";
 
@@ -32,7 +32,7 @@ interface RouterContext {
 async function onlySignedOut({ context }: { context: RouterContext }) {
   if (await signedInCustomer()) throw redirect({ to: "/" });
   context.queryClient.clear();
-  claraSession.clear();
+  forgetClara();
   localeStore.set(localeStore.signedOut());
 }
 
@@ -116,7 +116,7 @@ const chatRoute = createRoute({
   path: "/chat",
   component: function Chat() {
     const { customerId } = appRoute.useRouteContext();
-    return <ChatPage customerId={customerId} />;
+    return <ClaraChatPage customerId={customerId} />;
   },
 });
 
