@@ -208,7 +208,7 @@ source: 0010_customer_redesign
 - Decision: one store per customer in `sessionStorage` holds the seeded claim, chat blocks and claims, reviewed and recognized charges, the pending topic and the settled conversation; the engine is a singleton that keeps the input it is handling as `inflight` until it finishes and puts it back at the head of the queue on restore; answers carry the ask they answer, and writes are idempotent (a block keeps its first time, a claim is reused per transaction).
 - Alternatives rejected: conversation in component state (lost on every navigation); dropping the in-flight input (a confirmed block could vanish on reload).
 - Reason: actions are never dropped, and a rerun after a reload must not write twice.
-- Debt created: a reload mid-flow can repeat the Clara messages of the step that was running.
+- Debt created: a reload mid-flow can repeat the Clara messages of the step that was running; part of the mock-switch debt above, indexed in its row.
 - Revisit when: the conversation moves to the server with the turn.
 - Source: 0010_customer_redesign
 

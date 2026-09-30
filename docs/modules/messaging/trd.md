@@ -1,11 +1,11 @@
 ---
 updated: 2026-09-29
-source: 0008_chat_latency
+source: 0010_customer_redesign
 ---
 
 # Messaging: technical
 
-Status: built for customers (task 0003); agent sending comes with the support app.
+Status: built for customers (task 0003); agent sending comes with the support app. The customer chat runs on the client mock (assistant/ard.md, 2026-09-29); messaging is reached only when `mockChat` in `apps/customer/src/clara/switch.ts` is off, through `src/chat/live.ts`.
 
 ## Structure
 
