@@ -8,7 +8,6 @@ import {
   DialogTitle,
 } from "@clara/ui/components/dialog";
 import { cn } from "@clara/ui/lib/cn";
-import { Loader2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import { useI18n } from "../i18n";
@@ -23,12 +22,11 @@ const options: { value: ScoreOption; label: MessageKey; hint: MessageKey }[] = [
 
 interface SuspiciousDialogProps {
   open: boolean;
-  busy: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (score: ScoreOption) => void;
 }
 
-export function SuspiciousDialog({ open, busy, onOpenChange, onSubmit }: SuspiciousDialogProps) {
+export function SuspiciousDialog({ open, onOpenChange, onSubmit }: SuspiciousDialogProps) {
   const { t } = useI18n();
   const [score, setScore] = useState<ScoreOption>("missed");
 
@@ -45,7 +43,7 @@ export function SuspiciousDialog({ open, busy, onOpenChange, onSubmit }: Suspici
           <DialogDescription>{t("suspicious.description")}</DialogDescription>
         </DialogHeader>
         <form className="grid gap-5" onSubmit={submit}>
-          <fieldset className="grid gap-2" disabled={busy}>
+          <fieldset className="grid gap-2">
             <legend className="sr-only">{t("suspicious.title")}</legend>
             {options.map((option) => (
               <label
@@ -71,11 +69,10 @@ export function SuspiciousDialog({ open, busy, onOpenChange, onSubmit }: Suspici
             ))}
           </fieldset>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t("suspicious.cancel")}
             </Button>
-            <Button type="submit" disabled={busy}>
-              {busy && <Loader2 className="animate-spin" aria-hidden />}
+            <Button type="submit">
               {t("suspicious.submit")}
             </Button>
           </DialogFooter>

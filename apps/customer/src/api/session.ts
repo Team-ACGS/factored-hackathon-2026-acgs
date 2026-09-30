@@ -3,6 +3,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 import { config } from "../config";
 import { createClock } from "../chat/clock";
 import { createHttp } from "./http";
+import { createQueryClient } from "./query-client";
 
 async function idToken(): Promise<string> {
   const token = (await fetchAuthSession()).tokens?.idToken?.toString();
@@ -18,3 +19,5 @@ export async function tokenLocale(): Promise<string | undefined> {
 export const http = createHttp({ baseUrl: config.apiUrl, token: idToken });
 
 export const clock = createClock();
+
+export const queryClient = createQueryClient();

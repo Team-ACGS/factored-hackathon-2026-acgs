@@ -78,6 +78,7 @@ export const es: Record<MessageKey, string> = {
   "card.loadMore": "Ver más",
   "card.addNormal": "Agregar transacción",
   "card.addSuspicious": "Agregar transacción sospechosa",
+  "card.adding": "Agregando…",
   "card.addFailed": "No pudimos agregar la transacción. Inténtalo de nuevo.",
   "suspicious.title": "Agregar una transacción sospechosa",
   "suspicious.description": "Agregaremos una compra en línea en un comercio donde nunca has comprado. Elige cómo la calificó el banco.",

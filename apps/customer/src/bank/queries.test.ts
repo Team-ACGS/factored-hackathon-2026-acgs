@@ -1,0 +1,262 @@
+import { InfiniteQueryObserver, MutationObserver, QueryObserver, type QueryKey } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { ApiError } from "../api/http";
+import { createQueryClient, minutes } from "../api/query-client";
+import { mintId, type Clock } from "../chat/clock";
+import type { BankApi } from "./api";
+import type { Ledger } from "./ledger";
+import { bankKeys, createBankQueries } from "./queries";
+import type { Card, CardPage, Setup, Transaction } from "./types";
+
+vi.hoisted(() => {
+  Object.assign(globalThis, { window: {} });
+});
+
+const now = Date.parse("2026-09-29T12:00:00.000Z");
+const card = { product_id: "card-1" } as Card;
+
+function row(id: string): Transaction {
+  return { transaction_id: id, product_id: "card-1", transaction_date: "2026-09-28T10:00:00.000Z" } as Transaction;
+}
+
+function page(ids: string[], nextCursor: string | null): CardPage {
+  return { card, transactions: ids.map(row), next_cursor: nextCursor, server_time: "2026-09-29T12:00:05.000Z" };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+}
+
+function world() {
+  const api = {
+    profile: vi.fn<BankApi["profile"]>(),
+    setup: vi.fn<BankApi["setup"]>(),
+    cards: vi.fn<BankApi["cards"]>(),
+    card: vi.fn<BankApi["card"]>(),
+    transaction: vi.fn<BankApi["transaction"]>(),
+    add: vi.fn<BankApi["add"]>(),
+  } satisfies BankApi;
+  const clock = { now: () => now, sync: vi.fn<Clock["sync"]>() };
+  const client = createQueryClient();
+  const queries = createBankQueries(api, clock);
+  const ledger = () => client.getQueryData<Ledger>(bankKeys.ledger("card-1"));
+  const ids = () => (ledger()?.pages ?? []).flatMap((item) => item.transactions).map((entry) => entry.transaction_id);
+  const invalidated = (key: QueryKey) => client.getQueryState(key)?.isInvalidated;
+  const settled = () =>
+    vi.waitFor(() => {
+      expect(client.isMutating()).toBe(0);
+      expect(client.isFetching()).toBe(0);
+    });
+
+  async function watchLedger(pages: CardPage[]) {
+    const cursors = [null, ...pages.map((item) => item.next_cursor)];
+    api.card.mockImplementation((_, cursor) => Promise.resolve(pages[cursors.indexOf(cursor ?? null)] ?? page([], null)));
+    const observer = new InfiniteQueryObserver(client, queries.ledger("card-1"));
+    observer.subscribe(() => undefined);
+    await vi.waitFor(() => expect(ledger()?.pages).toHaveLength(1));
+    for (let loaded = 1; loaded < pages.length; loaded++) await observer.fetchNextPage();
+    return observer;
+  }
+
+  function add() {
+    const response = deferred<Transaction>();
+    const transactionId = mintId(clock);
+    api.add.mockImplementationOnce(() => response.promise);
+    const done = new MutationObserver(client, queries.add(client, "card-1")).mutate({
+      transaction_id: transactionId,
+      kind: "normal",
+    });
+    return { transactionId, response, done };
+  }
+
+  return { api, clock, client, queries, ledger, ids, invalidated, settled, watchLedger, add };
+}
+
+describe("bank queries", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("pages the ledger with each returned cursor and syncs the clock from every page", async () => {
+    const { api, clock, ids, watchLedger } = world();
+
+    const observer = await watchLedger([page(["a", "b"], "c1"), page(["c"], null)]);
+
+    expect(api.card.mock.calls).toEqual([
+      ["card-1", null],
+      ["card-1", "c1"],
+    ]);
+    expect(ids()).toEqual(["a", "b", "c"]);
+    expect(observer.getCurrentResult().hasNextPage).toBe(false);
+    expect(clock.sync).toHaveBeenCalledTimes(2);
+    expect(clock.sync.mock.calls[0]?.[0]).toBe("2026-09-29T12:00:05.000Z");
+  });
+
+  it("serves a screen visited half an hour ago from the cache without a request", async () => {
+    vi.useFakeTimers();
+    const { api, client, queries } = world();
+    api.card.mockResolvedValue(page(["a"], null));
+    api.cards.mockResolvedValue([card]);
+
+    await client.ensureInfiniteQueryData(queries.ledger("card-1"));
+    await client.ensureQueryData(queries.cards());
+    vi.advanceTimersByTime(minutes(30));
+    await client.ensureInfiniteQueryData(queries.ledger("card-1"));
+    await client.ensureQueryData(queries.cards());
+
+    expect(api.card).toHaveBeenCalledTimes(1);
+    expect(api.cards).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks once when a read fails, leaving retries to the http client", async () => {
+    const { api, client, queries } = world();
+    api.profile.mockRejectedValue(new ApiError(503));
+
+    const observer = new QueryObserver(client, queries.profile());
+    observer.subscribe(() => undefined);
+
+    await vi.waitFor(() => expect(observer.getCurrentResult().status).toBe("error"));
+    expect(api.profile).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an add at the top of the first page at once, dated by its id", async () => {
+    const { ledger, ids, watchLedger, add } = world();
+    await watchLedger([page(["a", "b"], "c1"), page(["c"], null)]);
+
+    const { transactionId } = add();
+
+    await vi.waitFor(() => expect(ids()).toEqual([transactionId, "a", "b", "c"]));
+    expect(ledger()?.pages[0]?.transactions[0]).toEqual({
+      transaction_id: transactionId,
+      transaction_date: "2026-09-29T12:00:00.000Z",
+      pending: true,
+    });
+    expect(ledger()?.pages[1]?.transactions.map((entry) => entry.transaction_id)).toEqual(["c"]);
+  });
+
+  it("keeps an add's placeholder when a ledger refetch started before it answers late", async () => {
+    const { api, client, ids, settled, watchLedger, add } = world();
+    await watchLedger([page(["a"], null)]);
+    const late = deferred<CardPage>();
+    api.card.mockImplementationOnce(() => late.promise);
+    void client.invalidateQueries({ queryKey: bankKeys.ledger("card-1") });
+    await vi.waitFor(() => expect(api.card).toHaveBeenCalledTimes(2));
+
+    const added = add();
+    await vi.waitFor(() => expect(ids()).toEqual([added.transactionId, "a"]));
+    late.resolve(page(["a"], null));
+    await vi.waitFor(() => expect(client.isFetching()).toBe(0));
+
+    expect(ids()).toEqual([added.transactionId, "a"]);
+    added.response.resolve(row(added.transactionId));
+    await settled();
+  });
+
+  it("removes only the failed add's placeholder and keeps the other add in flight", async () => {
+    const { ids, watchLedger, add } = world();
+    await watchLedger([page(["a", "b"], "c1"), page(["c"], null)]);
+    const failing = add();
+    const pending = add();
+    await vi.waitFor(() => expect(ids()).toHaveLength(5));
+
+    failing.response.reject(new ApiError(400));
+
+    await expect(failing.done).rejects.toEqual(new ApiError(400));
+    expect(ids()).toEqual([pending.transactionId, "a", "b", "c"]);
+  });
+
+  it("swaps the placeholder for the stored row and does not repeat it once the refetch returns it", async () => {
+    const { api, ledger, ids, settled, watchLedger, add } = world();
+    await watchLedger([page(["a", "b"], "c1"), page(["c"], null)]);
+    const added = add();
+    await vi.waitFor(() => expect(ids()).toHaveLength(4));
+    api.card.mockClear();
+    api.card.mockImplementation((_productId, cursor) =>
+      Promise.resolve(cursor === null ? page([added.transactionId, "a"], "c2") : page(["b", "c"], null)),
+    );
+
+    added.response.resolve(row(added.transactionId));
+    await added.done;
+    await settled();
+
+    expect(ids()).toEqual([added.transactionId, "a", "b", "c"]);
+    expect(ledger()?.pages[0]?.transactions[0]).toEqual(row(added.transactionId));
+    expect(api.card.mock.calls).toEqual([
+      ["card-1", null],
+      ["card-1", "c2"],
+    ]);
+  });
+
+  it("invalidates only that card's ledger after an add", async () => {
+    const { api, client, invalidated, settled, add } = world();
+    client.setQueryData(bankKeys.ledger("card-1"), { pages: [page(["a"], null)], pageParams: [null] });
+    client.setQueryData(bankKeys.ledger("card-2"), { pages: [page(["z"], null)], pageParams: [null] });
+    client.setQueryData(bankKeys.profile(), { country: "MX", language: "es", setup_completed: true });
+    client.setQueryData(bankKeys.cards(), [card]);
+    client.setQueryData(bankKeys.transaction("card-1", "a"), row("a"));
+    const added = add();
+
+    added.response.resolve(row(added.transactionId));
+    await added.done;
+    await settled();
+
+    expect(invalidated(bankKeys.ledger("card-1"))).toBe(true);
+    expect(invalidated(bankKeys.ledger("card-2"))).toBe(false);
+    expect(invalidated(bankKeys.profile())).toBe(false);
+    expect(invalidated(bankKeys.cards())).toBe(false);
+    expect(invalidated(bankKeys.transaction("card-1", "a"))).toBe(false);
+    expect(api.card).not.toHaveBeenCalled();
+  });
+
+  it("waits for the last add in flight on the card before refetching its ledger", async () => {
+    const { api, ledger, ids, settled, watchLedger, add } = world();
+    await watchLedger([page(["a"], null)]);
+    const first = add();
+    const second = add();
+    await vi.waitFor(() => expect(ids()).toHaveLength(3));
+    api.card.mockClear();
+
+    first.response.resolve(row(first.transactionId));
+    await first.done;
+
+    expect(api.card).not.toHaveBeenCalled();
+    expect(ids()).toEqual([second.transactionId, first.transactionId, "a"]);
+    expect(ledger()?.pages[0]?.transactions[1]).toEqual(row(first.transactionId));
+
+    api.card.mockResolvedValue(page([second.transactionId, first.transactionId, "a"], null));
+    second.response.resolve(row(second.transactionId));
+    await second.done;
+    await settled();
+
+    expect(api.card).toHaveBeenCalledTimes(1);
+    expect(ids()).toEqual([second.transactionId, first.transactionId, "a"]);
+  });
+
+  const setupAnswers: [string, () => Promise<Setup>, boolean][] = [
+    ["created", () => Promise.resolve({ profile: { setup_completed: true }, cases: [] } as unknown as Setup), true],
+    ["already done", () => Promise.reject(new ApiError(409)), true],
+    ["failed", () => Promise.reject(new ApiError(500)), false],
+  ];
+
+  it.each(setupAnswers)("refreshes the profile and the cards, nothing else, when setup is %s", async (_, answer, refreshed) => {
+    const { api, client, queries, invalidated } = world();
+    client.setQueryData(bankKeys.profile(), { country: null, language: null, setup_completed: false });
+    client.setQueryData(bankKeys.cards(), []);
+    client.setQueryData(bankKeys.ledger("card-1"), { pages: [page(["a"], null)], pageParams: [null] });
+    api.setup.mockImplementation(answer);
+    const setup = new MutationObserver(client, queries.setup(client));
+
+    await setup.mutate({ country: "MX", language: "es" }).catch(() => undefined);
+
+    expect(invalidated(bankKeys.profile())).toBe(refreshed);
+    expect(invalidated(bankKeys.cards())).toBe(refreshed);
+    expect(invalidated(bankKeys.ledger("card-1"))).toBe(false);
+  });
+});

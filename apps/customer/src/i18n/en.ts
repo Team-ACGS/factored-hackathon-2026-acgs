@@ -76,6 +76,7 @@ export const en = {
   "card.loadMore": "Load more",
   "card.addNormal": "Add transaction",
   "card.addSuspicious": "Add suspicious transaction",
+  "card.adding": "Adding…",
   "card.addFailed": "We could not add the transaction. Try again.",
   "suspicious.title": "Add a suspicious transaction",
   "suspicious.description": "We will add an online purchase at a merchant you have never bought from. Choose how the bank scored it.",
