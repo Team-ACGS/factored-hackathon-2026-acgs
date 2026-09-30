@@ -415,6 +415,9 @@ export const en = {
   "clara.chat.agent.chipLost1": "At the supermarket, yesterday",
   "clara.chat.agent.chipLost2": "I don't remember",
   "clara.chat.agent.thanks": "Thank you, that is enough for now. We will send you a new card, and I'll write to you here if I need anything else.",
+  "clara.chat.explain.staleQuestion": "The charge from {merchant} has been pending since {date}, so it **counts as charged**. If you don't recognize it, tell me from the bar below.",
+  "clara.chat.view.movement.staleCharged": "Counts as charged",
+  "clara.chat.view.movement.staleText": "Pending since {date}, so it counts as charged. If you don't recognize it, tell me below.",
 } as const;
 
 export type MessageKey = keyof typeof en;

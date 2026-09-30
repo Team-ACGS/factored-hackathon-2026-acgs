@@ -41,6 +41,10 @@ interface ViewProps<K extends ViewSpec["kind"]> {
 
 const CARD_MOVEMENTS = 8;
 
+function canNavigate(chat: ClaraChat): boolean {
+  return chat.state.panel.mode !== "searching" && chat.state.panel.mode !== "calling";
+}
+
 export function PanelView({ view, chat, ctx }: { view: View; chat: ClaraChat; ctx: Context }) {
   const spec = view.spec;
   const content = (() => {
@@ -290,7 +294,7 @@ function CardView({ spec, chat, ctx }: ViewProps<"card">) {
     .slice(0, CARD_MOVEMENTS);
   return (
     <>
-      <BackLink label={t("clara.chat.view.cards.title")} onClick={() => chat.navigate({ kind: "cards" }, "orden")} />
+      <BackLink label={t("clara.chat.view.cards.title")} disabled={!canNavigate(chat)} onClick={() => chat.navigate({ kind: "cards" }, "orden")} />
       <div className={cn(box, "grid gap-[18px] p-5")}>
         <div className="grid items-center gap-5 sm:grid-cols-[200px_minmax(0,1fr)]">
           <CardFace
@@ -324,12 +328,12 @@ function backTo(spec: { productId: string; origin: "card" | "list" }, chat: Clar
   if (spec.origin === "card") {
     const card = cardOf(ctx, spec.productId);
     return card ? (
-      <BackLink label={cardLabel(card, t)} onClick={() => chat.navigate({ kind: "card", productId: card.product_id }, "orden")} />
+      <BackLink label={cardLabel(card, t)} disabled={!canNavigate(chat)} onClick={() => chat.navigate({ kind: "card", productId: card.product_id }, "orden")} />
     ) : null;
   }
   const list = [...chat.state.views].reverse().find((view) => view.spec.kind === "movements");
   return list ? (
-    <BackLink label={t("clara.chat.view.movement.movements")} onClick={() => chat.navigate(list.spec, "orden")} />
+    <BackLink label={t("clara.chat.view.movement.movements")} disabled={!canNavigate(chat)} onClick={() => chat.navigate(list.spec, "orden")} />
   ) : null;
 }
 
@@ -340,6 +344,7 @@ function MovementView({ spec, chat, ctx }: ViewProps<"movement">) {
   const card = cardOf(ctx, tx.product_id);
   const verdict = triage(tx, ctx);
   const claim = claimForTransaction(tx.transaction_id, ctx.session);
+  const day = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(Date.parse(tx.transaction_date));
   const [pill, text, tone]: [string, string, "ok" | "info"] = (() => {
     switch (verdict.outcome) {
       case "inClaim":
@@ -361,10 +366,11 @@ function MovementView({ spec, chat, ctx }: ViewProps<"movement">) {
       case "history":
         return [t("clara.chat.view.movement.history"), t("clara.chat.view.movement.historyText"), "ok"];
       default:
-        return [t("clara.chat.view.movement.question"), t("clara.chat.view.movement.questionText"), "ok"];
+        return verdict.stale
+          ? [t("clara.chat.view.movement.staleCharged"), t("clara.chat.view.movement.staleText", { date: day }), "info"]
+          : [t("clara.chat.view.movement.question"), t("clara.chat.view.movement.questionText"), "ok"];
     }
   })();
-  const day = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(Date.parse(tx.transaction_date));
   return (
     <>
       {backTo(spec, chat, ctx, t)}
@@ -372,7 +378,7 @@ function MovementView({ spec, chat, ctx }: ViewProps<"movement">) {
       <div className={cn(box, "grid gap-2.5 p-5")}>
         <OkPill tone={tone}>{pill}</OkPill>
         <p className="text-ink-2">{text}</p>
-        {verdict.stale && <p className="text-[13.5px] text-ink-3">{t("clara.chat.view.movement.stale", { date: day })}</p>}
+        {verdict.stale && verdict.outcome === "history" && <p className="text-[13.5px] text-ink-3">{t("clara.chat.view.movement.stale", { date: day })}</p>}
       </div>
       <div className={cn(box, "px-5 py-1.5")}>
         <dl className="grid">
@@ -537,7 +543,7 @@ function CalmView({ spec, chat, ctx }: ViewProps<"calm">) {
   const list = [...chat.state.views].reverse().find((view) => view.spec.kind === "movements");
   return (
     <>
-      {list && <BackLink label={t("clara.chat.view.movement.movements")} onClick={() => chat.navigate(list.spec, "orden")} />}
+      {list && <BackLink label={t("clara.chat.view.movement.movements")} disabled={!canNavigate(chat)} onClick={() => chat.navigate(list.spec, "orden")} />}
       <div className={cn(box, "grid gap-2.5 p-5")}>
         <OkPill>{t("clara.chat.view.calm.kicker")}</OkPill>
         <h3 className="text-[19px] font-semibold">{t("clara.chat.view.calm.heading")}</h3>

@@ -64,7 +64,7 @@ function askBar(ask: Ask, ctx: Context | null, t: Translate): Bar {
   return choose(
     t(askPrompts[ask.kind], { card: card ? cardLabel(card, t) : "" }),
     askOptions[ask.kind].map(([yes, key]) =>
-      option(`${ask.kind}:${yes ? "yes" : "no"}`, t(key), { input: { type: "answer", ask: ask.kind, yes } }),
+      option(`${ask.kind}:${yes ? "yes" : "no"}`, t(key), { input: { type: "answer", ask: ask.kind, yes, target: ask } }),
     ),
   );
 }

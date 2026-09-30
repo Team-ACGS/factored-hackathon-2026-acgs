@@ -40,12 +40,13 @@ export function OkPill({ children, tone = "ok" }: { children: ReactNode; tone?: 
   );
 }
 
-export function BackLink({ label, onClick }: { label: string; onClick: () => void }) {
+export function BackLink({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex w-fit items-center gap-1 py-1 text-sm font-semibold text-ink-2 hover:text-ink"
+      disabled={disabled}
+      className="inline-flex w-fit items-center gap-1 py-1 text-sm font-semibold text-ink-2 hover:text-ink disabled:pointer-events-none disabled:opacity-40"
     >
       <ChevronLeft className="size-[18px]" aria-hidden />
       {label}

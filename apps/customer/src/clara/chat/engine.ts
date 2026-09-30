@@ -6,7 +6,7 @@ import type { Card, Transaction } from "../../bank/types";
 import type { MessageKey } from "../../i18n/en";
 import type { Locale, Translate } from "../../i18n/locale";
 import { claimId, claimOf, claimStage } from "../claims";
-import { findClaim, openClaims } from "../overlay";
+import { claimForTransaction, findClaim, openClaims } from "../overlay";
 import type { ClaraSession } from "../session";
 import { cardOf, findEntry, isBlockedCard, type Context, type Snapshot } from "./insight";
 import { intentOf, mentionedMovement, polarity } from "./lexicon";
@@ -422,7 +422,9 @@ export function createMockChat(ports: MockChatPorts) {
             : t("clara.chat.explain.history", { merchant, count: String(verdict.prior.length) }),
         ];
       default:
-        return [...stale, t("clara.chat.explain.question", { merchant })];
+        return verdict.stale
+          ? [t("clara.chat.explain.staleQuestion", { merchant, date: day(tx.transaction_date) })]
+          : [t("clara.chat.explain.question", { merchant })];
     }
   }
 
@@ -502,7 +504,8 @@ export function createMockChat(ports: MockChatPorts) {
     const tx = findEntry(ctx, transactionId);
     if (!tx) return notFound(r);
     await runSteps(r, { kind: "claimSteps" }, t("clara.chat.search.claimWrite"), 3);
-    const claim = claimOf(tx, new Date(ports.now()).toISOString());
+    const claim =
+      claimForTransaction(transactionId, ports.session.current()) ?? claimOf(tx, new Date(ports.now()).toISOString());
     ports.session.addClaim(claim);
     ports.session.markReviewed(transactionId);
     const view = open({ kind: "claimReceipt", claimId: claim.claim_id }, "listo");
@@ -542,8 +545,8 @@ export function createMockChat(ports: MockChatPorts) {
     );
   }
 
-  async function answer(r: Run, kind: AskKind, yes: boolean) {
-    const current = state.ask;
+  async function answer(r: Run, kind: AskKind, yes: boolean, target?: Ask) {
+    const current = target ?? state.ask;
     if (!current || current.kind !== kind) return unknown(r);
     set({ ask: null, selected: null });
     const { productId, transactionId } = current;
@@ -576,7 +579,11 @@ export function createMockChat(ports: MockChatPorts) {
     if (state.human) return reply(r);
     const pending = state.ask;
     const yes = pending ? polarity(message) : null;
-    if (pending && yes !== null) return answer(r, pending.kind, yes);
+    if (pending && yes !== null) {
+      set({ inflight: { type: "answer", ask: pending.kind, yes, target: pending } });
+      persist();
+      return answer(r, pending.kind, yes, pending);
+    }
     const intent = intentOf(message);
     if (intent === "cards") return cards(r);
     if (intent === "claims") return claims(r, null);
@@ -618,7 +625,7 @@ export function createMockChat(ports: MockChatPorts) {
       case "notAttempted":
         return protect(r, input.productId, input.transactionId, false);
       case "answer":
-        return answer(r, input.ask, input.yes);
+        return answer(r, input.ask, input.yes, input.target);
       case "reply":
         return reply(r);
     }
@@ -638,8 +645,9 @@ export function createMockChat(ports: MockChatPorts) {
     set({ busy: true });
     while (mine === token && state.queue.length > 0) {
       const [next, ...remaining] = state.queue;
-      set({ queue: remaining });
+      set({ queue: remaining, inflight: next ?? null });
       if (!next) continue;
+      persist();
       try {
         await handle(next, r);
       } catch (error) {
@@ -650,7 +658,9 @@ export function createMockChat(ports: MockChatPorts) {
           return;
         }
       }
-      if (mine === token) persist();
+      if (mine !== token) return;
+      set({ inflight: null });
+      persist();
     }
     if (mine !== token) return;
     running = false;
@@ -715,7 +725,7 @@ export function createMockChat(ports: MockChatPorts) {
       if (chosen) enqueue(chosen.input, chosen.echo);
     },
     navigate: (spec: ViewSpec, face: EntityState) => {
-      if (state.busy) return;
+      if (state.panel.mode === "searching" || state.panel.mode === "calling") return;
       open(spec, face);
       persist();
     },

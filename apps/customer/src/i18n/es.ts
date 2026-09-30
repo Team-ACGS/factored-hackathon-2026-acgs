@@ -417,4 +417,7 @@ export const es: Record<MessageKey, string> = {
   "clara.chat.agent.chipLost1": "En el súper, ayer",
   "clara.chat.agent.chipLost2": "No lo recuerdo",
   "clara.chat.agent.thanks": "Gracias, con eso es suficiente por ahora. Te enviaremos una tarjeta nueva y te escribo aquí mismo si necesito algo más.",
+  "clara.chat.explain.staleQuestion": "El cargo de {merchant} está pendiente desde el {date}, así que **cuenta como cobrado**. Si no lo reconoces, dímelo desde la barra de abajo.",
+  "clara.chat.view.movement.staleCharged": "Cuenta como cobrado",
+  "clara.chat.view.movement.staleText": "Pendiente desde el {date}, así que cuenta como cobrado. Si no lo reconoces, dímelo abajo.",
 };

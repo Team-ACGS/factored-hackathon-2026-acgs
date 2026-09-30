@@ -75,7 +75,7 @@ export type Input =
   | { type: "movement"; productId: string; transactionId: string; origin: Origin }
   | { type: "unrecognized"; productId: string; transactionId: string }
   | { type: "notAttempted"; productId: string; transactionId: string }
-  | { type: "answer"; ask: AskKind; yes: boolean }
+  | { type: "answer"; ask: AskKind; yes: boolean; target?: Ask }
   | { type: "reply" };
 
 export interface BarChoice {
@@ -116,6 +116,7 @@ export interface ChatState {
   human: Human | null;
   chips: Chip[];
   queue: Input[];
+  inflight: Input | null;
   busy: boolean;
   selected: string | null;
   pick: PanelPick | null;
@@ -137,6 +138,7 @@ export const initialChat: ChatState = {
   human: null,
   chips: [],
   queue: [],
+  inflight: null,
   busy: false,
   selected: null,
   pick: null,
@@ -159,7 +161,18 @@ export function settled(state: ChatState): PersistedChat {
 }
 
 export function restored(persisted: PersistedChat): ChatState {
-  return { ...initialChat, ...persisted, thinking: null, humanTyping: false, busy: false, selected: null, pick: null };
+  const queue = persisted.inflight ? [persisted.inflight, ...persisted.queue] : persisted.queue;
+  return {
+    ...initialChat,
+    ...persisted,
+    queue,
+    inflight: null,
+    thinking: null,
+    humanTyping: false,
+    busy: false,
+    selected: null,
+    pick: null,
+  };
 }
 
 export function currentView(state: Pick<ChatState, "views" | "current">): View | undefined {

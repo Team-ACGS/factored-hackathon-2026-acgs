@@ -417,4 +417,7 @@ export const ptBR: Record<MessageKey, string> = {
   "clara.chat.agent.chipLost1": "No mercado, ontem",
   "clara.chat.agent.chipLost2": "Não lembro",
   "clara.chat.agent.thanks": "Obrigada, isso basta por agora. Vamos enviar um cartão novo, e escrevo aqui mesmo se precisar de mais alguma coisa.",
+  "clara.chat.explain.staleQuestion": "A cobrança de {merchant} está pendente desde {date}, então **conta como cobrada**. Se não reconhecer, me diga pela barra abaixo.",
+  "clara.chat.view.movement.staleCharged": "Conta como cobrada",
+  "clara.chat.view.movement.staleText": "Pendente desde {date}, então conta como cobrada. Se não reconhecer, me diga abaixo.",
 };

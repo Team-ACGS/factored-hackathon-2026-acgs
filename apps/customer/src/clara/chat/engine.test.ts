@@ -18,14 +18,19 @@ const credit = cardAt("Tarjeta Crédito", setupAt, { product_number: "**** 4821"
 const debit = cardAt("Tarjeta Débito", setupAt + 1);
 const cards = [credit, debit];
 
-function harness(entries: Transaction[], session: ClaraSession = openSession()) {
+function harness(
+  entries: Transaction[],
+  session: ClaraSession = openSession(),
+  wait: () => Promise<void> = () => Promise.resolve(),
+  now = setupAt,
+) {
   const chat = createMockChat({
     load: () => Promise.resolve({ profile: { country: "MX" }, cards, entries }),
     session,
     t: () => t,
     locale: () => "en",
-    now: () => setupAt,
-    wait: () => Promise.resolve(),
+    now: () => now,
+    wait,
     bank: "LATAM Bank",
   });
   const ctx = (): Context => ({ profile: { country: "MX" }, cards, entries, session: session.current(), now: setupAt });
@@ -69,8 +74,8 @@ async function choose(chat: MockChat, ctx: Context, id: string) {
 
 const kindOf = (chat: MockChat) => currentView(chat.current())?.spec.kind;
 
-async function started(entries: Transaction[], session?: ClaraSession) {
-  const setup = harness(entries, session);
+async function started(entries: Transaction[], session?: ClaraSession, wait?: () => Promise<void>) {
+  const setup = harness(entries, session, wait);
   setup.chat.start();
   await idle(setup.chat);
   return setup;
@@ -237,6 +242,83 @@ describe("mock chat", () => {
     await choose(chat, ctx(), "movement:unrecognized");
     expect(kindOf(chat)).toBe("history");
     expect(chat.current().ask?.kind).toBe("recognize");
+  });
+
+  it("explains an old pending charge with no history as charged, never approved or temporary", async () => {
+    const stale = purchase(debit, 98, { merchant_name: "Uber Eats", transaction_status: "Pending" });
+    const { chat, ctx } = await started([stale, ...usual]);
+
+    chat.input({ type: "movement", productId: debit.product_id, transactionId: stale.transaction_id, origin: "list" });
+    await idle(chat);
+    const line = said(chat.current()).at(-1) ?? "";
+    expect(line).toContain("counts as charged");
+    expect(line).not.toMatch(/approved|hold|temporary|nothing unusual/i);
+    expect(options(chat, ctx()).map((option) => option.id)).toEqual(["movement:unrecognized"]);
+  });
+
+  it("applies a back link at once while Clara writes, never while she searches", async () => {
+    let hold = false;
+    const gate = () => (hold ? new Promise<void>(() => undefined) : Promise.resolve());
+    const { chat } = await started(usual, undefined, gate);
+    chat.input({ type: "card", productId: credit.product_id });
+    await idle(chat);
+    const card = chat.current().current;
+
+    hold = true;
+    chat.send("hola");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(chat.current().busy).toBe(true);
+    chat.navigate({ kind: "cards" }, "orden");
+    expect(kindOf(chat)).toBe("cards");
+    expect(chat.current().current).not.toBe(card);
+  });
+
+  it.each([
+    ["a block before it is written", "block:yes", (session: ClaraSession) => session.current().blocks[credit.product_id] === undefined],
+    ["a claim after it is written", "claim:yes", (session: ClaraSession) => session.current().claims.length > 0],
+  ])("finishes %s exactly once after a reload mid-flow", async (_, confirm, hangWhen) => {
+    const plainCharge = purchase(credit, 3, { merchant_name: "Soriana Hiper" });
+    const entries = [flagged, plainCharge, ...usual];
+    const storage = memoryStorage();
+    const session = openSession(storage);
+    let armed = false;
+    const gate = () => (armed && hangWhen(session) && session.current().chat?.inflight ? new Promise<void>(() => undefined) : Promise.resolve());
+    const { chat, ctx } = await started(entries, session, gate);
+    if (confirm === "block:yes") {
+      chat.input({ type: "flow", flow: "unrecognized" });
+      await idle(chat);
+      await choose(chat, ctx(), "isThis:yes");
+      await choose(chat, ctx(), "fuiste:no");
+    } else {
+      chat.input({ type: "unrecognized", productId: credit.product_id, transactionId: plainCharge.transaction_id });
+      await idle(chat);
+      await choose(chat, ctx(), "haveCard:yes");
+    }
+
+    armed = true;
+    const option = options(chat, ctx()).find((item) => item.id === confirm);
+    if (!option) throw new Error(`no option ${confirm}`);
+    chat.select(option.id);
+    chat.confirm(option);
+    for (let turn = 0; turn < 200; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(chat.current().busy).toBe(true);
+
+    const reloaded = openSession(storage);
+    const again = harness(entries, reloaded, undefined, setupAt + 60_000).chat;
+    again.start();
+    await idle(again);
+
+    const result = confirm === "block:yes" ? "blockResult" : "claimReceipt";
+    expect(again.current().views.filter((view) => view.spec.kind === result)).toHaveLength(1);
+    if (confirm === "block:yes") {
+      expect(cardLock(credit, reloaded.current()).blocked).toBe(true);
+      expect(kindOf(again)).toBe("agent");
+    } else {
+      expect(reloaded.current().claims).toEqual(session.current().claims);
+      expect(reloaded.current().claims).toHaveLength(1);
+    }
+    expect(again.current().inflight).toBeNull();
+    expect(again.current().queue).toEqual([]);
   });
 
   it("stops a running flow when the demo is reset", async () => {
