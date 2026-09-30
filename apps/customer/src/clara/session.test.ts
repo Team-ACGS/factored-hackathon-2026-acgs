@@ -27,6 +27,13 @@ describe("clara session", () => {
     expect(other.current().blocks).toEqual({});
   });
 
+  it("remembers across a reload that no seeded claim exists", () => {
+    const { session, storage } = opened();
+    session.resolveSeeded(null);
+
+    expect(opened(storage).session.current().seeded).toBeNull();
+  });
+
   it("resets the demo without losing the seeded claim", () => {
     const { session } = opened();
     session.resolveSeeded(seeded);

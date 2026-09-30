@@ -1,4 +1,4 @@
-import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { entriesOf, type LedgerEntry } from "./ledger";
@@ -7,6 +7,11 @@ import { bankQueries } from "./services";
 type Render = (ledgers: LedgerEntry[][]) => ReactNode;
 
 export function LedgersOf({ productIds, children }: { productIds: readonly string[]; children: Render }) {
+  const queryClient = useQueryClient();
+  for (const productId of productIds) {
+    const options = bankQueries.ledger(productId);
+    if (!queryClient.getQueryState(options.queryKey)) void queryClient.prefetchInfiniteQuery(options);
+  }
   return <Collect productIds={productIds} collected={[]} render={children} />;
 }
 

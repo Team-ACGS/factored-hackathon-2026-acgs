@@ -13,7 +13,7 @@ import { HelpPage } from "./bank/help-page";
 import { HomePage } from "./bank/home-page";
 import { bankQueries } from "./bank/services";
 import { ChatPage } from "./chat/chat-page";
-import { resolveSeededClaim } from "./clara/seeded";
+import { resolveSeededClaim } from "./clara/services";
 import { claraSession } from "./clara/store";
 import { localeStore } from "./i18n";
 

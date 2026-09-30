@@ -53,7 +53,7 @@ function parse(raw: string | null): ClaraSessionState {
   try {
     const stored = JSON.parse(raw) as Partial<ClaraSessionState>;
     return {
-      seeded: stored.seeded ?? undefined,
+      seeded: stored.seeded,
       claims: Array.isArray(stored.claims) ? stored.claims : [],
       blocks: stored.blocks && typeof stored.blocks === "object" ? stored.blocks : {},
       reviewed: Array.isArray(stored.reviewed) ? stored.reviewed : [],
