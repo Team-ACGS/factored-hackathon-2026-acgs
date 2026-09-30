@@ -3,7 +3,8 @@ import { createRootRouteWithContext, createRoute, createRouter, Navigate, Outlet
 import { getCurrentUser } from "aws-amplify/auth";
 
 import { AppLayout, PendingPage, RetryPage } from "./app/app-layout";
-import { queryClient, tokenLocale } from "./api/session";
+import { applyProfileLanguage } from "./app/profile-language";
+import { queryClient } from "./api/session";
 import { SignInPage } from "./auth/sign-in-page";
 import { SignUpPage } from "./auth/sign-up-page";
 import { VerifyPage } from "./auth/verify-page";
@@ -12,7 +13,6 @@ import { CardsPage } from "./bank/cards-page";
 import { bankQueries } from "./bank/services";
 import { ChatPage } from "./chat/chat-page";
 import { localeStore } from "./i18n";
-import { isLocale } from "./i18n/locale";
 
 async function signedInCustomer(): Promise<string | null> {
   try {
@@ -43,10 +43,7 @@ const appRoute = createRoute({
     return { customerId };
   },
   loader: async ({ context }) => {
-    const profile = await context.queryClient.ensureQueryData(bankQueries.profile());
-    const fromToken = await tokenLocale();
-    const language = profile.language ?? (isLocale(fromToken) ? fromToken : null);
-    if (language) localeStore.set(language);
+    await applyProfileLanguage(await context.queryClient.ensureQueryData(bankQueries.profile()));
   },
   errorComponent: RetryPage,
   component: function App() {

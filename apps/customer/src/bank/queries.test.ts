@@ -239,24 +239,64 @@ describe("bank queries", () => {
     expect(ids()).toEqual([second.transactionId, first.transactionId, "a"]);
   });
 
-  const setupAnswers: [string, () => Promise<Setup>, boolean][] = [
-    ["created", () => Promise.resolve({ profile: { setup_completed: true }, cases: [] } as unknown as Setup), true],
-    ["already done", () => Promise.reject(new ApiError(409)), true],
-    ["failed", () => Promise.reject(new ApiError(500)), false],
-  ];
+  describe("setup", () => {
+    const before = { country: null, language: null, setup_completed: false };
+    const done = { country: "MX", language: "pt-BR", setup_completed: true } as const;
 
-  it.each(setupAnswers)("refreshes the profile and the cards, nothing else, when setup is %s", async (_, answer, refreshed) => {
-    const { api, client, queries, invalidated } = world();
-    client.setQueryData(bankKeys.profile(), { country: null, language: null, setup_completed: false });
-    client.setQueryData(bankKeys.cards(), []);
-    client.setQueryData(bankKeys.ledger("card-1"), { pages: [page(["a"], null)], pageParams: [null] });
-    api.setup.mockImplementation(answer);
-    const setup = new MutationObserver(client, queries.setup(client));
+    function setupWorld() {
+      const test = world();
+      test.client.setQueryData(bankKeys.profile(), before);
+      test.client.setQueryData(bankKeys.cards(), []);
+      test.client.setQueryData(bankKeys.ledger("card-1"), { pages: [page(["a"], null)], pageParams: [null] });
+      const observer = new MutationObserver(test.client, test.queries.setup(test.client));
+      const run = () => observer.mutate({ country: "MX", language: "es" });
+      return { ...test, observer, run };
+    }
 
-    await setup.mutate({ country: "MX", language: "es" }).catch(() => undefined);
+    it("stores the created profile at once and refreshes the cards, nothing else", async () => {
+      const { api, client, invalidated, run } = setupWorld();
+      const cases = [{ kind: "fresh_hold", transaction: row("a") }] as Setup["cases"];
+      api.setup.mockResolvedValue({ profile: done, cases });
 
-    expect(invalidated(bankKeys.profile())).toBe(refreshed);
-    expect(invalidated(bankKeys.cards())).toBe(refreshed);
-    expect(invalidated(bankKeys.ledger("card-1"))).toBe(false);
+      await expect(run()).resolves.toEqual({ profile: done, cases });
+
+      expect(client.getQueryData(bankKeys.profile())).toEqual(done);
+      expect(api.profile).not.toHaveBeenCalled();
+      expect(invalidated(bankKeys.cards())).toBe(true);
+      expect(invalidated(bankKeys.ledger("card-1"))).toBe(false);
+    });
+
+    it("reads the stored profile when setup was already done, with no cases to guide", async () => {
+      const { api, client, invalidated, run } = setupWorld();
+      api.setup.mockRejectedValue(new ApiError(409));
+      api.profile.mockResolvedValue(done);
+
+      await expect(run()).resolves.toEqual({ profile: done, cases: null });
+
+      expect(client.getQueryData(bankKeys.profile())).toEqual(done);
+      expect(invalidated(bankKeys.cards())).toBe(true);
+    });
+
+    it("ends in an error, not pending, when the profile cannot be read after a conflict", async () => {
+      const { api, client, observer, run } = setupWorld();
+      api.setup.mockRejectedValue(new ApiError(409));
+      api.profile.mockRejectedValue(new ApiError(503));
+
+      await expect(run()).rejects.toEqual(new ApiError(503));
+
+      expect(observer.getCurrentResult().status).toBe("error");
+      expect(client.getQueryData(bankKeys.profile())).toEqual(before);
+    });
+
+    it("changes nothing when setup fails", async () => {
+      const { api, client, invalidated, run } = setupWorld();
+      api.setup.mockRejectedValue(new ApiError(500));
+
+      await expect(run()).rejects.toEqual(new ApiError(500));
+
+      expect(api.profile).not.toHaveBeenCalled();
+      expect(client.getQueryData(bankKeys.profile())).toEqual(before);
+      expect(invalidated(bankKeys.cards())).toBe(false);
+    });
   });
 });

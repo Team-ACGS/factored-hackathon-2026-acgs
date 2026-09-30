@@ -14,12 +14,12 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 
+import { applyProfileLanguage } from "../app/profile-language";
 import { FormError } from "../auth/field";
 import { localeStore, useI18n } from "../i18n";
 import { isLocale, languageNames, locales } from "../i18n/locale";
 import { formatMoney } from "./format";
 import { countryName, guessCountry } from "./labels";
-import { isSetupConflict } from "./queries";
 import { bankQueries } from "./services";
 import { StatusBadge } from "./status-badge";
 import { countries, type Country, type PlantedCase, type Profile } from "./types";
@@ -42,21 +42,16 @@ function SetupForm({ onCreated }: { onCreated: (cases: PlantedCase[]) => void })
   const languageId = useId();
   const [country, setCountry] = useState<Country>(() => guessCountry(navigator.languages));
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setup.mutate(
-      { country, language: locale },
-      {
-        onSuccess: (created) => {
-          if (created.profile.language) localeStore.set(created.profile.language);
-          onCreated(created.cases);
-        },
-      },
-    );
+    const outcome = await setup.mutateAsync({ country, language: locale }).catch(() => null);
+    if (!outcome) return;
+    if (outcome.cases) onCreated(outcome.cases);
+    await applyProfileLanguage(outcome.profile);
   }
 
-  const busy = setup.isPending || isSetupConflict(setup.error);
-  const error = setup.isError && !isSetupConflict(setup.error) ? t("errors.generic") : null;
+  const busy = setup.isPending;
+  const error = setup.isError ? t("errors.generic") : null;
 
   return (
     <Dialog open>
