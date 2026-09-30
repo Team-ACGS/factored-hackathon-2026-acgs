@@ -1,0 +1,249 @@
+.clara-entity {
+  position: relative;
+  display: block;
+  transition:
+    width 0.75s cubic-bezier(0.3, 0.7, 0.2, 1),
+    height 0.75s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+.clara-entity svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.clara-entity[data-mode="hero"] {
+  width: 300px;
+  height: 300px;
+}
+
+.clara-entity[data-mode="dock"] {
+  width: 64px;
+  height: 64px;
+}
+
+.clara-entity[data-mode="dot"] {
+  width: 22px;
+  height: 22px;
+  animation: ce-dot-pulse 1.4s ease-in-out infinite;
+}
+
+@media (max-width: 900px) {
+  .clara-entity[data-mode="hero"] {
+    width: 170px;
+    height: 170px;
+  }
+}
+
+.clara-entity .ce-fx,
+.clara-entity .ce-deco,
+.clara-entity .ce-shadow,
+.clara-entity .ce-face {
+  transition: opacity 0.18s ease;
+}
+
+.clara-entity[data-mode="dot"] :is(.ce-face, .ce-fx, .ce-deco, .ce-shadow) {
+  opacity: 0;
+}
+
+.clara-entity[data-mode="dot"]::before,
+.clara-entity[data-mode="dot"]::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--ce-warm);
+  border-right-color: var(--ce-trust);
+  animation:
+    ce-spin 1.1s linear infinite,
+    ce-ring-in 0.35s ease 0.7s both;
+}
+
+.clara-entity[data-mode="dot"]::after {
+  inset: -16px;
+  border-top-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: var(--ce-calm);
+  animation:
+    ce-spin 1.7s linear infinite reverse,
+    ce-ring-in 0.35s ease 0.8s both;
+}
+
+.clara-entity .ce-breathe {
+  animation: ce-breathe 3.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.clara-entity .ce-radar {
+  animation: ce-radar 2.1s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  transform-box: view-box;
+  transform-origin: 100px 104px;
+  opacity: 0;
+}
+
+.clara-entity .ce-orbit {
+  animation: ce-spin 3s linear infinite;
+  transform-origin: 100px 104px;
+}
+
+.clara-entity .ce-spark {
+  animation: ce-spark 1.8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.clara-entity .ce-callwave {
+  animation: ce-callwave 1.2s ease-in-out infinite;
+}
+
+.clara-entity .ce-callwave.ce-late {
+  animation-delay: 0.25s;
+}
+
+.clara-entity .ce-tear {
+  animation: ce-tear 2.4s ease-in infinite;
+}
+
+.clara-entity .ce-shake {
+  animation: ce-shake 1.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.clara-entity[data-motion] .ce-blobs {
+  transform-box: view-box;
+  transform-origin: 100px 104px;
+}
+
+.clara-entity[data-motion="idle"] .ce-blobs {
+  animation: ce-spin 9s linear infinite;
+}
+
+.clara-entity[data-motion="listening"] .ce-blobs {
+  animation: ce-spin 5s linear infinite;
+}
+
+.clara-entity[data-motion="thinking"] .ce-blobs {
+  animation: ce-spin 2.4s linear infinite;
+}
+
+.clara-entity[data-motion="thinking"] .ce-face {
+  animation: ce-look 2.6s ease-in-out infinite;
+}
+
+.clara-entity[data-motion="thinking"] .ce-breathe {
+  animation-duration: 1.4s;
+}
+
+@keyframes ce-breathe {
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes ce-radar {
+  0% {
+    transform: scale(0.78);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.32);
+    opacity: 0;
+  }
+}
+
+@keyframes ce-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ce-spark {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes ce-callwave {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ce-tear {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(9px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+@keyframes ce-shake {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0);
+  }
+  65% {
+    transform: rotate(-4deg);
+  }
+  70% {
+    transform: rotate(4deg);
+  }
+  75% {
+    transform: rotate(-3deg);
+  }
+  80% {
+    transform: rotate(3deg);
+  }
+  85% {
+    transform: rotate(0);
+  }
+}
+
+@keyframes ce-look {
+  30% {
+    transform: translateX(-3px);
+  }
+  70% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes ce-ring-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ce-dot-pulse {
+  50% {
+    filter: brightness(1.15);
+  }
+}

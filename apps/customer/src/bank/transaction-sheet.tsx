@@ -1,52 +1,55 @@
-import { Button } from "@clara/ui/components/button";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@clara/ui/components/sheet";
 import { cn } from "@clara/ui/lib/cn";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { MessageCircleQuestion } from "lucide-react";
-import type { ReactNode } from "react";
 
+import { claimForTransaction } from "../clara/overlay";
+import { chargeTopic } from "../clara/topics";
+import { useOpenClara } from "../clara/entry";
+import { useClaraSession } from "../clara/store";
 import { useI18n } from "../i18n";
-import { formatMoney, lastDigits } from "./format";
-import { cardTypeKey, countryName, labelOf } from "./labels";
+import { BankSheet, Facts, SheetBody, SheetFoot, SheetHead } from "./bank-sheet";
+import { pillButton, primaryPillButton } from "./buttons";
+import { useCardName } from "./card-display";
+import { formatMoney } from "./format";
+import { countryName, labelOf } from "./labels";
+import { MovementPill } from "./movement-pill";
 import { bankQueries } from "./services";
-import { StatusBadge } from "./status-badge";
 import type { Card, Transaction } from "./types";
 
 interface TransactionSheetProps {
-  card: Card;
+  card: Card | undefined;
   transactionId: string | undefined;
-  listed: Transaction | undefined;
+  listed?: Transaction;
   onClose: () => void;
 }
 
 export function TransactionSheet({ card, transactionId, listed, onClose }: TransactionSheetProps) {
-  const { t } = useI18n();
-
+  const open = card !== undefined && transactionId !== undefined;
   return (
-    <Sheet open={transactionId !== undefined} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent closeLabel={t("transaction.close")}>
-        {transactionId && <Details key={transactionId} card={card} transactionId={transactionId} listed={listed} />}
-      </SheetContent>
-    </Sheet>
+    <BankSheet open={open} onClose={onClose}>
+      {open && <Details key={transactionId} card={card} transactionId={transactionId} listed={listed} />}
+    </BankSheet>
   );
 }
 
 function Details({ card, transactionId, listed }: { card: Card; transactionId: string; listed: Transaction | undefined }) {
   const { locale, t } = useI18n();
+  const session = useClaraSession();
+  const openClara = useOpenClara();
+  const cardName = useCardName();
   const detail = useQuery(bankQueries.transaction(card.product_id, transactionId));
 
   const transaction = detail.data ?? listed;
   if (!transaction) {
     return (
-      <SheetHeader>
-        <SheetTitle className="sr-only">{t("card.transactions")}</SheetTitle>
-        <SheetDescription>{detail.isError ? t("transaction.loadFailed") : "…"}</SheetDescription>
-      </SheetHeader>
+      <SheetHead
+        title={<span className="sr-only">{t("card.movements")}</span>}
+        subtitle={detail.isError ? t("transaction.loadFailed") : "…"}
+      />
     );
   }
 
-  const when = new Date(transaction.transaction_date);
+  const claim = claimForTransaction(transaction.transaction_id, session);
   const struck = transaction.transaction_status === "Declined" || transaction.transaction_status === "Reversed";
   const place = [transaction.transaction_city, countryName(transaction.transaction_country, locale)]
     .filter(Boolean)
@@ -54,50 +57,54 @@ function Details({ card, transactionId, listed }: { card: Card; transactionId: s
 
   return (
     <>
-      <SheetHeader>
-        <SheetTitle>{transaction.merchant_name}</SheetTitle>
-        <SheetDescription>
-          {new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short" }).format(when)}
-        </SheetDescription>
-      </SheetHeader>
-      <div className="flex flex-col gap-6 px-6">
-        <div className="flex items-center justify-between gap-3">
-          <p className={cn("text-3xl font-semibold tabular-nums", struck && "text-muted-foreground line-through")}>
+      <SheetHead
+        title={transaction.merchant_name}
+        subtitle={new Intl.DateTimeFormat(locale, { dateStyle: "full", timeStyle: "short" }).format(
+          new Date(transaction.transaction_date),
+        )}
+      />
+      <SheetBody>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className={cn("text-[34px] font-semibold tracking-tight tabular-nums", struck && "text-ink-3 line-through")}>
             {formatMoney(transaction.amount, transaction.currency, locale)}
-          </p>
-          <StatusBadge status={transaction.transaction_status} />
+          </span>
+          <MovementPill status={transaction.transaction_status} inClaim={claim !== undefined} showApproved />
         </div>
-        <dl className="grid gap-3 text-sm">
-          <Row term={t("transaction.card")}>
-            {t(cardTypeKey(card))} •••• {lastDigits(card.product_number)}
-          </Row>
-          <Row term={t("transaction.category")}>{labelOf(t, "category", transaction.transaction_category)}</Row>
-          <Row term={t("transaction.channel")}>{labelOf(t, "channel", transaction.channel)}</Row>
-          <Row term={t("transaction.location")}>{place}</Row>
-          <Row term={t("transaction.id")}>
-            <span className="font-mono text-xs break-all">{transaction.transaction_id}</span>
-          </Row>
-        </dl>
-      </div>
-      <SheetFooter className="border-t">
-        <p className="text-sm font-medium">{t("transaction.unrecognized")}</p>
-        <Button asChild>
-          <Link to="/chat">
-            <MessageCircleQuestion />
-            {t("transaction.askClara")}
+        <Facts
+          rows={[
+            [t("transaction.card"), cardName(card)],
+            [t("transaction.status"), t(`status.${transaction.transaction_status}`)],
+            [t("transaction.channel"), labelOf(t, "channel", transaction.channel)],
+            [t("transaction.location"), place],
+            [t("transaction.category"), labelOf(t, "category", transaction.transaction_category)],
+            [
+              t("transaction.reference"),
+              <span key="reference" className="font-mono text-[12.5px] uppercase">
+                {transaction.transaction_id}
+              </span>,
+            ],
+          ]}
+        />
+        {claim && (
+          <p className="text-[13px] text-ink-3">
+            {t("transaction.inClaim")} <span className="font-mono">{claim.claim_id}</span>
+          </p>
+        )}
+      </SheetBody>
+      <SheetFoot>
+        {claim ? (
+          <Link to="/help" search={{ claim: claim.claim_id }} className={cn(pillButton, "w-full")}>
+            {t("transaction.viewClaim")}
           </Link>
-        </Button>
-      </SheetFooter>
+        ) : (
+          <>
+            <p className="text-sm font-semibold">{t("transaction.unrecognized")}</p>
+            <button type="button" className={cn(primaryPillButton, "w-full")} onClick={() => openClara(chargeTopic(transaction))}>
+              {t("transaction.talkToClara")}
+            </button>
+          </>
+        )}
+      </SheetFoot>
     </>
-  );
-}
-
-function Row({ term, children }: { term: string; children: ReactNode }) {
-  if (children === null || children === "") return null;
-  return (
-    <div className="grid grid-cols-[8rem_1fr] gap-3">
-      <dt className="text-muted-foreground">{term}</dt>
-      <dd>{children}</dd>
-    </div>
   );
 }

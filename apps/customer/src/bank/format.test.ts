@@ -6,10 +6,11 @@ import { guessCountry } from "./labels";
 describe("formatMoney", () => {
   it.each([
     ["235700.00", "COP", "es", "235.700"],
-    ["1063.50", "MXN", "es", "1063,50"],
+    ["1063.50", "MXN", "es", "$1,063.50"],
+    ["1063.50", "PEN", "en", "1,063.50"],
     ["57.48", "USD", "en", "$57.48"],
     ["310.39", "BRL", "pt-BR", "310,39"],
-  ] as const)("shows %s %s the way %s customers read it", (amount, currency, locale, expected) => {
+  ] as const)("shows %s %s the way %s speakers read it in that currency's country", (amount, currency, locale, expected) => {
     expect(formatMoney(amount, currency, locale)).toContain(expected);
   });
 });

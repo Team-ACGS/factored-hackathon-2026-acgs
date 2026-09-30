@@ -4,6 +4,8 @@ import { cn } from "@clara/ui/lib/cn";
 import { AlertCircle, Check, Clock, SendHorizontal } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { claraSession } from "../clara/store";
+import { topicMessage } from "../clara/topics";
 import { useI18n } from "../i18n";
 import type { ChatMessage } from "./conversation";
 import { useChat } from "./use-chat";
@@ -11,10 +13,17 @@ import { useChat } from "./use-chat";
 const MAX_TEXT_LENGTH = 2000;
 
 export function ChatPage({ customerId }: { customerId: string }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const chat = useChat(customerId);
   const [draft, setDraft] = useState("");
   const end = useRef<HTMLDivElement>(null);
+  const { loaded, send } = chat;
+
+  useEffect(() => {
+    if (!loaded) return;
+    const topic = claraSession.takeTopic();
+    if (topic) void send(topicMessage(topic, t, locale).slice(0, MAX_TEXT_LENGTH));
+  }, [loaded, send, t, locale]);
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end" });

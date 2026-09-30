@@ -9,9 +9,12 @@ import { SignInPage } from "./auth/sign-in-page";
 import { SignUpPage } from "./auth/sign-up-page";
 import { VerifyPage } from "./auth/verify-page";
 import { CardPage } from "./bank/card-page";
-import { CardsPage } from "./bank/cards-page";
+import { HelpPage } from "./bank/help-page";
+import { HomePage } from "./bank/home-page";
 import { bankQueries } from "./bank/services";
 import { ChatPage } from "./chat/chat-page";
+import { resolveSeededClaim } from "./clara/seeded";
+import { claraSession } from "./clara/store";
 import { localeStore } from "./i18n";
 
 async function signedInCustomer(): Promise<string | null> {
@@ -29,6 +32,7 @@ interface RouterContext {
 async function onlySignedOut({ context }: { context: RouterContext }) {
   if (await signedInCustomer()) throw redirect({ to: "/" });
   context.queryClient.clear();
+  claraSession.clear();
   localeStore.set(localeStore.signedOut());
 }
 
@@ -40,10 +44,12 @@ const appRoute = createRoute({
   beforeLoad: async () => {
     const customerId = await signedInCustomer();
     if (!customerId) throw redirect({ to: "/sign-in" });
+    claraSession.open(customerId);
     return { customerId };
   },
   loader: async ({ context }) => {
-    await applyProfileLanguage(await context.queryClient.ensureQueryData(bankQueries.profile()));
+    const profile = await context.queryClient.ensureQueryData(bankQueries.profile());
+    await Promise.all([applyProfileLanguage(profile), resolveSeededClaim(context.queryClient, profile)]);
   },
   errorComponent: RetryPage,
   component: function App() {
@@ -52,34 +58,56 @@ const appRoute = createRoute({
   },
 });
 
-const cardsRoute = createRoute({
+function transactionSearch(search: Record<string, unknown>): { transaction?: string } {
+  return typeof search.transaction === "string" ? { transaction: search.transaction } : {};
+}
+
+const homeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(bankQueries.cards());
+  validateSearch: (search: Record<string, unknown>): { card?: string; transaction?: string } =>
+    typeof search.card === "string" ? { card: search.card, ...transactionSearch(search) } : {},
+  loaderDeps: ({ search }) => ({ card: search.card, transaction: search.transaction }),
+  loader: async ({ context, deps: { card, transaction } }) => {
+    if (card && transaction) void context.queryClient.prefetchQuery(bankQueries.transaction(card, transaction));
+    const cards = await context.queryClient.ensureQueryData(bankQueries.cards());
+    await Promise.all(cards.map((item) => context.queryClient.ensureInfiniteQueryData(bankQueries.ledger(item.product_id))));
   },
   errorComponent: RetryPage,
-  component: function Cards() {
-    const { data: cards } = useSuspenseQuery(bankQueries.cards());
-    return <CardsPage cards={cards} />;
+  component: function Home() {
+    const { card, transaction } = homeRoute.useSearch();
+    return <HomePage productId={card} transactionId={transaction} />;
   },
 });
 
 const cardRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/cards/$productId",
-  validateSearch: (search: Record<string, unknown>): { transaction?: string } =>
-    typeof search.transaction === "string" ? { transaction: search.transaction } : {},
+  validateSearch: transactionSearch,
   loaderDeps: ({ search }) => ({ transaction: search.transaction }),
   loader: async ({ context, params: { productId }, deps: { transaction } }) => {
     if (transaction) void context.queryClient.prefetchQuery(bankQueries.transaction(productId, transaction));
-    await context.queryClient.ensureInfiniteQueryData(bankQueries.ledger(productId));
+    await Promise.all([
+      context.queryClient.ensureQueryData(bankQueries.cards()),
+      context.queryClient.ensureInfiniteQueryData(bankQueries.ledger(productId)),
+    ]);
   },
   errorComponent: RetryPage,
   component: function Card() {
     const { productId } = cardRoute.useParams();
     const { transaction } = cardRoute.useSearch();
     return <CardPage key={productId} productId={productId} transactionId={transaction} />;
+  },
+});
+
+const helpRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/help",
+  validateSearch: (search: Record<string, unknown>): { claim?: string } =>
+    typeof search.claim === "string" ? { claim: search.claim } : {},
+  component: function Help() {
+    const { claim } = helpRoute.useSearch();
+    return <HelpPage claimId={claim} />;
   },
 });
 
@@ -124,7 +152,7 @@ const verifyRoute = createRoute({
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
-    appRoute.addChildren([cardsRoute, cardRoute, chatRoute]),
+    appRoute.addChildren([homeRoute, cardRoute, helpRoute, chatRoute]),
     signInRoute,
     signUpRoute,
     verifyRoute,
