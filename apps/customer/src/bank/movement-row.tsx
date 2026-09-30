@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useI18n } from "../i18n";
 import { formatMoney } from "./format";
 import { isPending, type LedgerEntry } from "./ledger";
-import { MovementPill } from "./movement-pill";
+import { MovementNote, MovementPill } from "./movement-pill";
 
 export const movementRowClass =
   "grid w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-[13px] text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted sm:grid-cols-[40px_minmax(0,1fr)_auto] sm:gap-3.5 sm:px-4 sm:py-3.5 [&+&]:border-t [&+&]:border-line";
@@ -23,11 +23,13 @@ interface MovementContentProps {
   meta: string;
   inClaim: boolean;
   tag?: ReactNode;
+  tone?: "bank" | "clara";
 }
 
-export function MovementContent({ entry, meta, inClaim, tag }: MovementContentProps) {
+export function MovementContent({ entry, meta, inClaim, tag, tone = "bank" }: MovementContentProps) {
   const { locale, t } = useI18n();
-  const icon = "grid size-9 place-items-center rounded-xl bg-muted text-[15px] font-semibold text-ink-2 sm:size-10";
+  const clara = tone === "clara";
+  const icon = cn("grid size-9 place-items-center rounded-xl bg-muted font-semibold text-ink-2 sm:size-10", !clara && "text-[15px]");
 
   if (isPending(entry)) {
     return (
@@ -55,11 +57,15 @@ export function MovementContent({ entry, meta, inClaim, tag }: MovementContentPr
         <span className="text-[13px] text-ink-3">{meta}</span>
         {tag}
       </span>
-      <span className="flex flex-col items-end gap-1">
+      <span className={cn("flex flex-col items-end", !clara && "gap-1")}>
         <span className={cn("font-semibold whitespace-nowrap tabular-nums", struck && "font-medium text-ink-3 line-through")}>
           {formatMoney(entry.amount, entry.currency, locale)}
         </span>
-        <MovementPill status={entry.transaction_status} inClaim={inClaim} />
+        {clara ? (
+          <MovementNote status={entry.transaction_status} inClaim={inClaim} />
+        ) : (
+          <MovementPill status={entry.transaction_status} inClaim={inClaim} />
+        )}
       </span>
     </>
   );

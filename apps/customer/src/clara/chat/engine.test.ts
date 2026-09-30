@@ -321,6 +321,49 @@ describe("mock chat", () => {
     expect(again.current().queue).toEqual([]);
   });
 
+  it.each([
+    ["a movement picked from a list with a question open", "pick"],
+    ["the answer that the charge is still not recognized", "recognizeNo"],
+  ])("hides the bar and thinks after %s, then continues on the movement", async (_, step) => {
+    const earlier = purchase(credit, 30, { merchant_name: "Primax" });
+    const charge = purchase(credit, 2, { merchant_name: "Primax" });
+    const gate: { armed: boolean; released: (() => void)[]; chat?: MockChat } = { armed: false, released: [] };
+    const wait = () =>
+      gate.armed && gate.chat?.current().thinking ? new Promise<void>((resolve) => gate.released.push(resolve)) : Promise.resolve();
+    const { chat, ctx } = await started([flagged, charge, earlier, ...usual], undefined, wait);
+    gate.chat = chat;
+
+    if (step === "pick") {
+      chat.input({ type: "flow", flow: "unrecognized" });
+      await idle(chat);
+      expect(chat.current().ask?.kind).toBe("isThis");
+      chat.pick({ prompt: "", label: "", cta: "", echo: "What is Primax?", input: { type: "movement", productId: credit.product_id, transactionId: charge.transaction_id, origin: "list" }, target: charge.transaction_id });
+      gate.armed = true;
+      chat.confirmPick();
+    } else {
+      chat.input({ type: "unrecognized", productId: credit.product_id, transactionId: charge.transaction_id });
+      await idle(chat);
+      expect(kindOf(chat)).toBe("history");
+      gate.armed = true;
+      const option = options(chat, ctx()).find((item) => item.id === "recognize:no");
+      if (!option) throw new Error("expected recognize:no");
+      chat.select(option.id);
+      chat.confirm(option);
+    }
+
+    for (let turn = 0; turn < 200 && gate.released.length === 0; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(chat.current().thinking).not.toBeNull();
+    expect(barOf(chat.current(), ctx(), t)).toBeNull();
+
+    gate.armed = false;
+    for (const release of gate.released) release();
+    await idle(chat);
+    const view = currentView(chat.current());
+    expect(view?.spec).toMatchObject({ kind: "movement", transactionId: charge.transaction_id });
+    if (step === "recognizeNo") expect(chat.current().ask).toMatchObject({ kind: "haveCard", viewId: view?.id });
+    expect(barOf(chat.current(), ctx(), t)).not.toBeNull();
+  });
+
   it("stops a running flow when the demo is reset", async () => {
     const { chat } = await started(usual);
     chat.input({ type: "flow", flow: "cards" });

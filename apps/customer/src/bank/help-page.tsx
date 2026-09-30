@@ -1,4 +1,5 @@
 import { ClaraEntity } from "@clara/ui/components/clara-entity";
+import { cn } from "@clara/ui/lib/cn";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronRight, Phone } from "lucide-react";
 
@@ -64,7 +65,7 @@ export function HelpPage({ claimId }: { claimId: string | undefined }) {
             <ClaraEntity state="hola" motion="idle" className="-mt-1.5 -mb-1 -ml-1.5 size-16" />
             <h3 className="font-semibold">{t("help.claraTitle")}</h3>
             <p className="text-ink-2">{t("help.claraText")}</p>
-            <button type="button" className={`${primaryPillButton} justify-self-start`} onClick={launcher.open}>
+            <button type="button" className={cn(primaryPillButton, "justify-self-start")} onClick={launcher.open}>
               {t("help.talkToClara")}
             </button>
           </div>

@@ -98,7 +98,6 @@ export const ptBR: Record<MessageKey, string> = {
   "nav.home": "Início",
   "nav.help": "Ajuda e contestações",
   "nav.helpShort": "Ajuda",
-  "home.hello": "Olá",
   "home.cards": "Seus cartões",
   "home.recent": "Últimas movimentações",
   "home.noMovements": "Ainda não há movimentações.",

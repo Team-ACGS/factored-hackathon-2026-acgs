@@ -41,6 +41,14 @@ interface ViewProps<K extends ViewSpec["kind"]> {
 
 const CARD_MOVEMENTS = 8;
 
+function pickedOf(state: ClaraChat["state"]): string | undefined {
+  if (state.pick) return state.pick.target;
+  const input = state.held ? state.inflight : null;
+  if (input?.type === "movement") return input.transactionId;
+  if (input?.type === "card") return input.productId;
+  return undefined;
+}
+
 function canNavigate(chat: ClaraChat): boolean {
   return chat.state.panel.mode !== "searching" && chat.state.panel.mode !== "calling";
 }
@@ -106,7 +114,7 @@ function MovementRows({
   const { t } = useI18n();
   const money = useMoney();
   const meta = useRowMeta();
-  const picked = chat.state.pick?.target;
+  const picked = pickedOf(chat.state);
 
   return (
     <div className={cn(box, "overflow-hidden")}>
@@ -125,10 +133,11 @@ function MovementRows({
           <button
             key={tx.transaction_id}
             type="button"
+            aria-pressed={picked === tx.transaction_id}
             className={cn(
               movementRowClass,
+              "text-[13px] first:rounded-t-[19px] last:rounded-b-[19px] aria-pressed:shadow-[inset_0_0_0_2px_var(--color-ink)] sm:px-[18px] sm:py-[13px]",
               suspect && "bg-[linear-gradient(90deg,#fdf0f2,#ffffff_80%)] hover:bg-[linear-gradient(90deg,#fbe5ea,#ffffff_80%)]",
-              picked === tx.transaction_id && "shadow-[inset_0_0_0_2px_var(--color-ink)]",
             )}
             onClick={() =>
               chat.pick({
@@ -148,6 +157,7 @@ function MovementRows({
               meta={meta(tx, ctx.now)}
               inClaim={claimForTransaction(tx.transaction_id, ctx.session) !== undefined}
               tag={tag}
+              tone="clara"
             />
           </button>
         );
@@ -229,7 +239,7 @@ function CardState({ card, ctx }: { card: Card; ctx: Context }) {
 
 function CardsView({ chat, ctx }: ViewProps<"cards">) {
   const { t } = useI18n();
-  const picked = chat.state.pick?.target;
+  const picked = pickedOf(chat.state);
   return (
     <>
       {ctx.cards.map((card) => {
@@ -239,10 +249,10 @@ function CardsView({ chat, ctx }: ViewProps<"cards">) {
             key={card.product_id}
             type="button"
             aria-label={t("clara.chat.view.card.label", { card: name })}
+            aria-pressed={picked === card.product_id}
             className={cn(
               box,
-              "grid w-full grid-cols-[130px_minmax(0,1fr)_16px] items-center gap-3.5 p-4 text-left transition-[border-color,transform] duration-150 hover:-translate-y-0.5 hover:border-[#c9d9f0] sm:grid-cols-[200px_minmax(0,1fr)_20px] sm:gap-5",
-              picked === card.product_id && "shadow-[0_0_0_2px_var(--color-ink)]",
+              "grid w-full grid-cols-[130px_minmax(0,1fr)_16px] items-center gap-3.5 p-4 text-left transition-[border-color,translate] duration-150 hover:-translate-y-0.5 hover:border-[#c9d9f0] aria-pressed:shadow-[0_0_0_2px_var(--color-ink)] sm:grid-cols-[200px_minmax(0,1fr)_20px] sm:gap-5",
             )}
             onClick={() =>
               chat.pick({
@@ -255,11 +265,11 @@ function CardsView({ chat, ctx }: ViewProps<"cards">) {
               })
             }
           >
-            <CardFace card={card} material={materialOf(ctx.cards, card.product_id)} lock={cardLock(card, ctx.session)} />
+            <CardFace tone="clara" card={card} material={materialOf(ctx.cards, card.product_id)} lock={cardLock(card, ctx.session)} />
             <span className="grid min-w-0 gap-2.5">
               <span className="text-base font-semibold">{name}</span>
               <CardState card={card} ctx={ctx} />
-              <CardUsage card={card} className="chat-usage" />
+              <CardUsage card={card} tone="clara" />
             </span>
             <ChevronRight className="size-[18px] text-ink-3" aria-hidden />
           </button>
@@ -305,7 +315,7 @@ function CardView({ spec, chat, ctx }: ViewProps<"card">) {
           />
           <div className="grid min-w-0 gap-2.5">
             <CardState card={card} ctx={ctx} />
-            <CardUsage card={card} className="chat-usage" />
+            <CardUsage card={card} tone="clara" />
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2.5">
@@ -576,7 +586,7 @@ function BlockConfirmView({ spec, ctx }: ViewProps<"blockConfirm">) {
   return (
     <div className={cn(box, "grid gap-[18px] p-[22px]")}>
       <div className="grid items-center gap-5 sm:grid-cols-[180px_minmax(0,1fr)]">
-        <CardFace card={card} material={materialOf(ctx.cards, card.product_id)} lock={lock} className="max-w-[240px]" />
+        <CardFace tone="clara" card={card} material={materialOf(ctx.cards, card.product_id)} lock={lock} className="max-w-[240px]" />
         <div className="grid gap-2">
           <h3 className="text-xl font-semibold">
             {lock.blocked
@@ -640,7 +650,7 @@ function BlockResultView({ spec, ctx }: ViewProps<"blockResult">) {
   return (
     <>
       <div className={cn(box, "grid items-center gap-5 p-[22px] sm:grid-cols-[180px_minmax(0,1fr)]")}>
-        <CardFace card={card} material={materialOf(ctx.cards, card.product_id)} lock={lock} animateLock className="max-w-[240px]" />
+        <CardFace tone="clara" card={card} material={materialOf(ctx.cards, card.product_id)} lock={lock} animateLock className="max-w-[240px]" />
         <div className="grid gap-2">
           <OkPill>{t("clara.chat.view.confirmed")}</OkPill>
           <h3 className="text-xl font-semibold">{t("clara.chat.view.blockResult.heading")}</h3>
@@ -715,12 +725,12 @@ function ClaimView({ claimId, ctx, receipt }: { claimId: string; ctx: Context; r
           </div>
           <span className="font-mono text-base font-medium">{claim.claim_id}</span>
         </div>
-        <Timeline items={items} />
+        <Timeline items={items} stagger={receipt ? undefined : 1} />
         {receipt && card && (
           <p className="text-[13px] text-ink-3">{t("clara.chat.view.claimReceipt.note", { card: cardLabel(card, t) })}</p>
         )}
       </div>
-      <Source claim />
+      <Source claim index={receipt ? undefined : 1 + items.length} />
     </>
   );
 }
@@ -759,9 +769,9 @@ function AgentView({ spec, ctx }: ViewProps<"agent">) {
       </div>
       <Caption>{t("clara.chat.view.agent.knows", { name: agent.name })}</Caption>
       <div className={cn(box, "px-5 py-[18px]")}>
-        <Ticks items={knows} />
+        <Ticks items={knows} stagger={3} />
       </div>
-      <Source />
+      <Source index={3 + knows.length} />
     </>
   );
 }

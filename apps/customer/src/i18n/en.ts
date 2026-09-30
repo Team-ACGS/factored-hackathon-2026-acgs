@@ -96,7 +96,6 @@ export const en = {
   "nav.home": "Home",
   "nav.help": "Help and claims",
   "nav.helpShort": "Help",
-  "home.hello": "Hello",
   "home.cards": "Your cards",
   "home.recent": "Latest movements",
   "home.noMovements": "No movements yet.",

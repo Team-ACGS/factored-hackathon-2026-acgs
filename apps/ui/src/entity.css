@@ -38,7 +38,10 @@
 
 .clara-entity .ce-fx,
 .clara-entity .ce-deco,
-.clara-entity .ce-shadow,
+.clara-entity .ce-shadow {
+  transition: opacity 0.3s ease;
+}
+
 .clara-entity .ce-face {
   transition: opacity 0.18s ease;
 }

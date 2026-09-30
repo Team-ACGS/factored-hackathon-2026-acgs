@@ -226,7 +226,7 @@ function Shortcut({ icon, title, hint, style, onClick }: ShortcutProps) {
       type="button"
       onClick={onClick}
       style={style}
-      className="launcher-stagger grid w-full grid-cols-[38px_minmax(0,1fr)_18px] items-center gap-3 rounded-[18px] border border-[rgb(23_36_34/0.08)] bg-white/70 px-3 py-2.5 text-left transition-[background,transform,border-color] duration-150 hover:-translate-y-px hover:border-[rgb(23_36_34/0.18)] hover:bg-white"
+      className="launcher-stagger grid w-full grid-cols-[38px_minmax(0,1fr)_18px] items-center gap-3 rounded-[18px] border border-[rgb(23_36_34/0.08)] bg-white/70 px-3 py-2.5 text-left transition-[background,translate,border-color] duration-150 hover:-translate-y-px hover:border-[rgb(23_36_34/0.18)] hover:bg-white"
     >
       <span className="grid size-[38px] place-items-center rounded-xl bg-[#edf4fd] text-[#2f67b5]" aria-hidden>
         {icon}
