@@ -1,14 +1,15 @@
 import { Button } from "@clara/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@clara/ui/components/sheet";
 import { cn } from "@clara/ui/lib/cn";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { MessageCircleQuestion } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { useI18n } from "../i18n";
 import { formatMoney, lastDigits } from "./format";
 import { cardTypeKey, countryName, labelOf } from "./labels";
-import { bank } from "./services";
+import { bankQueries } from "./services";
 import { StatusBadge } from "./status-badge";
 import type { Card, Transaction } from "./types";
 
@@ -33,26 +34,14 @@ export function TransactionSheet({ card, transactionId, listed, onClose }: Trans
 
 function Details({ card, transactionId, listed }: { card: Card; transactionId: string; listed: Transaction | undefined }) {
   const { locale, t } = useI18n();
-  const [fetched, setFetched] = useState<Transaction | null>(null);
-  const [failed, setFailed] = useState(false);
+  const detail = useQuery(bankQueries.transaction(card.product_id, transactionId));
 
-  useEffect(() => {
-    let active = true;
-    bank.transaction(card.product_id, transactionId).then(
-      (transaction) => active && setFetched(transaction),
-      () => active && setFailed(true),
-    );
-    return () => {
-      active = false;
-    };
-  }, [card.product_id, transactionId]);
-
-  const transaction = fetched ?? listed;
+  const transaction = detail.data ?? listed;
   if (!transaction) {
     return (
       <SheetHeader>
         <SheetTitle className="sr-only">{t("card.transactions")}</SheetTitle>
-        <SheetDescription>{failed ? t("transaction.loadFailed") : "…"}</SheetDescription>
+        <SheetDescription>{detail.isError ? t("transaction.loadFailed") : "…"}</SheetDescription>
       </SheetHeader>
     );
   }

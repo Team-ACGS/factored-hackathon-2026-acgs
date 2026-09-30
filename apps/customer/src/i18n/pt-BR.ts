@@ -78,6 +78,7 @@ export const ptBR: Record<MessageKey, string> = {
   "card.loadMore": "Ver mais",
   "card.addNormal": "Adicionar transação",
   "card.addSuspicious": "Adicionar transação suspeita",
+  "card.adding": "Adicionando…",
   "card.addFailed": "Não conseguimos adicionar a transação. Tente novamente.",
   "suspicious.title": "Adicionar uma transação suspeita",
   "suspicious.description": "Vamos adicionar uma compra online em um estabelecimento onde você nunca comprou. Escolha como o banco a pontuou.",

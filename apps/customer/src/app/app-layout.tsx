@@ -1,7 +1,7 @@
 import { Button } from "@clara/ui/components/button";
 import { Link, Outlet, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { signOut } from "aws-amplify/auth";
-import { CreditCard, LogOut, MessageCircle } from "lucide-react";
+import { CreditCard, Loader2, LogOut, MessageCircle } from "lucide-react";
 
 import { SetupFlow } from "../bank/setup-flow";
 import type { Profile } from "../bank/types";
@@ -65,6 +65,14 @@ export function RetryPage() {
       <Button variant="outline" size="sm" onClick={() => void router.invalidate()}>
         {t("app.retry")}
       </Button>
+    </div>
+  );
+}
+
+export function PendingPage() {
+  return (
+    <div className="flex h-full min-h-40 items-center justify-center">
+      <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
     </div>
   );
 }

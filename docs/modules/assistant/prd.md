@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-28
-source: 0006_customer_data_onboarding
+updated: 2026-09-29
+source: 0009_client_data_cache
 ---
 
 # assistant: product
@@ -20,7 +20,7 @@ The module also protects the customer within one turn when the words say fraud, 
 1. A new customer signs in and gets a setup dialog: country (Peru, Mexico, Colombia, Argentina, United States, Brazil) and language.
 2. Setup creates two credit cards and one debit card with three months of purchases at the country's usual merchants, in its currency, with the dataset's mix of approved, declined, pending and reversed charges.
 3. A one-time guide shows the three charges planted for Clara to explain (a recent hold, a refunded charge, an old pending charge) and what Clara should do with each; it is never shown again.
-4. From a card, the customer adds a normal purchase or a suspicious one (an online merchant they never used, with the bank's score chosen from three options), opens any charge, and from "Don't recognize it?" goes to the chat.
+4. From a card, the customer adds a normal purchase or a suspicious one (an online merchant they never used, with the bank's score chosen from three options), which shows at the top of the list at once while the bank fills it in, opens any charge, and from "Don't recognize it?" goes to the chat.
 
 Errors and empty states: setup runs once; a second attempt is refused and a half-done one finishes with the same data.
 

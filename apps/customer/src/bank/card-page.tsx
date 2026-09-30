@@ -1,56 +1,52 @@
 import { Button } from "@clara/ui/components/button";
 import { cn } from "@clara/ui/lib/cn";
+import { useMutation, useQueryClient, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, Loader2, Plus, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 
+import { clock } from "../api/session";
 import { FormError } from "../auth/field";
+import { mintId } from "../chat/clock";
 import { useI18n } from "../i18n";
 import { CardFace } from "./card-face";
 import { formatMoney } from "./format";
 import { labelOf } from "./labels";
+import { isPending, type PendingTransaction } from "./ledger";
+import { bankQueries } from "./services";
 import { StatusBadge } from "./status-badge";
 import { SuspiciousDialog } from "./suspicious-dialog";
 import { TransactionSheet } from "./transaction-sheet";
 import type { ScoreOption, Transaction } from "./types";
-import { useCardLedger, type AddRequest } from "./use-card-ledger";
+
+type AddRequest = { kind: "normal" } | { kind: "suspicious"; score: ScoreOption };
 
 export function CardPage({ productId, transactionId }: { productId: string; transactionId: string | undefined }) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const view = useCardLedger(productId);
-  const [adding, setAdding] = useState<AddRequest["kind"] | null>(null);
+  const queryClient = useQueryClient();
+  const ledger = useSuspenseInfiniteQuery(bankQueries.ledger(productId));
+  const addition = useMutation(bankQueries.add(queryClient, productId));
   const [addFailed, setAddFailed] = useState(false);
   const [suspiciousOpen, setSuspiciousOpen] = useState(false);
 
-  function show(id: string | undefined) {
-    void navigate({ to: "/cards/$productId", params: { productId }, search: { transaction: id }, replace: !id });
+  function close() {
+    void navigate({ to: "/cards/$productId", params: { productId }, search: {}, replace: true });
   }
 
-  async function add(request: AddRequest) {
-    setAdding(request.kind);
+  function add(request: AddRequest) {
     setAddFailed(false);
-    try {
-      await view.add(request);
-      setSuspiciousOpen(false);
-    } catch {
-      setAddFailed(true);
-    }
-    setAdding(null);
+    setSuspiciousOpen(false);
+    addition.mutateAsync({ ...request, transaction_id: mintId(clock) }).catch(() => setAddFailed(true));
   }
 
-  if (view.failed) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-        <p>{t("app.loadFailed")}</p>
-        <Button variant="outline" size="sm" onClick={view.reload}>
-          {t("app.retry")}
-        </Button>
-      </div>
-    );
-  }
+  const card = ledger.data.pages[0]?.card;
+  if (!card) return null;
+  const rows = ledger.data.pages.flatMap((page) => page.transactions);
+  const listed = rows.find(
+    (entry): entry is Transaction => !isPending(entry) && entry.transaction_id === transactionId,
+  );
 
-  const card = view.card;
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
@@ -62,80 +58,98 @@ export function CardPage({ productId, transactionId }: { productId: string; tran
           {t("card.back")}
         </Link>
 
-        {!card ? (
-          <Loader2 className="mx-auto my-16 size-6 animate-spin text-muted-foreground" aria-hidden />
-        ) : (
-          <>
-            <CardFace card={card} className="max-w-sm" />
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void add({ kind: "normal" })} disabled={adding !== null}>
-                {adding === "normal" ? <Loader2 className="animate-spin" aria-hidden /> : <Plus />}
-                {t("card.addNormal")}
-              </Button>
-              <Button variant="outline" onClick={() => setSuspiciousOpen(true)} disabled={adding !== null}>
-                <ShieldAlert />
-                {t("card.addSuspicious")}
-              </Button>
-            </div>
-            <FormError message={addFailed ? t("card.addFailed") : null} />
+        <CardFace card={card} className="max-w-sm" />
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => add({ kind: "normal" })}>
+            <Plus />
+            {t("card.addNormal")}
+          </Button>
+          <Button variant="outline" onClick={() => setSuspiciousOpen(true)}>
+            <ShieldAlert />
+            {t("card.addSuspicious")}
+          </Button>
+        </div>
+        <FormError message={addFailed ? t("card.addFailed") : null} />
 
-            <section className="flex flex-col gap-3">
-              <h2 className="text-base font-semibold">{t("card.transactions")}</h2>
-              {view.ledger.transactions.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">{t("card.empty")}</p>
-              ) : (
-                <ul className="divide-y overflow-hidden rounded-xl border bg-background">
-                  {view.ledger.transactions.map((transaction) => (
-                    <li key={transaction.transaction_id}>
-                      <TransactionRow transaction={transaction} onOpen={() => show(transaction.transaction_id)} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {view.ledger.nextCursor && (
-                <Button
-                  variant="outline"
-                  className="self-center"
-                  onClick={() => void view.loadMore()}
-                  disabled={view.loadingMore}
-                >
-                  {view.loadingMore && <Loader2 className="animate-spin" aria-hidden />}
-                  {t("card.loadMore")}
-                </Button>
-              )}
-              <FormError message={view.moreFailed ? t("app.loadFailed") : null} />
-            </section>
+        <section className="flex flex-col gap-3">
+          <h2 className="text-base font-semibold">{t("card.transactions")}</h2>
+          {rows.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("card.empty")}</p>
+          ) : (
+            <ul className="divide-y overflow-hidden rounded-xl border bg-background">
+              {rows.map((entry) => (
+                <li key={entry.transaction_id}>
+                  {isPending(entry) ? (
+                    <PendingRow entry={entry} />
+                  ) : (
+                    <TransactionRow productId={productId} transaction={entry} />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {ledger.hasNextPage && (
+            <Button
+              variant="outline"
+              className="self-center"
+              onClick={() => void ledger.fetchNextPage()}
+              disabled={ledger.isFetchingNextPage}
+            >
+              {ledger.isFetchingNextPage && <Loader2 className="animate-spin" aria-hidden />}
+              {t("card.loadMore")}
+            </Button>
+          )}
+          <FormError message={ledger.isFetchNextPageError ? t("app.loadFailed") : null} />
+        </section>
 
-            <TransactionSheet
-              card={card}
-              transactionId={transactionId}
-              listed={view.ledger.transactions.find((transaction) => transaction.transaction_id === transactionId)}
-              onClose={() => show(undefined)}
-            />
-            <SuspiciousDialog
-              open={suspiciousOpen}
-              busy={adding === "suspicious"}
-              onOpenChange={setSuspiciousOpen}
-              onSubmit={(score: ScoreOption) => void add({ kind: "suspicious", score })}
-            />
-          </>
-        )}
+        <TransactionSheet card={card} transactionId={transactionId} listed={listed} onClose={close} />
+        <SuspiciousDialog
+          open={suspiciousOpen}
+          onOpenChange={setSuspiciousOpen}
+          onSubmit={(score: ScoreOption) => add({ kind: "suspicious", score })}
+        />
       </div>
     </div>
   );
 }
 
-function TransactionRow({ transaction, onOpen }: { transaction: Transaction; onOpen: () => void }) {
+const rowClass = "flex w-full items-center gap-4 px-4 py-3 text-left";
+
+function useRowDate(isoDate: string): string {
+  const { locale } = useI18n();
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(isoDate));
+}
+
+function PendingRow({ entry }: { entry: PendingTransaction }) {
+  const { t } = useI18n();
+  const date = useRowDate(entry.transaction_date);
+
+  return (
+    <div className={cn(rowClass, "text-muted-foreground")} aria-busy>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{t("card.adding")}</p>
+        <p className="truncate text-xs">{date}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1" aria-hidden>
+        <Loader2 className="my-0.5 size-4 animate-spin" />
+        <span className="h-[22px] w-16 rounded-md bg-muted" />
+      </div>
+    </div>
+  );
+}
+
+function TransactionRow({ productId, transaction }: { productId: string; transaction: Transaction }) {
   const { locale, t } = useI18n();
   const struck = transaction.transaction_status === "Declined" || transaction.transaction_status === "Reversed";
-  const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(transaction.transaction_date));
+  const date = useRowDate(transaction.transaction_date);
   const category = labelOf(t, "category", transaction.transaction_category);
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex w-full items-center gap-4 px-4 py-3 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50"
+    <Link
+      to="/cards/$productId"
+      params={{ productId }}
+      search={{ transaction: transaction.transaction_id }}
+      className={cn(rowClass, "outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50")}
     >
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{transaction.merchant_name}</p>
@@ -147,6 +161,6 @@ function TransactionRow({ transaction, onOpen }: { transaction: Transaction; onO
         </span>
         <StatusBadge status={transaction.transaction_status} />
       </div>
-    </button>
+    </Link>
   );
 }

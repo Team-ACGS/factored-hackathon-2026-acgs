@@ -9,17 +9,18 @@ import {
 } from "@clara/ui/components/dialog";
 import { Label } from "@clara/ui/components/label";
 import { NativeSelect } from "@clara/ui/components/native-select";
-import { Link, useRouter } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 
-import { ApiError } from "../api/http";
+import { applyProfileLanguage } from "../app/profile-language";
 import { FormError } from "../auth/field";
 import { localeStore, useI18n } from "../i18n";
 import { isLocale, languageNames, locales } from "../i18n/locale";
 import { formatMoney } from "./format";
 import { countryName, guessCountry } from "./labels";
-import { bank } from "./services";
+import { bankQueries } from "./services";
 import { StatusBadge } from "./status-badge";
 import { countries, type Country, type PlantedCase, type Profile } from "./types";
 
@@ -35,31 +36,22 @@ export function SetupFlow({ profile }: { profile: Profile }) {
 
 function SetupForm({ onCreated }: { onCreated: (cases: PlantedCase[]) => void }) {
   const { locale, t } = useI18n();
-  const router = useRouter();
+  const queryClient = useQueryClient();
+  const setup = useMutation(bankQueries.setup(queryClient));
   const countryId = useId();
   const languageId = useId();
   const [country, setCountry] = useState<Country>(() => guessCountry(navigator.languages));
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const setup = await bank.setup(country, locale);
-      if (setup.profile.language) localeStore.set(setup.profile.language);
-      onCreated(setup.cases);
-      await router.invalidate();
-    } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 409) {
-        await router.invalidate();
-        return;
-      }
-      setError(t("errors.generic"));
-      setBusy(false);
-    }
+    const outcome = await setup.mutateAsync({ country, language: locale }).catch(() => null);
+    if (!outcome) return;
+    if (outcome.cases) onCreated(outcome.cases);
+    await applyProfileLanguage(outcome.profile);
   }
+
+  const busy = setup.isPending;
+  const error = setup.isError ? t("errors.generic") : null;
 
   return (
     <Dialog open>

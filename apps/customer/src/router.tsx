@@ -1,17 +1,18 @@
-import { createRootRoute, createRoute, createRouter, Navigate, Outlet, redirect } from "@tanstack/react-router";
+import { useSuspenseQuery, type QueryClient } from "@tanstack/react-query";
+import { createRootRouteWithContext, createRoute, createRouter, Navigate, Outlet, redirect } from "@tanstack/react-router";
 import { getCurrentUser } from "aws-amplify/auth";
 
-import { AppLayout, RetryPage } from "./app/app-layout";
-import { tokenLocale } from "./api/session";
+import { AppLayout, PendingPage, RetryPage } from "./app/app-layout";
+import { applyProfileLanguage } from "./app/profile-language";
+import { queryClient } from "./api/session";
 import { SignInPage } from "./auth/sign-in-page";
 import { SignUpPage } from "./auth/sign-up-page";
 import { VerifyPage } from "./auth/verify-page";
 import { CardPage } from "./bank/card-page";
 import { CardsPage } from "./bank/cards-page";
-import { bank } from "./bank/services";
+import { bankQueries } from "./bank/services";
 import { ChatPage } from "./chat/chat-page";
 import { localeStore } from "./i18n";
-import { isLocale } from "./i18n/locale";
 
 async function signedInCustomer(): Promise<string | null> {
   try {
@@ -21,12 +22,17 @@ async function signedInCustomer(): Promise<string | null> {
   }
 }
 
-async function onlySignedOut() {
+interface RouterContext {
+  queryClient: QueryClient;
+}
+
+async function onlySignedOut({ context }: { context: RouterContext }) {
   if (await signedInCustomer()) throw redirect({ to: "/" });
+  context.queryClient.clear();
   localeStore.set(localeStore.signedOut());
 }
 
-const rootRoute = createRootRoute({ component: Outlet });
+const rootRoute = createRootRouteWithContext<RouterContext>()({ component: Outlet });
 
 const appRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -36,16 +42,12 @@ const appRoute = createRoute({
     if (!customerId) throw redirect({ to: "/sign-in" });
     return { customerId };
   },
-  loader: async () => {
-    const profile = await bank.profile();
-    const fromToken = await tokenLocale();
-    const language = profile.language ?? (isLocale(fromToken) ? fromToken : null);
-    if (language) localeStore.set(language);
-    return { profile };
+  loader: async ({ context }) => {
+    await applyProfileLanguage(await context.queryClient.ensureQueryData(bankQueries.profile()));
   },
   errorComponent: RetryPage,
   component: function App() {
-    const { profile } = appRoute.useLoaderData();
+    const { data: profile } = useSuspenseQuery(bankQueries.profile());
     return <AppLayout profile={profile} />;
   },
 });
@@ -53,10 +55,13 @@ const appRoute = createRoute({
 const cardsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
-  loader: () => bank.cards(),
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(bankQueries.cards());
+  },
   errorComponent: RetryPage,
   component: function Cards() {
-    return <CardsPage cards={cardsRoute.useLoaderData()} />;
+    const { data: cards } = useSuspenseQuery(bankQueries.cards());
+    return <CardsPage cards={cards} />;
   },
 });
 
@@ -65,6 +70,12 @@ const cardRoute = createRoute({
   path: "/cards/$productId",
   validateSearch: (search: Record<string, unknown>): { transaction?: string } =>
     typeof search.transaction === "string" ? { transaction: search.transaction } : {},
+  loaderDeps: ({ search }) => ({ transaction: search.transaction }),
+  loader: async ({ context, params: { productId }, deps: { transaction } }) => {
+    if (transaction) void context.queryClient.prefetchQuery(bankQueries.transaction(productId, transaction));
+    await context.queryClient.ensureInfiniteQueryData(bankQueries.ledger(productId));
+  },
+  errorComponent: RetryPage,
   component: function Card() {
     const { productId } = cardRoute.useParams();
     const { transaction } = cardRoute.useSearch();
@@ -101,8 +112,8 @@ const verifyRoute = createRoute({
   validateSearch: (search: Record<string, unknown>) => ({
     email: typeof search.email === "string" ? search.email : "",
   }),
-  beforeLoad: async ({ search }) => {
-    await onlySignedOut();
+  beforeLoad: async ({ context, search }) => {
+    await onlySignedOut({ context });
     if (!search.email) throw redirect({ to: "/sign-up" });
   },
   component: function Verify() {
@@ -118,6 +129,10 @@ export const router = createRouter({
     signUpRoute,
     verifyRoute,
   ]),
+  context: { queryClient },
+  defaultPreload: "intent",
+  defaultPreloadStaleTime: 0,
+  defaultPendingComponent: PendingPage,
   defaultNotFoundComponent: () => <Navigate to="/" />,
 });
 
