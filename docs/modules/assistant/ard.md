@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-28
-source: 0006_customer_data_onboarding
+updated: 2026-09-29
+source: 0009_client_data_cache
 ---
 
 # assistant: architecture and debt
@@ -185,3 +185,11 @@ source: 0006_customer_data_onboarding
 - Revisit when: a third API lambda appears.
 - Source: 0006_customer_data_onboarding
 
+## 2026-09-29: an added transaction is a placeholder in the cached ledger until the server answers
+
+- Decision: the add inserts a `PendingTransaction` (id and date from the minted UUIDv7) at the top of the first cached page; success swaps it by `transaction_id`, or prepends the row if a refetch already dropped it; error removes only that placeholder; the ledger is invalidated when the last add on that card settles; setup writes the returned profile into the cache and, on 409, reads the stored one before resolving.
+- Alternatives rejected: placeholders from `useMutationState` outside the cache (two sources for one list); snapshot rollback (concurrent adds would erase each other); waiting on a profile refetch after setup (a failed refetch left the dialog stuck).
+- Reason: the server picks merchant, amount and status, so only the id and date are known at once, and several adds may be in flight.
+- Debt created: a focus refetch that starts while an add is in flight can hide its placeholder until the add succeeds; a failed cards refetch after setup leaves the list empty with no error.
+- Revisit when: a customer reports a missing row or card.
+- Source: 0009_client_data_cache

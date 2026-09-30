@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-28
-source: 0006_customer_data_onboarding
+updated: 2026-09-29
+source: 0009_client_data_cache
 ---
 
 # Technical Requirements Document
@@ -20,7 +20,7 @@ Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a 
 - Layout:
   - `data/`: dataset pipeline (raw CSV to curated Parquet, contracts, figures). Built.
   - `lambdas/`: uv workspace of Python lambdas: `core` (shared package bundled into every zip), `auth` (Cognito triggers), `crud`, `messages`, `chat_notifier`, `chatbot`.
-  - `apps/`: pnpm workspace of three client-side SPAs (React, Vite, TanStack Router): `customer` (factoredai.sdfles.com), `support` (support.), `backoffice` (backoffice.), plus a shared `ui` package.
+  - `apps/`: pnpm workspace of three client-side SPAs (React, Vite, TanStack Router, TanStack Query): `customer` (factoredai.sdfles.com), `support` (support.), `backoffice` (backoffice.), plus a shared `ui` package.
   - `training/`: training code for own models; artifacts versioned in S3, never in git.
   - `evaluation/`: held-out set, baselines and harness.
   - `infra/`: Terraform: `environments/core/` (account singletons: API Gateway logging role, admin users), `environments/prd/` (the root), `stacks/backend/` and `stacks/frontend/`, `modules/aws/*` (one leaf module per service), `modules/github/`; bootstrap, apply and destroy in `infra/docs/setup.md`.
@@ -107,3 +107,14 @@ Modules belong to the application and may span folders.
 - One source for table shapes in the pipeline: `data/src/bankdata/pipeline/schemas.py`.
 - Every figure cited in a doc is regenerated from a committed query: `data/sql/figures/`.
 - Tests never touch the real dataset; they run on fixtures: `data/tests/fixtures/`.
+
+### Server data in the webs
+
+Every web (`customer`, `support`, `backoffice`, `analysts`) reads and writes server data through TanStack Query; no `useEffect` fetches.
+
+- One key factory per resource family (`src/bank/queries.ts` in `customer`): keys name the resource and its ids, never the user, because the cache holds one signed-in user.
+- Stale time per resource: slow data (profile, card list) minutes, lists that grow (a card's ledger, a transaction) seconds; `gcTime` of 60 minutes, so a screen visited in the session renders from cache.
+- A write invalidates exactly the keys it changes, never a whole family; an optimistic write edits the cached pages, rolls back only its own change, and invalidates on settle only when no other write on the same key is in flight.
+- Routes load with `ensureQueryData` / `ensureInfiniteQueryData` and components read with the suspense hooks; the router preloads on intent with `defaultPreloadStaleTime: 0`, leaving freshness to Query; the query client travels in router context.
+- One retry layer: the HTTP client retries; Query uses `retry: false` for queries and mutations.
+- The cache is cleared whenever a signed-out route is entered, which sign-out always passes through.

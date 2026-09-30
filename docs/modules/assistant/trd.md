@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-29
-source: 0008_chat_latency
+source: 0009_client_data_cache
 ---
 
 # assistant: technical
@@ -19,7 +19,7 @@ Built as a skeleton in task 0003; the turn steps are still planned.
 | `lambdas/chatbot/` | Stream consumer: skips non-customer messages and delegated rooms, writes the reply through `core.messaging`, emits `turn.completed`, reports failed records one by one. Today the reply is an echo; the turn (ingress, understand, retrieve, decide, act, compose, egress) replaces it. |
 | `lambdas/crud/` | The customer's own data behind `/crud/*`: profile and one-time setup, cards, transactions; the generator (`catalog.py`, `generator.py`) builds a demo account deterministically from the setup claim. |
 | `lambdas/core/` | Shared package bundled into every lambda zip: today the read models every reader of customer data must use (`core.accounts` for cards and transactions, `core.customers` for the profile, each an attribute allow-list); later the policy table, state machine, tool clients, grounding check and contact digest. |
-| `apps/customer/` | SPA at `factoredai.sdfles.com` (React, Vite, TanStack Router, Amplify v6 for Cognito and AppSync Events): sign up, email code, sign in, setup dialog and guide, cards, card transactions with a detail sheet, chat at `/chat`; text from typed catalogs in `src/i18n/`, language held in a runtime store. |
+| `apps/customer/` | SPA at `factoredai.sdfles.com` (React, Vite, TanStack Router, TanStack Query, Amplify v6 for Cognito and AppSync Events): sign up, email code, sign in, setup dialog and guide, cards, card transactions with a detail sheet, chat at `/chat`; bank data through the queries and mutations of `src/bank/queries.ts` (conventions in `docs/TRD.md`); text from typed catalogs in `src/i18n/`, language held in a runtime store. |
 | `apps/ui/` | Shared Tailwind theme and shadcn/ui components (copied into the repo, `components.json` for the shadcn CLI) for every web. |
 
 ## Endpoints owned
@@ -64,6 +64,6 @@ Jobs and listeners: `chatbot` consumes the `messages` stream, only inserts with 
 
 - `lambdas/tests/chatbot/`: echo placement, delegated rooms, no loop, redelivery, `turn.completed` without text, partial batch failures.
 - `lambdas/tests/crud/`: the generated account (counts, status mix, merchant minimums, planted cases, determinism per country), first, second, resumed and concurrent setup, paging and cursor tampering, cross-customer reads, adds and suffix uniqueness, staff 403, and no hidden attribute in any response; `lambdas/tests/core/` proves the read models drop them.
-- `apps/customer`: `vitest` on the locale store, the chat logic, the bank API client, paging and money formatting; screens have no tests, Sebastian validates the UI on the PR.
+- `apps/customer`: `vitest` on the locale store, the chat logic, the bank API client and money formatting, and the bank queries against a real `QueryClient` with browser defaults (paging, cache lifetime, optimistic add, rollback, targeted invalidation, setup); screens have no tests, Sebastian validates the UI on the PR.
 - Commands: `docs/TRD.md`, Verification targets.
 `docs/problem-statement.md` (H1-H5) and `hackathon/docs/kickoff-compliance.md` name a baseline comparison (rules bot, naive LLM) and a held-out evaluation as required, owned operationally by `evaluation/`, exercising this module as a whole.

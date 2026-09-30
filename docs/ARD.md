@@ -1,6 +1,6 @@
 ---
 updated: 2026-09-29
-source: 0008_chat_latency
+source: 0009_client_data_cache
 ---
 
 # Architecture and Debt Record
@@ -93,6 +93,15 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 - Revisit when: cold starts matter, or a deploy breaks a function unnoticed.
 - Source: 0003_walking_skeleton
 
+## 2026-09-29: TanStack Query is the data layer of every web
+
+- Decision: every web reads and writes server data through TanStack Query, with a key factory, stale times per resource, targeted invalidation, router loaders over `ensureQueryData` and intent preload; conventions in `TRD.md`, Server data in the webs.
+- Alternatives rejected: router loaders alone (no cache shared across routes and components, no infinite queries or optimistic updates); `useEffect` fetches; broad invalidation after a write.
+- Reason: screens already visited render at once, hover starts the request before the click, and a write refetches only what it changed.
+- Debt created: the chat of `customer` (`src/chat`) still fetches and holds its state by hand.
+- Revisit when: the chat is next changed; it moves in its own task.
+- Source: 0009_client_data_cache
+
 ## Debt index
 
 Open debt only: an entry with `Resolved by` leaves the table.
@@ -107,6 +116,8 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-09-28 | Card balances are a setup snapshot; added transactions do not move them | when Clara reads balances or limits |
 | assistant | 2026-09-28 | The planted fresh hold ages out of the 7-day window a few days after setup | when demo accounts must stay demo-ready for weeks |
 | assistant | 2026-09-28 | `crud` and `messages` duplicate the claims and body parsing of their handlers | when a third API lambda appears |
+| assistant | 2026-09-29 | The chat of `customer` is not on TanStack Query yet | when the chat is next changed |
+| assistant | 2026-09-29 | A failed background refetch after an add or a setup is silent (a focus refetch can briefly hide an add in flight; cards can stay empty after setup) | when a customer reports a missing row or card |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |
 | identity | 2026-09-29 | The credentials cache of `core.access` and its resources are not thread safe | when a handler runs work on threads |
