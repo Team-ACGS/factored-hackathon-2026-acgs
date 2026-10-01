@@ -1,6 +1,6 @@
 import json
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 from aws_lambda_powertools.event_handler import APIGatewayRestResolver, CORSConfig, Response, content_types
@@ -18,6 +18,7 @@ from core.access import AccessDenied, Pool, Principal, customer_session
 from core.accounts import Accounts, public_transaction
 from core.customers import read_customer
 from core.ids import InvalidId, format_instant, parse_uuid7, uuid7_time
+from core.ingestion import MAX_CLOCK_SKEW, ContractViolation, Duplicate, Ingestion, UnknownCard, check
 from core.observability import logger, metrics, tracer
 from crud.catalog import COUNTRIES, LANGUAGES
 from crud.cursor import InvalidCursor, decode_cursor, encode_cursor
@@ -26,7 +27,6 @@ from crud.store import CustomerNotFound, SetupAlreadyCompleted, Store
 
 SERVICE = "crud"
 PAGE_SIZE = 20
-MAX_CLOCK_SKEW = timedelta(minutes=2)
 SUFFIX_ATTEMPTS = 20
 
 app = APIGatewayRestResolver(cors=CORSConfig(allow_origin="*", max_age=300))
@@ -72,11 +72,14 @@ def _uuid7_path(value: str, what: str) -> str:
 
 
 def _profile(customer: dict[str, Any]) -> dict[str, Any]:
-    return {
+    profile = {
         "country": customer["country"],
         "language": customer["language"],
         "setup_completed": customer["setup_completed_at"] is not None,
     }
+    if customer.get("given_name") is not None:
+        profile["given_name"] = customer["given_name"]
+    return profile
 
 
 def _now() -> datetime:
@@ -117,6 +120,9 @@ def complete_setup() -> Response[str]:
         raise Conflict("setup already completed") from error
     claim = _claim(principal.subject, claimed.country, claimed.setup_claimed_at)
     account = generate(claim)
+    currencies = {card["product_id"]: card["currency"] for card in account.cards}
+    for item in account.transactions:
+        check(item, currencies.get(item["product_id"]), _now())
     store.write_account(account.cards, account.transactions)
     if account.claim is not None:
         store.write_claim(account.claim)
@@ -189,11 +195,11 @@ def add_transaction(product_id: str) -> Response[str]:
     body = _body()
     transaction_id, kind, score = (
         body.get("transaction_id"),
-        body.get("kind"),
+        body.get("type"),
         body.get("score", Score.MISSED.value),
     )
     if kind not in ("normal", "suspicious") or score not in [option.value for option in Score]:
-        raise BadRequestError("kind must be normal or suspicious, and score flagged, missed or none")
+        raise BadRequestError("type must be normal or suspicious, and score flagged, missed or none")
     try:
         minted_at = uuid7_time(parse_uuid7(transaction_id))
     except InvalidId as error:
@@ -225,12 +231,17 @@ def add_transaction(product_id: str) -> Response[str]:
             _reserve_suffix(store, principal.subject),
             Score(score),
         )
-    if not store.add_transaction(item):
-        concurrent = accounts.transaction(principal.subject, product_id, str(transaction_id))
-        return _json(200, {"transaction": concurrent})
-    logger.info("transaction added", kind=kind, transaction_id=transaction_id)
+    try:
+        outcome = Ingestion.from_dynamodb(dynamodb).accept(item, _now())
+    except ContractViolation as error:
+        raise BadRequestError(str(error)) from error
+    except UnknownCard as error:
+        raise NotFoundError("card not found") from error
+    if isinstance(outcome, Duplicate):
+        return _json(200, {"transaction": outcome.transaction})
+    logger.info("transaction added", type=kind, transaction_id=transaction_id)
     metrics.add_metric(name="TransactionsAdded", unit=MetricUnit.Count, value=1)
-    return _json(201, {"transaction": public_transaction(item)})
+    return _json(201, {"transaction": outcome.transaction})
 
 
 def _draw_suffix() -> int:

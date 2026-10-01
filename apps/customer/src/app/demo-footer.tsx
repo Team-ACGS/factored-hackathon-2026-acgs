@@ -50,7 +50,7 @@ function AddLinks() {
 
   if (!productId) return null;
 
-  function add(request: { kind: "normal" } | { kind: "suspicious"; score: ScoreOption }) {
+  function add(request: { type: "normal" } | { type: "suspicious"; score: ScoreOption }) {
     setFailed(false);
     setSuspiciousOpen(false);
     addition.mutateAsync({ ...request, transaction_id: mintId(clock) }).catch(() => setFailed(true));
@@ -63,7 +63,7 @@ function AddLinks() {
           {t("demo.addFailed")}
         </span>
       )}
-      <button type="button" className={linkClass} onClick={() => add({ kind: "normal" })}>
+      <button type="button" className={linkClass} onClick={() => add({ type: "normal" })}>
         {t("demo.addNormal")}
       </button>
       <button type="button" className={linkClass} onClick={() => setSuspiciousOpen(true)}>
@@ -72,7 +72,7 @@ function AddLinks() {
       <SuspiciousDialog
         open={suspiciousOpen}
         onOpenChange={setSuspiciousOpen}
-        onSubmit={(score) => add({ kind: "suspicious", score })}
+        onSubmit={(score) => add({ type: "suspicious", score })}
       />
     </>
   );

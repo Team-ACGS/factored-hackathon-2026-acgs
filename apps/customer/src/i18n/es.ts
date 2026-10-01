@@ -1,6 +1,7 @@
 import type { MessageKey } from "./en";
 
 export const es: Record<MessageKey, string> = {
+  "auth.givenName": "Nombre",
   "auth.email": "Correo electrónico",
   "auth.password": "Contraseña",
   "auth.passwordHint": "Al menos 10 caracteres, con mayúsculas y minúsculas, un número y un símbolo.",

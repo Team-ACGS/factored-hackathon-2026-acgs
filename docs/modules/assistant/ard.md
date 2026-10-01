@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0013_policy_search
+source: 0014_ingestion
 ---
 
 # assistant: architecture and debt
@@ -165,6 +165,7 @@ source: 0013_policy_search
 - Alternatives rejected: approximate proportions (tests could not pin the mix); all cases on one card.
 - Reason: the tools and a future dataset seed share one vocabulary, the demo is reproducible, and each planted case is findable from the guide.
 - Debt created: balances are a setup snapshot (credit: Approved and Pending of the last 30 days) that added transactions do not move; the fresh hold stops being fresh a few days after setup.
+- Resolved by: 0014_ingestion, 2026-10-01 (the balances; the fresh hold stays open)
 - Revisit when: Clara reads balances, or demo accounts must stay demo-ready for weeks.
 - Source: 0006_customer_data_onboarding; subscriptions amended by 0012_data_tools
 
@@ -330,3 +331,12 @@ source: 0013_policy_search
 - Debt created: none
 - Revisit when: a test needs behavior of the real services the doubles do not model.
 - Source: 0013_policy_search
+
+## 2026-10-01: the transaction contract refuses what it does not declare
+
+- Decision: `core.ingestion`'s contract names every field a row may carry and refuses any other, a `fraud_score` present as null, and a status-inconsistent response code (only the status is named when the status itself is wrong); a contract failure in setup is a server bug and surfaces as a 500, not a 400; `balance_as_of` on an add is the later of now and the purchase instant.
+- Alternatives rejected: ignoring unknown fields (lineage fields could reach a row unnoticed); a 400 for setup (the customer sent nothing wrong); stamping now (with the 2-minute client skew the balance could read as older than the purchase).
+- Reason: every row is written by our own code, so the contract is the test that it stays the shape the readers expect.
+- Debt created: none
+- Revisit when: a second caller (a dataset load or a feed) needs fields the contract does not declare.
+- Source: 0014_ingestion

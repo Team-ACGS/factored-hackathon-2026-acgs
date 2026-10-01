@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-28
-source: 0006_customer_data_onboarding
+updated: 2026-10-01
+source: 0014_ingestion
 ---
 
 # Identity: product
@@ -17,7 +17,7 @@ It is also the proof the hackathon asks for that access control lives outside th
 
 ### Customer sign-up and sign-in
 
-1. A customer opens factoredai.sdfles.com, picks English, Spanish or Brazilian Portuguese, and signs up with an email and a password.
+1. A customer opens factoredai.sdfles.com, picks English, Spanish or Brazilian Portuguese, and signs up with their name, an email and a password; the name is kept for Clara to greet them, and accounts created before it was asked have none.
 2. Clara emails a verification code to that address to confirm it, once, at sign-up, in the language they picked.
 3. The customer enters the code, confirming the account, and lands in the chat already signed in.
 4. From then on the customer signs in with email and password, like any password account; the emailed code never reappears at sign-in.

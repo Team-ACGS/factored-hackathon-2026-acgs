@@ -8,16 +8,21 @@ from core.read_model import projection, public
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource
 
-CUSTOMER_ATTRIBUTES = ("email", "created_at", "country", "language", "setup_completed_at")
+CUSTOMER_ATTRIBUTES = ("email", "given_name", "created_at", "country", "language", "setup_completed_at")
 
 
 def create_customer(
-    dynamodb: "DynamoDBServiceResource", customer_id: str, email: str, created_at: str
+    dynamodb: "DynamoDBServiceResource",
+    customer_id: str,
+    email: str,
+    created_at: str,
+    given_name: str | None = None,
 ) -> bool:
     table = dynamodb.Table(os.environ["TABLE_CUSTOMERS"])
-    return put_if_absent(
-        table, {"customer_id": customer_id, "email": email, "created_at": created_at}, "customer_id"
-    )
+    item = {"customer_id": customer_id, "email": email, "created_at": created_at}
+    if given_name is not None:
+        item["given_name"] = given_name
+    return put_if_absent(table, item, "customer_id")
 
 
 def public_customer(item: Mapping[str, Any]) -> dict[str, Any]:

@@ -37,10 +37,10 @@ describe("bank api", () => {
       .mockResolvedValueOnce(respond(502))
       .mockResolvedValueOnce(respond(201, { transaction: added }));
 
-    const transaction = await bank(fetch).add("card-1", { transaction_id: "t-1", kind: "suspicious", score: "none" });
+    const transaction = await bank(fetch).add("card-1", { transaction_id: "t-1", type: "suspicious", score: "none" });
 
     expect(transaction).toEqual(added);
     const bodies = fetch.mock.calls.map(([, init]) => JSON.parse(init?.body as string) as unknown);
-    expect(bodies).toEqual(Array(2).fill({ transaction_id: "t-1", kind: "suspicious", score: "none" }));
+    expect(bodies).toEqual(Array(2).fill({ transaction_id: "t-1", type: "suspicious", score: "none" }));
   });
 });

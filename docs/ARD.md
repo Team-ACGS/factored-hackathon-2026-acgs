@@ -123,7 +123,6 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | global | 2026-09-27 | Lambda zips are about 18 MB each and no smoke test follows a lambda deploy | when cold starts matter or a deploy breaks unnoticed |
 | assistant | 2026-09-27 | No adversarial fixture for tool-output injection | before the evaluation run |
 | assistant | 2026-09-27 | `turn.completed` is at least once; duplicates reach S3 and must be deduped by `reply_message_id` | when turn events are analyzed |
-| assistant | 2026-09-28 | Card balances are a setup snapshot; added transactions do not move them | when Clara reads balances or limits |
 | assistant | 2026-09-28 | The planted fresh hold ages out of the 7-day window a few days after setup | when demo accounts must stay demo-ready for weeks |
 | assistant | 2026-09-28 | `crud` and `messages` duplicate the claims and body parsing of their handlers | when a third API lambda appears |
 | assistant | 2026-09-29 | The chat of `customer` is not on TanStack Query yet | when the chat is next changed |
