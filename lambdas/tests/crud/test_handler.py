@@ -2,6 +2,8 @@ import base64
 import json
 import threading
 from collections.abc import Callable, Mapping
+from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 import boto3
@@ -11,7 +13,7 @@ from core.access import RoleSession, customer_session
 from core.customers import create_customer
 from crud import handler as crud
 from crud.catalog import COUNTRIES, SUSPICIOUS_POOL
-from crud.generator import CaseKind
+from crud.generator import CaseKind, Claim, generate, manual_transaction
 from crud.store import Store
 from harness import STAFF_POOL_ID, Aws, LambdaContext, api_event, claims, uuid7
 
@@ -33,9 +35,13 @@ def call(
     return response["statusCode"], json.loads(response["body"] or "null")
 
 
-def signed_up(customer_id: str) -> None:
+def signed_up(customer_id: str, given_name: str | None = None) -> None:
     create_customer(
-        boto3.resource("dynamodb"), customer_id, f"{customer_id}@example.com", "2026-09-28T12:00:00.000Z"
+        boto3.resource("dynamodb"),
+        customer_id,
+        f"{customer_id}@example.com",
+        "2026-09-28T12:00:00.000Z",
+        given_name,
     )
 
 
@@ -102,6 +108,17 @@ def test_a_new_customer_has_no_setup_until_it_completes(
     assert call("GET", "/crud/profile", context)[1]["profile"]["setup_completed"] is True
 
 
+def test_the_profile_carries_the_given_name_when_the_customer_has_one(
+    aws: Aws, context: LambdaContext
+) -> None:
+    signed_up(SUB, "Ana")
+
+    assert call("GET", "/crud/profile", context) == (
+        200,
+        {"profile": {"country": None, "language": None, "setup_completed": False, "given_name": "Ana"}},
+    )
+
+
 def test_setup_writes_the_account_in_the_customer_partition_and_returns_the_planted_cases(
     aws: Aws, customer: None, context: LambdaContext, sessions: list[str]
 ) -> None:
@@ -121,6 +138,17 @@ def test_setup_writes_the_account_in_the_customer_partition_and_returns_the_plan
             stored[transaction["transaction_id"]]["transaction_status"] == transaction["transaction_status"]
         )
         assert transaction["product_id"] in {card["product_id"] for card in cards(context)}
+
+
+def test_setup_writes_the_generated_balances_without_moving_them(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    set_up(context)
+
+    claimed_at = aws.customers.get_item(Key={"customer_id": SUB})["Item"]["setup_claimed_at"]
+    generated = generate(Claim(SUB, COUNTRIES["MX"], datetime.fromisoformat(str(claimed_at)))).cards
+    assert sorted(items(aws.products), key=lambda card: card["product_id"]) == generated
+    assert all(card["balance_as_of"] == claimed_at for card in cards(context))
 
 
 def test_a_second_setup_is_rejected_and_writes_nothing(
@@ -295,7 +323,7 @@ def test_another_customers_card_and_transaction_are_not_found(
         "GET", f"/crud/cards/{foreign['product_id']}/transactions/{foreign['transaction_id']}", context
     )
     assert status == 404
-    assert add(context, foreign["product_id"], kind="normal")[0] == 404
+    assert add(context, foreign["product_id"], type="normal")[0] == 404
     assert len(items(aws.transactions, OTHER)) == 300
 
 
@@ -348,7 +376,7 @@ def test_a_normal_transaction_uses_a_customer_merchant_and_tops_the_list(
     set_up(context)
     product_id = cards(context)[1]["product_id"]
 
-    status, body = add(context, product_id, kind="normal")
+    status, body = add(context, product_id, type="normal")
 
     assert status == 201
     added = body["transaction"]
@@ -366,7 +394,7 @@ def test_a_retried_add_returns_the_stored_transaction(
 ) -> None:
     set_up(context)
     product_id = cards(context)[0]["product_id"]
-    body = {"transaction_id": uuid7(), "kind": "suspicious", "score": "flagged"}
+    body = {"transaction_id": uuid7(), "type": "suspicious", "score": "flagged"}
 
     first = call("POST", f"/crud/cards/{product_id}/transactions", context, body)
     retry = call("POST", f"/crud/cards/{product_id}/transactions", context, body)
@@ -374,6 +402,73 @@ def test_a_retried_add_returns_the_stored_transaction(
     assert (first[0], retry[0]) == (201, 200)
     assert retry[1] == first[1]
     assert len(items(aws.transactions)) == 301
+
+
+def balance(context: LambdaContext, product_id: str) -> Decimal:
+    return Decimal(page(context, product_id)[1]["card"]["current_balance"])
+
+
+def test_an_approved_suspicious_add_on_a_credit_card_raises_its_balance_once(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    set_up(context)
+    product_id = cards(context)[0]["product_id"]
+    before = balance(context, product_id)
+    body = {"transaction_id": uuid7(), "type": "suspicious", "score": "flagged"}
+
+    first = call("POST", f"/crud/cards/{product_id}/transactions", context, body)
+    retry = call("POST", f"/crud/cards/{product_id}/transactions", context, body)
+
+    assert (first[0], retry[0]) == (201, 200)
+    added = first[1]["transaction"]
+    assert balance(context, product_id) == before + Decimal(added["amount"])
+    card = page(context, product_id)[1]["card"]
+    assert card["balance_as_of"] >= added["transaction_date"]
+
+
+def test_a_debit_add_lowers_the_funds_and_one_above_them_is_refused(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    set_up(context)
+    product_id = cards(context)[2]["product_id"]
+    before = balance(context, product_id)
+
+    status, body = add(context, product_id, type="normal")
+
+    assert status == 201
+    assert balance(context, product_id) == before - Decimal(body["transaction"]["amount"])
+    aws.products.update_item(
+        Key={"customer_id": SUB, "product_id": product_id},
+        UpdateExpression="SET current_balance = :little",
+        ExpressionAttributeValues={":little": Decimal("0.01")},
+    )
+
+    status, body = add(context, product_id, type="normal")
+
+    assert status == 400
+    assert "amount" in body["message"]
+    assert len(items(aws.transactions)) == 301
+    assert balance(context, product_id) == Decimal("0.01")
+
+
+def test_an_add_that_breaks_the_contract_is_a_bad_request_naming_the_field(
+    aws: Aws, customer: None, context: LambdaContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    set_up(context)
+    product_id = cards(context)[0]["product_id"]
+    before = balance(context, product_id)
+    monkeypatch.setattr(
+        crud,
+        "manual_transaction",
+        lambda *args: {**manual_transaction(*args), "amount": "9.90", "channel": ""},
+    )
+
+    status, body = add(context, product_id, type="normal")
+
+    assert status == 400
+    assert "amount, channel" in body["message"]
+    assert len(items(aws.transactions)) == 300
+    assert balance(context, product_id) == before
 
 
 def suffix(transaction: Mapping[str, Any]) -> str:
@@ -388,7 +483,7 @@ def test_suspicious_transactions_use_outside_merchants_with_suffixes_unique_in_t
     drawn = iter([4821, 4821, 4821, 1234, 1234, 7777])
     monkeypatch.setattr(crud, "_draw_suffix", lambda: next(drawn))
 
-    added = [add(context, product_id, kind="suspicious")[1]["transaction"] for _ in range(3)]
+    added = [add(context, product_id, type="suspicious")[1]["transaction"] for _ in range(3)]
 
     assert [suffix(transaction) for transaction in added] == ["4821", "1234", "7777"]
     pool = {merchant.name for merchant in SUSPICIOUS_POOL}
@@ -413,7 +508,7 @@ def test_the_suspicious_score_follows_the_chosen_option(
     set_up(context)
     product_id = cards(context)[0]["product_id"]
 
-    status, body = add(context, product_id, kind="suspicious", score=score)
+    status, body = add(context, product_id, type="suspicious", score=score)
 
     assert status == 201
     assert check(body["transaction"]["fraud_score"])
@@ -422,10 +517,11 @@ def test_the_suspicious_score_follows_the_chosen_option(
 @pytest.mark.parametrize(
     "body",
     [
-        {"transaction_id": uuid7(), "kind": "fraud"},
-        {"transaction_id": uuid7(), "kind": "suspicious", "score": 99},
-        {"transaction_id": "abc", "kind": "normal"},
-        {"transaction_id": uuid7(1_000_000_000_000), "kind": "normal"},
+        {"transaction_id": uuid7(), "type": "fraud"},
+        {"transaction_id": uuid7(), "kind": "normal"},
+        {"transaction_id": uuid7(), "type": "suspicious", "score": 99},
+        {"transaction_id": "abc", "type": "normal"},
+        {"transaction_id": uuid7(1_000_000_000_000), "type": "normal"},
     ],
 )
 def test_an_invalid_add_is_rejected(aws: Aws, customer: None, context: LambdaContext, body: object) -> None:

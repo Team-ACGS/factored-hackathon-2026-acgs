@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from core.accounts import Accounts
+from core.accounts import Accounts, card_type
 from core.facts.values import (
     City,
     Country,
@@ -69,15 +69,6 @@ class Movement:
     country: str | None
     city: str | None
     category: str | None
-
-
-def card_type(product_type: object) -> str | None:
-    text = str(product_type or "").lower()
-    if "créd" in text or "cred" in text:
-        return "credit"
-    if "déb" in text or "deb" in text:
-        return "debit"
-    return None
 
 
 def to_card(item: dict[str, Any]) -> Card | None:

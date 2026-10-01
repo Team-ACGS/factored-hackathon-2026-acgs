@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any
 from botocore.exceptions import ClientError
 
 from core.cases import Cases
-from core.conditional import put_if_absent
 from core.customers import public_customer
 
 if TYPE_CHECKING:
@@ -126,9 +125,6 @@ class Store:
                 return False
             raise
         return True
-
-    def add_transaction(self, item: Mapping[str, Any]) -> bool:
-        return put_if_absent(self._transactions, item, "transaction_key")
 
 
 def _condition_failed(error: ClientError) -> bool:

@@ -1,0 +1,4 @@
+score_band,fraud_transactions,share_of_fraud_pct,transactions,fraud_in_band_pct
+above 30,2373,55.0,2373,100.0
+30 or below,1052,24.4,3537478,0.03
+no score,891,20.6,885157,0.1

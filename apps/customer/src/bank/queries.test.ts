@@ -71,7 +71,7 @@ function world() {
     api.add.mockImplementationOnce(() => response.promise);
     const done = new MutationObserver(client, queries.add(client, "card-1")).mutate({
       transaction_id: transactionId,
-      kind: "normal",
+      type: "normal",
     });
     return { transactionId, response, done };
   }
@@ -194,7 +194,7 @@ describe("bank queries", () => {
     ]);
   });
 
-  it("invalidates only that card's ledger after an add", async () => {
+  it("invalidates only that card's ledger and the card list after an add", async () => {
     const { api, client, invalidated, settled, add } = world();
     client.setQueryData(bankKeys.ledger("card-1"), { pages: [page(["a"], null)], pageParams: [null] });
     client.setQueryData(bankKeys.ledger("card-2"), { pages: [page(["z"], null)], pageParams: [null] });
@@ -210,7 +210,7 @@ describe("bank queries", () => {
     expect(invalidated(bankKeys.ledger("card-1"))).toBe(true);
     expect(invalidated(bankKeys.ledger("card-2"))).toBe(false);
     expect(invalidated(bankKeys.profile())).toBe(false);
-    expect(invalidated(bankKeys.cards())).toBe(false);
+    expect(invalidated(bankKeys.cards())).toBe(true);
     expect(invalidated(bankKeys.transaction("card-1", "a"))).toBe(false);
     expect(api.card).not.toHaveBeenCalled();
   });

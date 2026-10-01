@@ -15,6 +15,7 @@ export function cardAt(product_type: string, instant = setupAt, overrides: Parti
     credit_limit: null,
     product_status: "Active",
     expiration_date: "2030-11-30",
+    balance_as_of: new Date(instant).toISOString(),
     ...overrides,
   };
 }

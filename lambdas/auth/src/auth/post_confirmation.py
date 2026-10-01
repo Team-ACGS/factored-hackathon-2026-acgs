@@ -12,6 +12,7 @@ from core.observability import logger, metrics, tracer
 
 SERVICE = "auth"
 SIGN_UP = "PostConfirmation_ConfirmSignUp"
+MAX_GIVEN_NAME = 50
 
 
 @logger.inject_lambda_context(clear_state=True)
@@ -30,8 +31,14 @@ def handler(event: dict[str, Any], context: LambdaContext) -> dict[str, Any]:
         customer_id,
         trigger.request.user_attributes["email"],
         format_instant(datetime.now(UTC)),
+        _given_name(trigger.request.user_attributes.get("given_name")),
     )
     logger.info("customer signed up", first_write=created)
     if created:
         metrics.add_metric(name="SignUps", unit=MetricUnit.Count, value=1)
     return event
+
+
+def _given_name(value: str | None) -> str | None:
+    name = (value or "").strip()
+    return name if 1 <= len(name) <= MAX_GIVEN_NAME else None

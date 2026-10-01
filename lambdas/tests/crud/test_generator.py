@@ -9,7 +9,16 @@ import pytest
 from core.ids import format_instant, parse_uuid7, uuid7_time
 from core.tools.movements import cadence_of
 from crud.catalog import COUNTRIES, SUSPICIOUS_POOL
-from crud.generator import Account, CaseKind, Claim, Score, generate, manual_transaction, seeded_claim
+from crud.generator import (
+    Account,
+    CaseKind,
+    Claim,
+    Score,
+    generate,
+    manual_transaction,
+    max_purchase,
+    seeded_claim,
+)
 from harness import uuid7
 
 ANCHOR = datetime(2026, 9, 28, 15, 30, tzinfo=UTC)
@@ -90,6 +99,40 @@ def test_each_subscription_bills_one_card_monthly_on_a_fixed_day(country: str, c
         assert cadence_of(days) == "monthly"
         assert {item["transaction_status"] for item in charges} == {"Approved"}
         assert len({item["amount"] for item in charges}) == 1
+
+
+@pytest.mark.parametrize("country", sorted(COUNTRIES))
+def test_the_largest_purchase_bounds_every_amount_the_generator_can_draw(country: str) -> None:
+    largest = max_purchase(COUNTRIES[country])
+    rate = COUNTRIES[country].usd_rate
+    catalog = [
+        *(m.profile.usd_high for m in COUNTRIES[country].merchants),
+        *(m.usd_high for m in SUSPICIOUS_POOL),
+    ]
+
+    drawn = [
+        manual_transaction(random.Random(seed), claim(country), "card-1", uuid7(), suffix)["amount"]  # noqa: S311
+        for seed in range(200)
+        for suffix in (None, 1000)
+    ]
+
+    assert max(drawn) <= largest
+    assert largest >= max(Decimal(str(high)) * rate for high in catalog) - COUNTRIES[country].rounding
+
+
+@pytest.mark.parametrize("customer_id", ["customer-1", "customer-2", "customer-3", "customer-4"])
+@pytest.mark.parametrize("country", sorted(COUNTRIES))
+def test_every_card_can_take_twenty_of_the_largest_purchase_and_has_a_balance_as_of_setup(
+    country: str, customer_id: str
+) -> None:
+    account = generate(claim(country, customer_id))
+
+    largest = max_purchase(COUNTRIES[country])
+    credit, other_credit, debit = account.cards
+    for card in (credit, other_credit):
+        assert card["credit_limit"] - card["current_balance"] >= 20 * largest
+    assert debit["current_balance"] >= 20 * largest
+    assert {card["balance_as_of"] for card in account.cards} == {format_instant(ANCHOR)}
 
 
 def debit_card(account: Account) -> dict[str, Any]:

@@ -8,6 +8,7 @@ from harness import Aws
 STORED: dict[str, Any] = {
     "customer_id": "customer-1",
     "email": "ana@example.com",
+    "given_name": "Ana",
     "created_at": "2026-09-28T12:00:00.000Z",
     "country": "MX",
     "language": "es",

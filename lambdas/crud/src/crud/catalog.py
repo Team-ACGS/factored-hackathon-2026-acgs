@@ -244,3 +244,8 @@ SUSPICIOUS_POOL: tuple[OnlineMerchant, ...] = (
     OnlineMerchant("APPLE.COM/BILL", "Services", 5, 60),
     OnlineMerchant("GOOGLE *PLAY", "Entertainment", 5, 60),
 )
+
+MAX_PURCHASE_USD = max(
+    *(profile.usd_high for profile in PROFILES.values()),
+    *(merchant.usd_high for merchant in SUSPICIOUS_POOL),
+)

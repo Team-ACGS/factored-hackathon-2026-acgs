@@ -10,8 +10,9 @@ from typing import Any
 
 from core.accounts import transaction_date, transaction_key
 from core.ids import format_instant, parse_uuid7, uuid7_at, uuid7_time
+from core.ingestion import DECLINE_CODES, Origin
 from core.months import add_months
-from crud.catalog import SUSPICIOUS_POOL, Archetype, Country, Merchant
+from crud.catalog import MAX_PURCHASE_USD, SUSPICIOUS_POOL, Archetype, Country, Merchant
 
 CARDS_PER_ACCOUNT = 3
 TRANSACTIONS_PER_CARD = 100
@@ -28,16 +29,12 @@ SEEDED_CLAIM_OFFSETS = {
 }
 FRESH_HOLD_DAYS = 7
 STATUS_MIX = {"Approved": 92, "Declined": 5, "Pending": 2, "Reversed": 1}
-DECLINE_CODES = ("05", "14", "51", "54")
 BILLING_CYCLE_DAYS = 30
 CENT = Decimal("0.01")
 HIGH_SCORE = Decimal(30)
-
-
-class Origin(StrEnum):
-    SETUP = "setup"
-    MANUAL_NORMAL = "manual_normal"
-    MANUAL_SUSPICIOUS = "manual_suspicious"
+PURCHASING_POWER = 20
+DEBIT_FUNDS_IN_PURCHASES = (25, 50)
+CREDIT_LIMIT_USD = (15000, 30000)
 
 
 class CaseKind(StrEnum):
@@ -259,7 +256,7 @@ def _transaction(
         rng, claim.country, profile.usd_low, profile.usd_high
     )
     fields["fraud_score"] = _low_score(rng)
-    code = "00" if row.status in ("Approved", "Reversed") else rng.choice(DECLINE_CODES)
+    code = "00" if row.status in ("Approved", "Reversed") else rng.choice(sorted(DECLINE_CODES))
     return _item(claim, product_id, transaction_id, fields, row.status, code, Origin.SETUP)
 
 
@@ -317,9 +314,11 @@ def _card(
         "expiration_date": expires.replace(
             day=calendar.monthrange(expires.year, expires.month)[1]
         ).isoformat(),
+        "balance_as_of": format_instant(claim.anchor),
     }
     if product_type == "Tarjeta Débito":
-        card["current_balance"] = _amount(rng, country, 300, 4000)
+        low, high = (MAX_PURCHASE_USD * purchases for purchases in DEBIT_FUNDS_IN_PURCHASES)
+        card["current_balance"] = _amount(rng, country, low, high)
         return card
     cycle_start = claim.anchor - timedelta(days=BILLING_CYCLE_DAYS)
     balance = sum(
@@ -332,12 +331,17 @@ def _card(
         start=Decimal(0),
     )
     step = max(country.rounding, Decimal(1)) * 100
-    limit = _round(Decimal(str(rng.uniform(1500, 6000))) * country.usd_rate, step)
-    if limit < balance * Decimal("1.5"):
-        limit = (balance * Decimal("1.5") / step).to_integral_value(ROUND_CEILING) * step
+    limit = _round(Decimal(str(rng.uniform(*CREDIT_LIMIT_USD))) * country.usd_rate, step)
+    floor = balance + PURCHASING_POWER * max_purchase(country)
+    if limit < floor:
+        limit = (floor / step).to_integral_value(ROUND_CEILING) * step
     card["credit_limit"] = limit.quantize(CENT)
     card["current_balance"] = balance.quantize(CENT)
     return card
+
+
+def max_purchase(country: Country) -> Decimal:
+    return _round(Decimal(str(MAX_PURCHASE_USD)) * country.usd_rate, country.rounding)
 
 
 def _amount(rng: random.Random, country: Country, usd_low: float, usd_high: float) -> Decimal:

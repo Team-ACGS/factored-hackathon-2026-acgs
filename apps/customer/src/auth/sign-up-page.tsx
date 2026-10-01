@@ -11,6 +11,7 @@ import { Field, FormError } from "./field";
 export function SignUpPage() {
   const { locale, t } = useI18n();
   const navigate = useNavigate();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export function SignUpPage() {
       await signUp({
         username: email,
         password,
-        options: { userAttributes: { email, locale }, autoSignIn: true },
+        options: { userAttributes: { email, locale, given_name: name.trim() }, autoSignIn: true },
       });
       await navigate({ to: "/verify", search: { email } });
     } catch (caught) {
@@ -47,6 +48,15 @@ export function SignUpPage() {
       }
     >
       <form className="grid gap-4" onSubmit={(event) => void submit(event)}>
+        <Field
+          label={t("auth.givenName")}
+          autoComplete="given-name"
+          maxLength={50}
+          pattern=".*\S.*"
+          required
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
         <Field
           label={t("auth.email")}
           type="email"

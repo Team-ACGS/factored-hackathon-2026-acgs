@@ -1,6 +1,7 @@
 import type { MessageKey } from "./en";
 
 export const ptBR: Record<MessageKey, string> = {
+  "auth.givenName": "Nome",
   "auth.email": "E-mail",
   "auth.password": "Senha",
   "auth.passwordHint": "Pelo menos 10 caracteres, com letras maiúsculas e minúsculas, um número e um símbolo.",

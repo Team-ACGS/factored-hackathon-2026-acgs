@@ -11,6 +11,7 @@ export interface Profile {
   country: Country | null;
   language: Locale | null;
   setup_completed: boolean;
+  given_name?: string;
 }
 
 export interface Card {
@@ -22,6 +23,7 @@ export interface Card {
   credit_limit: string | null;
   product_status: string;
   expiration_date: string;
+  balance_as_of: string | null;
 }
 
 export interface Transaction {
@@ -60,5 +62,5 @@ export interface CardPage {
 }
 
 export type NewTransaction =
-  | { transaction_id: string; kind: "normal" }
-  | { transaction_id: string; kind: "suspicious"; score: ScoreOption };
+  | { transaction_id: string; type: "normal" }
+  | { transaction_id: string; type: "suspicious"; score: ScoreOption };

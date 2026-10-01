@@ -20,6 +20,7 @@ CARD_ATTRIBUTES = (
     "credit_limit",
     "product_status",
     "expiration_date",
+    "balance_as_of",
 )
 
 TRANSACTION_ATTRIBUTES = (
@@ -47,6 +48,15 @@ BATCH_BACKOFF_SECONDS = 0.05
 
 class ReadIncomplete(Exception):
     pass
+
+
+def card_type(product_type: object) -> str | None:
+    text = str(product_type or "").lower()
+    if "créd" in text or "cred" in text:
+        return "credit"
+    if "déb" in text or "deb" in text:
+        return "debit"
+    return None
 
 
 def transaction_date(transaction_id: str) -> str:

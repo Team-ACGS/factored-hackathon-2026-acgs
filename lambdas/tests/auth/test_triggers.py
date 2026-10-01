@@ -11,7 +11,7 @@ from harness import CUSTOMERS_POOL_ID, Aws, LambdaContext
 SUB = "0f3c5e1a-0000-4000-8000-000000000001"
 
 
-def trigger(source: str) -> dict[str, Any]:
+def trigger(source: str, **attributes: str) -> dict[str, Any]:
     return {
         "version": "1",
         "region": "us-east-1",
@@ -19,7 +19,9 @@ def trigger(source: str) -> dict[str, Any]:
         "userName": SUB,
         "callerContext": {"awsSdkVersion": "aws-sdk-js", "clientId": "customer-client"},
         "triggerSource": source,
-        "request": {"userAttributes": {"sub": SUB, "email": "ana@example.com", "email_verified": "true"}},
+        "request": {
+            "userAttributes": {"sub": SUB, "email": "ana@example.com", "email_verified": "true", **attributes}
+        },
         "response": {},
     }
 
@@ -51,6 +53,25 @@ def test_a_confirmed_sign_up_creates_the_customer_keyed_by_sub(
     output = capsys.readouterr().out
     assert '"SignUps"' in output
     assert "ana@example.com" not in output
+
+
+def test_a_sign_up_with_a_name_stores_it_trimmed(aws: Aws, context: LambdaContext) -> None:
+    post_confirmation.handler(trigger("PostConfirmation_ConfirmSignUp", given_name="  Sebastián "), context)
+
+    [customer] = aws.customers.scan()["Items"]
+    assert customer["given_name"] == "Sebastián"
+
+
+@pytest.mark.parametrize("given_name", ["   ", "A" * 51])
+def test_a_name_outside_one_to_fifty_characters_is_dropped_without_failing(
+    aws: Aws, context: LambdaContext, given_name: str
+) -> None:
+    event = trigger("PostConfirmation_ConfirmSignUp", given_name=given_name)
+
+    assert post_confirmation.handler(event, context) == event
+
+    [customer] = aws.customers.scan()["Items"]
+    assert "given_name" not in customer
 
 
 def test_a_second_confirmation_changes_nothing(aws: Aws, context: LambdaContext) -> None:

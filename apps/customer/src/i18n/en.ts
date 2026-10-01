@@ -1,4 +1,5 @@
 export const en = {
+  "auth.givenName": "Name",
   "auth.email": "Email",
   "auth.password": "Password",
   "auth.passwordHint": "At least 10 characters, with uppercase and lowercase letters, a number and a symbol.",

@@ -27,7 +27,8 @@ export const bankKeys = {
   cards: () => ["bank", "cards"] as const,
   ledger: (productId: string) => ["bank", "ledger", productId] as const,
   transaction: (productId: string, transactionId: string) => ["bank", "transaction", productId, transactionId] as const,
-  add: (productId: string) => ["bank", "add", productId] as const,
+  adds: () => ["bank", "add"] as const,
+  add: (productId: string) => [...bankKeys.adds(), productId] as const,
 };
 
 function isSetupConflict(error: unknown): boolean {
@@ -106,6 +107,9 @@ export function createBankQueries(bank: BankApi, clock: Clock) {
         onSettled: () => {
           if (queryClient.isMutating({ mutationKey: bankKeys.add(productId) }) === 1) {
             void queryClient.invalidateQueries({ queryKey: ledgerKey, exact: true });
+          }
+          if (queryClient.isMutating({ mutationKey: bankKeys.adds() }) === 1) {
+            void queryClient.invalidateQueries({ queryKey: bankKeys.cards(), exact: true });
           }
         },
       };
