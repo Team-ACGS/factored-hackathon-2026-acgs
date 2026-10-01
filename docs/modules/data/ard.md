@@ -58,6 +58,7 @@ source: 0015_policy_base_layout
 - Debt created: none
 - Revisit when: the first real build shows a rule failing documents that read well.
 - Source: 0013_policy_search
+- Amended by: 0015_policy_base_layout, 2026-10-01: the limits are 60 to 250 words per section and 600 to 1,050 per document; `SAMPLE_LIMITS` and the invalid fixtures are gone, the sample is valid under the production limits and each invalid case is one changed line in a test (entry "pages are checked by rendering").
 
 ## 2026-10-01: chunks are sized by a conservative token estimate and deduped per country
 
@@ -67,6 +68,7 @@ source: 0015_policy_base_layout
 - Debt created: none
 - Revisit when: an embedding call fails for length, or C's recall points at chunk size.
 - Source: 0013_policy_search
+- Amended by: 0015_policy_base_layout, 2026-10-01: a section is one chunk, with no windowing, overlap or tail merging; a section whose title, heading and text exceed the 512-token input fails its edition (task 0015, Context & decisions). The estimate and the dedupe stay.
 
 ## 2026-10-01: editions are immutable, and the build is resumable and conservative with folders
 
@@ -106,7 +108,7 @@ source: 0015_policy_base_layout
 
 ## 2026-10-01: pages are checked by rendering, and the word targets follow measured density
 
-- Decision: the validator keeps 600 to 1,050 words per document; `SPEC.md` aims faq and glossary at 700 Spanish words and the other types at 850, from the sample's measured density (about 420 rendered words a page for policy, procedure and guide, 320 for faq and glossary, placeholders adding 6 to 8%), and names `build-policies render` as the page check. The 0013 sample limits, invalid fixtures and chunk windowing are gone: the sample is valid under the production limits, each invalid case is one changed line in a test, and a section is one chunk.
+- Decision: the validator keeps 600 to 1,050 words per document; `SPEC.md` aims faq and glossary at 700 Spanish words and the other types at 850, from the sample's measured density (about 420 rendered words a page for policy, procedure and guide, 320 for faq and glossary, placeholders adding 6 to 8%), and names `build-policies render` as the page check.
 - Alternatives rejected: a page limit in the validator (it would need a PDF render per check); lowering the word cap for faq (Acceptance 5 sets the same limits for every type).
 - Reason: the words a page holds depend on the document type and on the facts, which only a render shows.
 - Debt created: none
