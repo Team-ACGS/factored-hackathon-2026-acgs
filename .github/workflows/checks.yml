@@ -12,6 +12,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  data:
+    name: Data
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: WeasyPrint system libraries
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0
+
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          working-directory: data
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+
+      - name: Typecheck
+        run: uv run mypy
+
+      - name: Test
+        run: uv run pytest
+
   lambdas:
     name: Lambdas
     runs-on: ubuntu-latest

@@ -52,6 +52,16 @@ variable "cognito_allow_password_auth" {
 # Assistant
 ################################################################################
 
+variable "policy_embedding_model_id" {
+  description = "Bedrock model that embeds policy chunks and queries; the index dimension follows it"
+  type        = string
+}
+
+variable "policy_min_similarity" {
+  description = "Cosine similarity a policy chunk must reach to be returned; below it search_policies answers no_match"
+  type        = number
+}
+
 variable "bedrock_inference_profile_id" {
   description = "Cross-region inference profile chatbot invokes. Sonnet 5 is only served through a profile, never on demand."
   type        = string

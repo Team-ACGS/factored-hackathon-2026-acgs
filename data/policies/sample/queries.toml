@@ -1,0 +1,83 @@
+[[query]]
+country = "PE"
+query = "¿Cuánto tarda la revisión de mi aclaración?"
+doc_id = "pe-dispute-lifecycle"
+section = 6
+
+[[query]]
+country = "PE"
+query = "¿Qué evidencia me pide el analista?"
+doc_id = "pe-dispute-lifecycle"
+section = 7
+
+[[query]]
+country = "PE"
+query = "No estoy de acuerdo con la decisión, ¿puedo reabrir mi caso?"
+doc_id = "pe-dispute-lifecycle"
+section = 9
+
+[[query]]
+country = "PE"
+query = "¿Cuándo se libera la preautorización del hotel?"
+doc_id = "pe-pending-charges"
+section = 5
+
+[[query]]
+country = "PE"
+query = "El grifo reservó un monto fijo y veo dos montos"
+doc_id = "pe-pending-charges"
+section = 7
+
+[[query]]
+country = "PE"
+query = "¿Cuánto cuesta la reposición de mi tarjeta por pérdida?"
+doc_id = "pe-card-replacement"
+section = 6
+
+[[query]]
+country = "PE"
+query = "¿Cuánto tengo que esperar para hablar con una persona?"
+doc_id = "pe-assistant-handoff"
+section = 6
+
+[[query]]
+country = "BR"
+query = "Quanto tempo leva a análise da minha contestação?"
+doc_id = "br-unrecognized-charges-faq"
+section = 2
+
+[[query]]
+country = "BR"
+query = "Perdi o cartão, falo com a Clara para confirmar o bloqueio?"
+doc_id = "br-lost-or-stolen-card"
+section = 3
+
+[[query]]
+country = "BR"
+query = "Quando chega o novo cartão no meu endereço?"
+doc_id = "br-lost-or-stolen-card"
+section = 5
+
+[[query]]
+country = "BR"
+query = "Uma compra recusada gera cobrança?"
+doc_id = "br-transaction-statuses"
+section = 7
+
+[[query]]
+country = "BR"
+query = "O que é uma contestação?"
+doc_id = "br-disputes-glossary"
+section = 1
+
+[[query]]
+country = "PE"
+query = "¿Cuál es la tasa de interés de un préstamo hipotecario?"
+
+[[query]]
+country = "PE"
+query = "¿Qué clima hará en Lima la próxima semana?"
+
+[[query]]
+country = "BR"
+query = "Como investir em ações na bolsa?"

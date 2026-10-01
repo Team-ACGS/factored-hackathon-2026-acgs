@@ -31,6 +31,16 @@ locals {
       )
     }
 
+    policy_search = {
+      actions   = ["s3vectors:QueryVectors", "s3vectors:GetVectors"]
+      resources = [aws_s3vectors_index.policies.index_arn]
+    }
+
+    policy_embed = {
+      actions   = ["bedrock:InvokeModel"]
+      resources = [local.policy_embedding_model_arn]
+    }
+
     turn_events_put = {
       actions   = ["events:PutEvents"]
       resources = [module.event_bus.arn]
@@ -107,16 +117,30 @@ locals {
     }
 
     chatbot = {
-      capabilities = ["messages_stream_read", "streams_list", "chatbot_failures", "assume_customer_role", "bedrock_invoke", "turn_events_put"]
-      namespace    = "Clara/Assistant"
-      memory_size  = 1024
-      timeout      = 60
+      capabilities = [
+        "messages_stream_read",
+        "streams_list",
+        "chatbot_failures",
+        "assume_customer_role",
+        "bedrock_invoke",
+        "turn_events_put",
+        "policy_search",
+        "policy_embed",
+      ]
+      namespace   = "Clara/Assistant"
+      memory_size = 1024
+      timeout     = 60
 
       environment = merge(local.table_env, {
         ROLE_CUSTOMER_ARN = local.access_role_arns.customer
         BEDROCK_MODEL_ID  = data.aws_bedrock_inference_profile.assistant.inference_profile_id
         EVENT_BUS_NAME    = module.event_bus.name
         EVENT_SOURCE      = local.turn_event_source
+
+        POLICY_INDEX_ARN          = aws_s3vectors_index.policies.index_arn
+        POLICY_EMBEDDING_MODEL_ID = var.policy_embedding_model_id
+        POLICY_DOCS_DOMAIN        = local.docs_domain
+        POLICY_MIN_SIMILARITY     = tostring(var.policy_min_similarity)
       })
     }
   }

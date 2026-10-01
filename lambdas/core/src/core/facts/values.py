@@ -142,6 +142,52 @@ class Ratio:
 
 
 @dataclass(frozen=True)
+class Percent:
+    TYPE: ClassVar[str] = "percent"
+    value: Decimal
+
+    def to_model(self) -> Json:
+        return {"type": self.TYPE, "value": format(self.value, "f")}
+
+
+@dataclass(frozen=True)
+class Channel:
+    TYPE: ClassVar[str] = "channel"
+    kind: str
+    value: str
+
+    def to_model(self) -> Json:
+        return {"type": self.TYPE, "kind": self.kind, "value": self.value}
+
+
+@dataclass(frozen=True)
+class Url:
+    TYPE: ClassVar[str] = "url"
+    value: str
+
+    def to_model(self) -> Json:
+        return {"type": self.TYPE, "value": self.value}
+
+
+@dataclass(frozen=True)
+class Text:
+    TYPE: ClassVar[str] = "text"
+    value: str
+
+    def to_model(self) -> Json:
+        return {"type": self.TYPE, "value": self.value}
+
+
+@dataclass(frozen=True)
+class Passage:
+    TYPE: ClassVar[str] = "passage"
+    value: str
+
+    def to_model(self) -> Json:
+        return {"type": self.TYPE, "value": self.value, "untrusted": True, "trace_only": True}
+
+
+@dataclass(frozen=True)
 class Note:
     TYPE: ClassVar[str] = "note"
     value: str
@@ -213,6 +259,11 @@ Value = (
     | Country
     | CaseCode
     | Ratio
+    | Percent
+    | Channel
+    | Url
+    | Text
+    | Passage
     | Note
     | Ref
     | Refs
@@ -221,7 +272,8 @@ Value = (
     | Trace
 )
 
-TRACE_ONLY: tuple[type, ...] = (Ref, Refs, FactIds, Flag, Trace)
+TRACE_ONLY: tuple[type, ...] = (Ref, Refs, FactIds, Flag, Trace, Passage)
+POLICY_CHUNK = "policy_chunk"
 
 
 @dataclass(frozen=True)
@@ -244,9 +296,10 @@ class Ledger:
     def today(self) -> date:
         return self.now.astimezone(zone(self.country)).date()
 
-    def add(self, kind: str, fields: dict[str, Value | None]) -> Fact:
+    def add(self, kind: str, fields: dict[str, Value | None], prefix: str = "f") -> Fact:
+        taken = sum(1 for fact_id in self.facts if fact_id.startswith(prefix))
         fact = Fact(
-            id=f"f{len(self.facts) + 1}",
+            id=f"{prefix}{taken + 1}",
             kind=kind,
             fields={name: value for name, value in fields.items() if value is not None},
         )
@@ -266,6 +319,14 @@ class Ledger:
                 found.add(value.value)
             elif isinstance(value, Refs):
                 found.update(value.values)
+        return found
+
+    def chunks(self) -> dict[str, Fact]:
+        found: dict[str, Fact] = {}
+        for fact in self.facts.values():
+            chunk_id = fact.fields.get("chunk_id")
+            if fact.kind == POLICY_CHUNK and isinstance(chunk_id, Trace) and isinstance(chunk_id.value, str):
+                found[chunk_id.value] = fact
         return found
 
     def merchants(self) -> set[str]:

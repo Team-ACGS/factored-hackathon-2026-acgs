@@ -23,6 +23,8 @@ from core.tools.movements import (
     search_movements,
     spend_summary,
 )
+from core.tools.policies import SearchPoliciesInput, search_policies
+from core.vectors import VectorStoreError
 
 RETRIES = 2
 
@@ -50,6 +52,7 @@ TOOLS: dict[str, Tool] = {
         Tool("charge_facts", "movements", ChargeFactsInput, charge_facts),
         Tool("case_status", "cases", CaseStatusInput, case_status),
         Tool("recall", "memory", RecallInput, recall),
+        Tool("search_policies", "policies", SearchPoliciesInput, search_policies),
     )
 }
 
@@ -69,7 +72,7 @@ def call(name: str, arguments: Mapping[str, Any], context: ToolContext, ledger: 
             return _error(ledger, name, "not_found", "no such item among the customer's own")
         except InvalidArgument as error:
             return _error(ledger, name, "invalid_argument", str(error))
-        except (ClientError, BotoCoreError, ReadIncomplete):
+        except (ClientError, BotoCoreError, ReadIncomplete, VectorStoreError):
             if attempt == RETRIES:
                 return _error(ledger, name, "unavailable", "the data could not be read")
     raise AssertionError("unreachable")

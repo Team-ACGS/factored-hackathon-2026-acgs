@@ -9,6 +9,12 @@ variable "force_destroy" {
   default     = false
 }
 
+variable "versioned" {
+  description = "Keep every version of every object"
+  type        = bool
+  default     = false
+}
+
 variable "lifecycle_rules" {
   description = "Expiration rules, keyed by rule id, each with a prefix and a number of days"
   type = map(object({

@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-10-01
+source: 0013_policy_search
 ---
 
 # data: architecture and debt
@@ -49,3 +49,39 @@ source: setup
 - Debt created: none.
 - Revisit when: never, unless the team stops trusting hand-written doc figures entirely and wants figure generation enforced in CI.
 - Source: setup
+
+## 2026-10-01: document validation mirrors the reply check, with sample limits for tests
+
+- Decision: validation reuses `core.facts.check`'s patterns (digits, currency, phones, URLs, emails, number words with their homonyms) plus month and weekday names, not the reply check's relative-day words; it exempts ordered list markers, terceros, terceiros and third parties, and fails a placeholder in any heading. Word and count limits are a `Limits` value: production 300 to 1,500 words, tests `SAMPLE_LIMITS` (20 to 400) so the committed sample stays short, and a test shows the production limits reject it. Each invalid fixture is a full copy of a valid document with exactly one violation.
+- Alternatives rejected: a separate word list for documents (documents and Clara would drift); a full-length sample (thousands of words to maintain for tests).
+- Reason: a document passes only what Clara could say.
+- Debt created: none
+- Revisit when: the first real build shows a rule failing documents that read well.
+- Source: 0013_policy_search
+
+## 2026-10-01: chunks are sized by a conservative token estimate and deduped per country
+
+- Decision: tokens are estimated as characters over 3.5, so 450 tokens plus the title and section heading stay under Cohere's 512-token input with `truncate` NONE; overlap takes whole trailing sentences up to 15% of the chunk, else a word boundary; a short tail merges into the previous chunk when it fits. The embedded text is title, section and chunk; the metadata `text` is the chunk. Dedupe drops exact normalized duplicates within a country and 5-shingle Jaccard of 0.9 or more within a country and topic, keeping the first in document order.
+- Alternatives rejected: a tokenizer dependency (Cohere's is not available offline); a corpus-wide exact dedupe (a country filter would lose the excerpt another country shares).
+- Reason: a chunk must never be cut silently, and every country must keep its own excerpts.
+- Debt created: none
+- Revisit when: an embedding call fails for length, or C's recall points at chunk size.
+- Source: 0013_policy_search
+
+## 2026-10-01: editions are immutable, and the build is resumable and conservative with folders
+
+- Decision: an edition is a document `version` plus its country's facts `version`: the PDF path is `<country>/<doc_id>-v<version>-f<facts_version>.pdf` and the chunk id and vector key `<doc_id>-v<version>-f<facts_version>-s<section>-c<chunk>`, and a PDF is never overwritten or deleted. The content hash covers the rendered Markdown (with the facts version), the kept chunks, the chunking parameters, the model and a build version; an unchanged hash is skipped. A changed text or facts value without a new version fails the document, which keeps its published entry. The manifest is written after each published document. A build from a local folder never prunes unless `--prune` is passed. The `policies-builder` role (also allowed `QueryVectors` and `GetVectors`, for tuning) has a 4-hour session; the CLI assumes it from the `personal` profile.
+- Alternatives rejected: overwriting an edition in place (an old citation would open different text); one manifest write at the end (a crash would re-embed everything); pruning from any source (a folder of a few documents would unpublish the rest).
+- Reason: a citation must always open the text it cited, and a 120-document build must survive interruptions.
+- Debt created: none
+- Revisit when: the build runs in CI or on a schedule.
+- Source: 0013_policy_search
+
+## 2026-10-01: pages come from WeasyPrint anchors and PyMuPDF text, with the brand committed
+
+- Decision: each section heading carries an anchor `s<N>`, and WeasyPrint reports the page of each; PyMuPDF finds a chunk's first page by its opening 8, 5 or 3 words within its section's pages, falling back to the section's first page. The template commits the app's fonts (Hanken Grotesk and Newsreader, OFL, with their licenses) and its brand mark as SVG. `tune-policies` labels a query with `doc_id` and section number; the threshold is the cut that classifies most hits and unrelated questions correctly, placed halfway to the next lower similarity.
+- Alternatives rejected: searching the whole PDF (a phrase repeated in another section would win); system fonts (pages would depend on the machine).
+- Reason: a citation must open on the page that holds its words.
+- Debt created: none
+- Revisit when: Sebastian's review of the real PDFs finds a page off.
+- Source: 0013_policy_search

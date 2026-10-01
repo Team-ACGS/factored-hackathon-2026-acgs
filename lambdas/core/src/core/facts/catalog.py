@@ -99,6 +99,17 @@ NOUNS: dict[str, dict[str, tuple[str, str]]] = {
     "case": {"es": ("caso", "casos"), "pt-BR": ("caso", "casos"), "en": ("case", "cases")},
     "memory": {"es": ("nota", "notas"), "pt-BR": ("nota", "notas"), "en": ("note", "notes")},
     "day": {"es": ("día", "días"), "pt-BR": ("dia", "dias"), "en": ("day", "days")},
+    "business_day": {
+        "es": ("día hábil", "días hábiles"),
+        "pt-BR": ("dia útil", "dias úteis"),
+        "en": ("business day", "business days"),
+    },
+    "minute": {"es": ("minuto", "minutos"), "pt-BR": ("minuto", "minutos"), "en": ("minute", "minutes")},
+    "excerpt": {
+        "es": ("fragmento", "fragmentos"),
+        "pt-BR": ("trecho", "trechos"),
+        "en": ("excerpt", "excerpts"),
+    },
     "subscription": {
         "es": ("cargo recurrente", "cargos recurrentes"),
         "pt-BR": ("cobrança recorrente", "cobranças recorrentes"),
@@ -129,6 +140,21 @@ STATUS_LABELS: dict[str, dict[str, dict[str, str]]] = {
 }
 
 LABELS: dict[str, dict[str, dict[str, str]]] = {
+    "never_asked": {
+        "full_card_number": {
+            "es": "el número completo de tu tarjeta",
+            "pt-BR": "o número completo do seu cartão",
+            "en": "your full card number",
+        },
+        "cvv": {"es": "el código de seguridad", "pt-BR": "o código de segurança", "en": "the security code"},
+        "pin": {"es": "tu PIN", "pt-BR": "a senha do cartão", "en": "your PIN"},
+        "password": {"es": "tu contraseña", "pt-BR": "a senha de acesso", "en": "your password"},
+        "one_time_code": {
+            "es": "los códigos que te enviamos",
+            "pt-BR": "os códigos que enviamos para você",
+            "en": "the codes we send you",
+        },
+    },
     "card_type": {
         "credit": {"es": "de crédito", "pt-BR": "de crédito", "en": "credit"},
         "debit": {"es": "de débito", "pt-BR": "de débito", "en": "debit"},
@@ -272,6 +298,8 @@ COUNTRY_NAMES = {
     "BR": {"es": "Brasil", "pt-BR": "Brasil", "en": "Brazil"},
 }
 
+DECIMAL_COMMA_COUNTRIES = frozenset({"AR", "CO", "BR"})
+
 RATIO = {
     "es": {
         "far_below": "mucho menos de lo habitual",
@@ -408,6 +436,8 @@ INSTRUCTIONS = {
     "unresolved_reference": "Use only references to facts and fields returned this turn.",
     "trace_only_reference": "This field is for tracing only; do not reference it in prose.",
     "unknown_citation": "Cite only policy chunks retrieved this turn.",
+    "uncited_policy_reference": "Cite the chunk as [p:<chunk_id>] in each sentence that uses it.",
+    "policy_figure_outside_reference": "State a policy figure only as {pN.figures.<group>.<key>}.",
     "digit_outside_reference": "Replace the number with a reference like {fN.field}.",
     "currency_outside_reference": "Write amounts only as references like {fN.amount}.",
     "date_outside_reference": "Write dates only as references like {fN.date}.",

@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0012_data_tools
+source: 0013_policy_search
 ---
 
 # Architecture and Debt Record
@@ -47,6 +47,7 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 - Debt created: Sonnet judging Sonnet risks self-preference; the judge must be validated against human labels.
 - Revisit when: measured cost or latency per turn is too high (move extraction to Haiku 4.5).
 - Source: setup
+- Amended by: 0013_policy_search, 2026-10-01: embeddings are the one exception, with Cohere Embed Multilingual v3 for `search_policies` (entry of that date).
 
 ## 2026-09-27: Infra and delivery follow the auvral pattern
 
@@ -102,6 +103,15 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 - Revisit when: the chat is next changed; it moves in its own task.
 - Source: 0009_client_data_cache
 
+## 2026-10-01: The policy corpus lives in S3 Vectors, embedded with Cohere Embed Multilingual v3
+
+- Decision: the bank's documents are chunked by a local build and stored in one S3 Vectors index (1024 dimensions, cosine), with each excerpt's text, lineage and figures in the vector metadata, so `search_policies` reads no other store; documents and queries are embedded with `cohere.embed-multilingual-v3` on Bedrock (`search_document` and `search_query`), the only model besides Sonnet 5 in the turn; retrieval sits behind a `search(query, country, k, filters)` interface; sources, rendered editions and PDFs live in S3, never in git.
+- Alternatives rejected: BM25 in-process (fits a small corpus, not one that outgrows a Lambda); SQLite FTS5 (a file to ship and rebuild); OpenSearch Serverless (a cost floor for a hackathon); Titan Text Embeddings v2 (weaker on Spanish and Portuguese retrieval, no separate query and document types).
+- Reason: serverless, cents at this size, a country filter in the index, and a multilingual model that maps a question in the customer's language to the country's documents.
+- Debt created: retrieval is vector-only; exact terms (a fee's name, a code) can miss.
+- Revisit when: C's recall on human-written questions shows lexical misses (add a lexical retriever behind the same interface), or recall disappoints (measure a newer Cohere version on Bedrock first).
+- Source: 0013_policy_search
+
 ## Debt index
 
 Open debt only: an entry with `Resolved by` leaves the table.
@@ -129,3 +139,5 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | evaluation | 2026-09-27 | Held-out written from scenario cards the team designed; Portuguese entirely team-generated | state it in the presentation |
 | data | 2026-09-27 | Contracts check structure, not content; known semantic defects pass | if curated data feeds a model |
 | identity | 2026-10-01 | The read-only session policy is tested as a document, since moto ignores session policies; the denial is checked once on prd | when moto evaluates session policies, or an AccessDenied appears in a tool trace |
+| global | 2026-10-01 | Policy retrieval is vector-only; exact terms can miss | when C's recall shows lexical misses |
+| assistant | 2026-10-01 | `search_policies` timeouts and the default similarity threshold (0.35) are not measured against the real index | after the first real build and `tune-policies`, and when C measures `unavailable` rates |

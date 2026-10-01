@@ -1,4 +1,5 @@
 import sys
+from typing import Any
 
 import duckdb
 
@@ -26,15 +27,21 @@ def connect(s: settings.Settings | None = None) -> duckdb.DuckDBPyConnection:
     return con
 
 
+def one(con: duckdb.DuckDBPyConnection, sql: str) -> tuple[Any, ...]:
+    row = con.execute(sql).fetchone()
+    if row is None:
+        raise duckdb.Error(f"no row: {sql}")
+    return row
+
+
 def register_tables(con: duckdb.DuckDBPyConnection, s: settings.Settings) -> dict[str, str]:
     skipped = {}
     for name, table in TABLES.items():
         types = f", hive_types={CURATED_HIVE_TYPES}" if table.partitioned else ""
         glob = f"{s.curated}/{name}/**/*.parquet"
+        source = f"read_parquet('{glob}', hive_partitioning=true{types})"
         try:
-            con.execute(
-                f"CREATE OR REPLACE VIEW {name} AS SELECT * FROM read_parquet('{glob}', hive_partitioning=true{types})"
-            )
+            con.execute(f"CREATE OR REPLACE VIEW {name} AS SELECT * FROM {source}")
         except duckdb.Error as e:
             skipped[name] = str(e).splitlines()[0]
     return skipped

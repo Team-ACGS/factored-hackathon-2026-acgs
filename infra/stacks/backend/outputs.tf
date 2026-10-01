@@ -81,3 +81,28 @@ output "frontend_env" {
     }
   }
 }
+
+output "policies_bucket" {
+  description = "Bucket of the policy sources, the rendered documents and the build manifest"
+  value       = module.policies_bucket.id
+}
+
+output "policy_documents_bucket" {
+  description = "Bucket of the policy PDFs, served at the documents domain"
+  value       = module.policy_documents_bucket.id
+}
+
+output "policy_documents_url" {
+  description = "Public URL of the policy PDFs"
+  value       = module.policy_documents_cdn.url
+}
+
+output "policy_index_arn" {
+  description = "S3 Vectors index of the policy chunks"
+  value       = aws_s3vectors_index.policies.index_arn
+}
+
+output "policies_builder_role_arn" {
+  description = "Role the local policy build assumes"
+  value       = aws_iam_role.policies_builder.arn
+}

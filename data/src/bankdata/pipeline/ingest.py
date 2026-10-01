@@ -3,6 +3,7 @@ from pathlib import Path
 
 import duckdb
 
+from bankdata.duck import one
 from bankdata.pipeline.schemas import TABLES, Table
 from bankdata.settings import Settings
 
@@ -10,7 +11,7 @@ HIVE_TYPES = "{'year': INTEGER, 'month': INTEGER, 'day': INTEGER}"
 
 
 def ingest(con: duckdb.DuckDBPyConnection, s: Settings, tables: list[str] | None = None) -> dict[str, int]:
-    counts = {}
+    counts: dict[str, int] = {}
     for name in tables or list(TABLES):
         table = TABLES[name]
         target = f"{s.curated}/{name}"
@@ -19,13 +20,13 @@ def ingest(con: duckdb.DuckDBPyConnection, s: Settings, tables: list[str] | None
             _ingest_partitioned(con, s, table, target)
         else:
             _ingest_dimension(con, s, table, target)
-        counts[name] = con.execute(
-            f"SELECT count(*) FROM read_parquet('{target}/**/*.parquet', hive_partitioning=true)"
-        ).fetchone()[0]
+        counts[name] = one(
+            con, f"SELECT count(*) FROM read_parquet('{target}/**/*.parquet', hive_partitioning=true)"
+        )[0]
     return counts
 
 
-def _ingest_partitioned(con, s: Settings, table: Table, target: str):
+def _ingest_partitioned(con: duckdb.DuckDBPyConnection, s: Settings, table: Table, target: str) -> None:
     source = f"{s.raw}/{table.name}/*/*/*/*.csv"
     con.execute(f"""
         COPY (
@@ -36,7 +37,7 @@ def _ingest_partitioned(con, s: Settings, table: Table, target: str):
     """)
 
 
-def _ingest_dimension(con, s: Settings, table: Table, target: str):
+def _ingest_dimension(con: duckdb.DuckDBPyConnection, s: Settings, table: Table, target: str) -> None:
     source = f"{s.raw}/{table.name}.csv"
     con.execute(f"""
         COPY (SELECT * FROM read_csv('{source}', union_by_name=true))
@@ -44,7 +45,7 @@ def _ingest_dimension(con, s: Settings, table: Table, target: str):
     """)
 
 
-def _reset(s: Settings, target: str):
+def _reset(s: Settings, target: str) -> None:
     if s.remote:
         return
     path = Path(target)

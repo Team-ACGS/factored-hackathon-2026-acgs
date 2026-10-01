@@ -80,7 +80,7 @@ Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a 
 
 | Target | Path | lint | typecheck | unit | e2e |
 |---|---|---|---|---|---|
-| data | `data/` | `unknown` | `unknown` | `uv run pytest` | `n/a` |
+| data | `data/` | `uv run ruff check . && uv run ruff format --check .` | `uv run mypy` | `uv run pytest` | `n/a` |
 | lambdas | `lambdas/` | `uv run ruff check . && uv run ruff format --check .` | `uv run mypy` | `uv run pytest` | `n/a` |
 | apps | `apps/` | `pnpm lint` | `pnpm typecheck` | `pnpm test` | `n/a` |
 | infra | `infra/` | `terraform fmt -check -recursive` | `terraform -chdir=environments/prd init -backend=false && terraform -chdir=environments/prd validate` | `n/a` | `n/a` |

@@ -11,6 +11,7 @@ members = [
     "clara-crud",
     "clara-lambdas",
     "clara-messages",
+    "clara-testing",
 ]
 
 [[package]]
@@ -125,6 +126,9 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+bedrock-runtime = [
+    { name = "mypy-boto3-bedrock-runtime" },
+]
 dynamodb = [
     { name = "mypy-boto3-dynamodb" },
 ]
@@ -133,6 +137,9 @@ dynamodbstreams = [
 ]
 events = [
     { name = "mypy-boto3-events" },
+]
+s3vectors = [
+    { name = "mypy-boto3-s3vectors" },
 ]
 sqs = [
     { name = "mypy-boto3-sqs" },
@@ -317,7 +324,8 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "boto3-stubs", extra = ["dynamodb", "dynamodbstreams", "events", "sqs", "sts"] },
+    { name = "boto3-stubs", extra = ["bedrock-runtime", "dynamodb", "dynamodbstreams", "events", "s3vectors", "sqs", "sts"] },
+    { name = "clara-testing" },
     { name = "moto", extra = ["dynamodb", "events"] },
     { name = "mypy" },
     { name = "pytest" },
@@ -336,7 +344,8 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "boto3-stubs", extras = ["dynamodb", "dynamodbstreams", "events", "sqs", "sts"], specifier = ">=1.43" },
+    { name = "boto3-stubs", extras = ["bedrock-runtime", "dynamodb", "dynamodbstreams", "events", "s3vectors", "sqs", "sts"], specifier = ">=1.43" },
+    { name = "clara-testing", editable = "testing" },
     { name = "moto", extras = ["dynamodb", "events", "sqs", "sts"], specifier = ">=5.2" },
     { name = "mypy", specifier = ">=2.3" },
     { name = "pytest", specifier = ">=9.1" },
@@ -347,6 +356,17 @@ dev = [
 name = "clara-messages"
 version = "0.1.0"
 source = { editable = "messages" }
+dependencies = [
+    { name = "clara-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "clara-core", editable = "core" }]
+
+[[package]]
+name = "clara-testing"
+version = "0.1.0"
+source = { editable = "testing" }
 dependencies = [
     { name = "clara-core" },
 ]
@@ -542,6 +562,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mypy-boto3-bedrock-runtime"
+version = "1.43.62"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/26/78/542f5804cf0f9e3c1ccbf30917eaa3b4b6002b91965de02d065d7441fc93/mypy_boto3_bedrock_runtime-1.43.62.tar.gz", hash = "sha256:beb70b08ef72cdfd5036bcd3270f2fbac0a2ce5e40f70dfc1d87c4f139d4d7ff", size = 31492, upload-time = "2026-07-31T19:54:15.291Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/b2/e3bff20acd290b909f1c28856d6d8d7984f7f7d5bda299d5957f64e97bb3/mypy_boto3_bedrock_runtime-1.43.62-py3-none-any.whl", hash = "sha256:603d9df54da5029fc0d0e3c09b6db33733af53182bee030c0c7af99e88ed3b39", size = 37865, upload-time = "2026-07-31T19:54:13.959Z" },
+]
+
+[[package]]
 name = "mypy-boto3-dynamodb"
 version = "1.43.64"
 source = { registry = "https://pypi.org/simple" }
@@ -566,6 +595,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/65/04/4fb03680bf38aa9dbbbec9eaa6ebc64b2b35acb5b444bd8761d37c016ad9/mypy_boto3_events-1.43.102.tar.gz", hash = "sha256:c6377a8d66b3a5edcc57abc43ad3fa38514786c0edc8ecbdf22f4f437ce8c4dc", size = 33981, upload-time = "2026-09-24T20:44:21.288Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/46/8bddeb0c9baf0819d0c626e04077502f71c401729861885cb66c42222d9c/mypy_boto3_events-1.43.102-py3-none-any.whl", hash = "sha256:d1ce71b6cb290d72cf75aa9ec39a5de3c0aab77029c8966a9c43da02b15c3d4a", size = 37761, upload-time = "2026-09-24T20:44:18.754Z" },
+]
+
+[[package]]
+name = "mypy-boto3-s3vectors"
+version = "1.43.106"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fa/06/82054db02e390291e1ccc22bcd9a3efeb2744be9a2339a5e477a41826d90/mypy_boto3_s3vectors-1.43.106.tar.gz", hash = "sha256:283021b405a7fd0bbbdbe002ff925adf8d446f5833df6a375ac4ce7bde96d143", size = 19158, upload-time = "2026-09-30T22:44:49.3Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/4b/016809d597a87b25a36eec7d8e8ad26c68ad5c2677ac66bb6cee1d39d200/mypy_boto3_s3vectors-1.43.106-py3-none-any.whl", hash = "sha256:210b92d347f3d4e91173e9ef8ff382706aed48b06ee8666e823b60df4e2cf5e1", size = 25529, upload-time = "2026-09-30T22:44:46.563Z" },
 ]
 
 [[package]]

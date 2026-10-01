@@ -29,7 +29,6 @@ class Settings:
         return self.root.startswith("s3://")
 
 
-
 def load() -> Settings:
     load_dotenv(DATA_DIR / ".env")
     root = os.environ.get("BANKDATA_ROOT", ".cache")

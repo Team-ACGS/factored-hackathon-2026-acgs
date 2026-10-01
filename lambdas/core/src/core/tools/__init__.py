@@ -37,6 +37,10 @@ def case_status(context: ToolContext, ledger: Ledger, **arguments: Any) -> ToolR
     return call("case_status", arguments, context, ledger)
 
 
+def search_policies(context: ToolContext, ledger: Ledger, **arguments: Any) -> ToolResult:
+    return call("search_policies", arguments, context, ledger)
+
+
 def recall(context: ToolContext, ledger: Ledger, **arguments: Any) -> ToolResult:
     return call("recall", arguments, context, ledger)
 
@@ -57,5 +61,6 @@ __all__ = [
     "recall",
     "recurring_charges",
     "search_movements",
+    "search_policies",
     "spend_summary",
 ]

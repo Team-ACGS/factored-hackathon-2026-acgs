@@ -1,18 +1,19 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-10-01
+source: 0013_policy_search
 ---
 
 # data
 
-Status: built.
+Status: built; the policy corpus build added by task 0013.
 
 Turns the raw LATAM Bank CSV dataset into curated Parquet, guards it with contracts, and runs every query behind a figure in `docs/`.
-Used by the team to prepare and verify the dataset; the runtime product does not import it (`hackathon/data/README.md`).
+Also builds the bank's policy corpus: validates, renders, chunks, embeds and publishes the generated documents that `search_policies` cites.
+Used by the team to prepare and verify the dataset and to publish the corpus; the runtime product does not import it (`hackathon/data/README.md`).
 
 ## Boundaries
 
-- Owns: raw-to-curated ingestion, schema and volume contracts, the SQL behind every committed figure, `figures/` output.
+- Owns: raw-to-curated ingestion, schema and volume contracts, the SQL behind every committed figure, `figures/` output; the policy corpus spec (`data/policies/SPEC.md`), its build and tuning, and what they publish (the policies and documents buckets, the vector index).
 - Does not own: serving any data to the running product; seeding the serving DynamoDB tables (customers, products, transactions, complaints, staff, rooms, messages) from curated Parquet, that seed is a separate process, not this module, and its owner is not yet decided; anything about the deferred turn-events analysis ETL, whose only relation to this module is that it will later reuse the same DuckDB-over-S3 approach.
 - Code: `hackathon/data/`
 

@@ -6,10 +6,16 @@ import pandas as pd
 from bankdata.settings import Settings
 
 
-def run(con: duckdb.DuckDBPyConnection, s: Settings, names: list[str] | None = None) -> dict[Path, pd.DataFrame]:
+def run(
+    con: duckdb.DuckDBPyConnection, s: Settings, names: list[str] | None = None
+) -> dict[Path, pd.DataFrame]:
     folder = s.sql_dir / "scratch"
-    paths = [folder / f"{name.removesuffix('.sql')}.sql" for name in names] if names else sorted(folder.glob("*.sql"))
-    results = {}
+    paths = (
+        [folder / f"{name.removesuffix('.sql')}.sql" for name in names]
+        if names
+        else sorted(folder.glob("*.sql"))
+    )
+    results: dict[Path, pd.DataFrame] = {}
     for path in paths:
         if not path.is_file():
             raise SystemExit(f"no query at {path}")

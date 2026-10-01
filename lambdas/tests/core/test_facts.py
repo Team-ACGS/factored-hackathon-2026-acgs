@@ -6,12 +6,14 @@ from decimal import Decimal
 
 import pytest
 
-from core.facts import Ask, Ledger, Say, View, check, fallback, parse_parts, render, render_text
+from core.facts import Ask, Ledger, Say, View, check, fallback, parse_parts, render, render_text, render_value
 from core.facts.catalog import LABELS, LOCALES, NOUNS, STATUS_LABELS
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.render import format_money
 from core.facts.values import (
+    POLICY_CHUNK,
     CaseCode,
+    Channel,
     City,
     Count,
     Country,
@@ -25,12 +27,17 @@ from core.facts.values import (
     Merchant,
     Money,
     Note,
+    Passage,
+    Percent,
     Period,
     Ratio,
     Ref,
     Refs,
     Status,
+    Text,
     Trace,
+    Url,
+    Value,
 )
 from crud.catalog import COUNTRIES, SUSPICIOUS_POOL
 
@@ -63,10 +70,8 @@ def ledger() -> Ledger:
     return Ledger("PE", NOW)
 
 
-def codes(
-    text: str, book: Ledger | None = None, locale: str = "es", chunks: tuple[str, ...] = ()
-) -> list[str]:
-    return [error.code for error in check([Say(text)], book or ledger(), locale, chunks)]
+def codes(text: str, book: Ledger | None = None, locale: str = "es") -> list[str]:
+    return [error.code for error in check([Say(text)], book or ledger(), locale)]
 
 
 @pytest.mark.parametrize(("currency", "locale"), sorted(FORMAT_MONEY))
@@ -276,6 +281,26 @@ def spend_ledger() -> Ledger:
     return book
 
 
+CHUNK = "pe-dispute-lifecycle-v1-f1-s3-c2"
+
+
+def with_chunk(book: Ledger) -> Ledger:
+    book.add(
+        POLICY_CHUNK,
+        {
+            "chunk_id": Trace(CHUNK),
+            "title": Text("Ciclo de una aclaración"),
+            "text": Passage("La revisión toma hasta 10 días hábiles. Llama al +51 1 600 2000."),
+            "figures.claims.review_time": Count(10, "business_day"),
+            "figures.channels.phone": Channel("phone", "+51 1 600 2000"),
+            "figures.channels.app_claims": Channel("app_path", "Ayuda y aclaraciones > Tus aclaraciones"),
+            "figures.fees.foreign_transaction": Percent(Decimal("3.5")),
+        },
+        prefix="p",
+    )
+    return book
+
+
 @pytest.mark.parametrize(
     ("text", "locale", "expected"),
     [
@@ -283,8 +308,8 @@ def spend_ledger() -> Ledger:
         ("Gastaste {f9.total}.", "es", ["unresolved_reference"]),
         ("Gastaste {f1.average}.", "es", ["unresolved_reference"]),
         ("Tu tarjeta {f1.card_ref}.", "es", ["trace_only_reference"]),
-        ("Según el banco [p:pe-claims-03#2].", "es", []),
-        ("Según el banco [p:pe-claims-09#1].", "es", ["unknown_citation"]),
+        ("Según el banco [p:pe-dispute-lifecycle-v1-f1-s3-c2].", "es", []),
+        ("Según el banco [p:pe-dispute-lifecycle-v1-f1-s9-c1].", "es", ["unknown_citation"]),
         ("Gastaste 240 en Primax.", "es", ["digit_outside_reference"]),
         ("Gastaste S/ {f1.total}.", "es", ["currency_outside_reference"]),
         ("Son {f1.total} USD.", "es", ["currency_outside_reference"]),
@@ -332,7 +357,7 @@ def spend_ledger() -> Ledger:
     ],
 )
 def test_the_check_applies_each_rule_outside_references(text: str, locale: str, expected: list[str]) -> None:
-    assert codes(text, spend_ledger(), locale, ("pe-claims-03#2",)) == expected
+    assert codes(text, with_chunk(spend_ledger()), locale) == expected
 
 
 def test_the_check_only_reads_number_words_of_the_reply_locale() -> None:
@@ -368,18 +393,21 @@ def test_check_errors_carry_the_span_and_a_repair_instruction_and_serialize() ->
 def test_parts_parse_from_the_wire_and_render_every_reference() -> None:
     parts = parse_parts(
         [
-            {"type": "say", "text": "Gastaste {f1.total} en {f1.count} [p:pe-claims-03#2]."},
+            {
+                "type": "say",
+                "text": "Gastaste {f1.total} en {f1.count} [p:pe-dispute-lifecycle-v1-f1-s3-c2].",
+            },
             {"type": "view", "view": "movements", "ids": ["tx-1"]},
             {"type": "ask", "ask": "block_card", "target": "card-1"},
         ]
     )
 
-    assert render(parts, spend_ledger(), "es") == [
+    assert render(parts, with_chunk(spend_ledger()), "es") == [
         {
             "type": "say",
             "text": f"Gastaste S/{NB}240.00 en 2 compras.",
             "facts": ["f1"],
-            "citations": ["pe-claims-03#2"],
+            "citations": ["pe-dispute-lifecycle-v1-f1-s3-c2"],
         },
         {"type": "view", "view": "movements", "ids": ["tx-1"]},
         {"type": "ask", "ask": "block_card", "target": "card-1"},
@@ -494,3 +522,58 @@ def test_facts_check_render_and_fallback_never_load_an_aws_client() -> None:
     )
 
     subprocess.run([sys.executable, "-c", probe], check=True)  # noqa: S603
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (f"La revisión toma hasta {{p1.figures.claims.review_time}} [p:{CHUNK}].", []),
+        (f"Según {{p1.title}}, llama al {{p1.figures.channels.phone}} [p:{CHUNK}].", []),
+        ("La revisión toma hasta {p1.figures.claims.review_time}.", ["uncited_policy_reference"]),
+        (
+            f"La revisión toma hasta {{p1.figures.claims.review_time}}. Así lo dice el banco [p:{CHUNK}].",
+            ["uncited_policy_reference"],
+        ),
+        (f"La revisión toma hasta 10 días hábiles [p:{CHUNK}].", ["policy_figure_outside_reference"]),
+        (f"Llama al +51 1 600 2000 [p:{CHUNK}].", ["policy_figure_outside_reference"]),
+        (
+            f"Entra a ayuda y aclaraciones > tus aclaraciones [p:{CHUNK}].",
+            ["policy_figure_outside_reference"],
+        ),
+        (f"El cargo es de 3.5% [p:{CHUNK}].", ["policy_figure_outside_reference"]),
+        (f"El texto completo: {{p1.text}} [p:{CHUNK}].", ["trace_only_reference"]),
+    ],
+)
+def test_a_policy_sentence_cites_its_chunk_and_states_figures_only_by_reference(
+    text: str, expected: list[str]
+) -> None:
+    assert codes(text, with_chunk(ledger())) == expected
+
+
+def test_chunk_facts_number_apart_from_data_facts() -> None:
+    book = with_chunk(spend_ledger())
+
+    assert list(book.facts) == ["f1", "f2", "p1"]
+    assert book.add("cards", {"count": Count(0, "card")}).id == "f3"
+    assert set(book.chunks()) == {CHUNK}
+
+
+@pytest.mark.parametrize(
+    ("value", "country", "locale", "expected"),
+    [
+        (Percent(Decimal("3.0")), "MX", "es", "3%"),
+        (Percent(Decimal("3.5")), "AR", "es", "3,5%"),
+        (Percent(Decimal("4.38")), "BR", "pt-BR", "4,38%"),
+        (Percent(Decimal("30")), "US", "en", "30%"),
+        (Count(1, "business_day"), "PE", "es", "1 día hábil"),
+        (Count(10, "business_day"), "BR", "pt-BR", "10 dias úteis"),
+        (Count(15, "minute"), "US", "en", "15 minutes"),
+        (Channel("app_path", "Help and claims > Your claims"), "US", "en", "Help and claims > Your claims"),
+        (Url("https://latambank.example/us/help"), "US", "en", "https://latambank.example/us/help"),
+        (Labels("never_asked", ("pin", "cvv")), "MX", "es", "tu PIN y el código de seguridad"),
+    ],
+)
+def test_policy_figures_render_in_the_customers_country(
+    value: Value, country: str, locale: str, expected: str
+) -> None:
+    assert render_value(value, Ledger(country, NOW), locale) == expected

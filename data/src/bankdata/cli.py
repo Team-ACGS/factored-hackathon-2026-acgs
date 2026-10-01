@@ -1,15 +1,20 @@
+from typing import Annotated
+
 import typer
 
 from bankdata import duck, settings
 from bankdata.analysis import figures as figures_module
 from bankdata.analysis import scratch as scratch_module
-from bankdata.pipeline import contracts, ingest as ingest_module
+from bankdata.pipeline import contracts
+from bankdata.pipeline import ingest as ingest_module
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 
 @app.command()
-def ingest(tables: list[str] = typer.Argument(None, help="Tables to build; all when omitted")):
+def ingest(
+    tables: Annotated[list[str] | None, typer.Argument(help="Tables to build; all when omitted")] = None,
+) -> None:
     s = settings.load()
     con = duck.connect(s)
     typer.echo(f"raw {s.raw} -> curated {s.curated}")
@@ -18,7 +23,9 @@ def ingest(tables: list[str] = typer.Argument(None, help="Tables to build; all w
 
 
 @app.command()
-def check(tables: list[str] = typer.Argument(None, help="Tables to check; all when omitted")):
+def check(
+    tables: Annotated[list[str] | None, typer.Argument(help="Tables to check; all when omitted")] = None,
+) -> None:
     s = settings.load()
     con = duck.connect(s)
     results = contracts.check(con, tables or None)
@@ -30,7 +37,7 @@ def check(tables: list[str] = typer.Argument(None, help="Tables to check; all wh
 
 
 @app.command()
-def figures(group: str = typer.Argument(..., help="Figure group, a folder under sql/figures")):
+def figures(group: Annotated[str, typer.Argument(help="Figure group, a folder under sql/figures")]) -> None:
     s = settings.load()
     con = duck.connect(s)
     out = figures_module.run(con, s, group)
@@ -39,13 +46,14 @@ def figures(group: str = typer.Argument(..., help="Figure group, a folder under 
 
 @app.command()
 def scratch(
-    names: list[str] = typer.Argument(None, help="Query names in sql/scratch; all when omitted"),
-    rows: int = typer.Option(20, help="Rows to print per query"),
-):
+    names: Annotated[
+        list[str] | None, typer.Argument(help="Query names in sql/scratch; all when omitted")
+    ] = None,
+    rows: Annotated[int, typer.Option(help="Rows to print per query")] = 20,
+) -> None:
     s = settings.load()
     con = duck.connect(s)
     for target, df in scratch_module.run(con, s, names or None).items():
         typer.echo(f"== {target.name} ({len(df):,} rows)")
         typer.echo(df.head(rows).to_string(index=False))
         typer.echo("")
-

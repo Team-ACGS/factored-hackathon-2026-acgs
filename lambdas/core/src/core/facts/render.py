@@ -6,6 +6,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from core.countries import zone
 from core.facts.catalog import (
     COUNTRY_NAMES,
+    DECIMAL_COMMA_COUNTRIES,
     LABELS,
     LAST4,
     LIST_JOIN,
@@ -23,6 +24,7 @@ from core.facts.parts import Ask, Part, Say, View
 from core.facts.values import (
     TRACE_ONLY,
     CaseCode,
+    Channel,
     City,
     Count,
     Country,
@@ -36,13 +38,16 @@ from core.facts.values import (
     Merchant,
     Money,
     Note,
+    Percent,
     Period,
     Ratio,
     Status,
+    Text,
+    Url,
     Value,
 )
 
-REFERENCE = re.compile(r"\{(f\d+)\.([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\}")
+REFERENCE = re.compile(r"\{([fp]\d+)\.([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\}")
 CITATION = re.compile(r"\[p:([^\[\]\s]+)\]")
 
 
@@ -128,6 +133,15 @@ def format_ratio(ratio: Decimal, locale: str) -> str:
     return texts["times"].format(times) if times <= 5 else texts["far_above"].format(5)
 
 
+def format_percent(percent: Decimal, country: str) -> str:
+    number = format(percent.normalize(), "f")
+    if "." in number:
+        number = number.rstrip("0").rstrip(".")
+    if country in DECIMAL_COMMA_COUNTRIES:
+        number = number.replace(".", ",")
+    return f"{number}%"
+
+
 def label(domain: str, value: str, locale: str) -> str:
     return LABELS.get(domain, {}).get(value, {}).get(locale, value)
 
@@ -155,8 +169,10 @@ def render_value(value: Value, ledger: Ledger, locale: str) -> str:
             if len(rendered) <= 1:
                 return "".join(rendered)
             return ", ".join(rendered[:-1]) + LIST_JOIN[locale] + rendered[-1]
-        case Merchant(text) | City(text) | CaseCode(text):
+        case Merchant(text) | City(text) | CaseCode(text) | Channel(_, text) | Url(text) | Text(text):
             return text
+        case Percent(percent):
+            return format_percent(percent, ledger.country)
         case Country(code):
             return COUNTRY_NAMES.get(code, {}).get(locale, code)
         case Ratio(ratio):

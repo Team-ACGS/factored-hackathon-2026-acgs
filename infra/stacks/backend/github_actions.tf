@@ -127,6 +127,19 @@ resource "aws_iam_role_policy" "terraform_plan" {
         Resource = "arn:aws:s3:::${var.state_bucket}/*/terraform.tfstate.tflock"
       },
       {
+        Sid    = "ReadPolicyVectors"
+        Effect = "Allow"
+        Action = [
+          "s3vectors:GetIndex",
+          "s3vectors:GetVectorBucket",
+          "s3vectors:GetVectorBucketPolicy",
+          "s3vectors:ListIndexes",
+          "s3vectors:ListTagsForResource",
+          "s3vectors:ListVectorBuckets",
+        ]
+        Resource = "*"
+      },
+      {
         Sid    = "DenyCustomerData"
         Effect = "Deny"
         Action = [

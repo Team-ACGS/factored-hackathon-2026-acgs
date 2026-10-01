@@ -47,3 +47,28 @@ output "artifacts_bucket" {
   description = "Bucket the deploy workflow uploads Lambda bundles to"
   value       = module.backend.artifacts_bucket
 }
+
+output "policies_bucket" {
+  description = "Bucket of the policy sources, the rendered documents and the build manifest"
+  value       = module.backend.policies_bucket
+}
+
+output "policy_documents_bucket" {
+  description = "Bucket of the policy PDFs"
+  value       = module.backend.policy_documents_bucket
+}
+
+output "policy_documents_url" {
+  description = "Public URL of the policy PDFs"
+  value       = module.backend.policy_documents_url
+}
+
+output "policy_index_arn" {
+  description = "S3 Vectors index of the policy chunks"
+  value       = module.backend.policy_index_arn
+}
+
+output "policies_builder_role_arn" {
+  description = "Role the local policy build assumes"
+  value       = module.backend.policies_builder_role_arn
+}

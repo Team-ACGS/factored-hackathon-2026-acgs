@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from core.access import customer_session
 from core.countries import zone
 from core.ids import format_instant
+from core.retrieval import PolicySearch
 
 if TYPE_CHECKING:
     from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource
@@ -41,6 +42,7 @@ class ToolContext:
     now: datetime
     service: str = "chatbot"
     decide: Decide | None = None
+    policies: PolicySearch | None = None
 
     @property
     def zone(self) -> timezone:
