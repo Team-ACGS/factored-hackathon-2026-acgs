@@ -61,7 +61,7 @@ The group is not written in the frontmatter: the build derives it from the topic
 | Topic | doc_type | What it covers |
 |---|---|---|
 | `lost_or_stolen_card` | guide | Lost or stolen card: the immediate steps |
-| `card_blocking` | policy | Card blocking: customer-initiated, bank-initiated, temporary and permanent |
+| `card_blocking` | policy | Card blocking: the customer confirms every block, what a block means, and why unblocking needs a person |
 | `card_replacement` | policy | Card replacement after a block: timelines and fees |
 | `blocked_card_effects` | guide | What stops working when a card is blocked: subscriptions, installments, linked services |
 | `transaction_alerts` | guide | Transaction alerts and the "was it you" confirmation |
@@ -88,6 +88,7 @@ The group is not written in the frontmatter: the build derives it from the topic
 
 Every document is a sequence of `##` sections, with no text before the first one and no `#` heading (the title comes from the frontmatter).
 Each section has 300 to 1,500 words and paragraphs of at most 150 words, so chunks of 300 to 450 tokens never cross a section.
+The sections in the sources are the ones the writer generates; a policy's last section, Versioning, is not in the source (see below).
 Inside a section, use paragraphs, `-` lists, ordered lists, `###` subheadings and `**bold**`; never tables, links, images, HTML or code.
 The build numbers sections in order (`s1`, `s2`, ...) and uses that number for the PDF anchor and the chunk id, so headings carry no number.
 
@@ -107,7 +108,7 @@ The headings are exactly these, in this order, in the document's language (the t
 | | Excepciones | Exceções | Exceptions |
 | | Plazos | Prazos | Deadlines |
 | | Marco regulatorio | Base regulatória | Regulatory basis |
-| | Control de versiones | Controle de versões | Versioning |
+| | Control de versiones | Controle de versões | Versioning (written by the build) |
 | procedure | Propósito | Objetivo | Purpose |
 | | Participantes | Participantes | Actors |
 | | Condiciones previas | Pré-requisitos | Preconditions |
@@ -127,15 +128,33 @@ The headings are exactly these, in this order, in the document's language (the t
 | | Situaciones frecuentes | Situações comuns | Common situations |
 | | Dónde pedir ayuda | Onde pedir ajuda | Where to get help |
 
+A policy's source ends at Regulatory basis.
+The build writes Versioning at render time from the frontmatter and the facts file (the document's version, its effective date, and the country's facts version), in the PDF only: it is not chunked or embedded, since every chunk already carries its version and effective date.
+
+### Length
+
+The bank template fits about 350 words per page, so a document of about 40 pages has about 14,000 words.
+The generation prompt aims each section at the target below; the validator only enforces 300 to 1,500.
+
+| doc_type | Generated sections | Target words per section | Words per document | Pages, with the cover |
+|---|---|---|---|---|
+| policy | 10 | 1,400 | 14,000 | about 41 |
+| procedure | 10 | 1,400 | 14,000 | about 41 |
+| guide | 8 | 1,450 | 11,600 | about 34 |
+| faq | 10 subtopics, 5 questions each | 1,400 | 14,000 | about 41 |
+| glossary | 10 term groups | 1,400 | 14,000 | about 41 |
+
+A guide cannot reach 40 pages under the 1,500-word cap with its eight sections, and is about 34 pages.
+
 ### faq
 
-- Six to ten `##` sections, one per subtopic, with a heading the writer chooses (no digit, no forbidden word).
+- Six to ten `##` sections (ten is the target), one per subtopic, with a heading the writer chooses (no digit, no forbidden word).
 - Each question is a `###` heading ending in a question mark (`¿...?` in Spanish), followed by its answer in one to three paragraphs.
 - Forty to sixty questions in the document.
 
 ### glossary
 
-- Five to ten `##` sections, one per group of related terms, with a heading the writer chooses.
+- Five to ten `##` sections (ten is the target), one per group of related terms, with a heading the writer chooses.
 - Each term is a `###` heading followed by three paragraphs that start with these labels, in this order:
 
 | es | pt-BR | en |
@@ -179,7 +198,6 @@ Every country has every key; the values are in `policy_facts.toml`.
 | `legal.claim_response` | count, legal | The norm's maximum time for the bank to answer a claim, as the bank reads it |
 | `legal.report_window` | count, legal | The norm's time for the customer to question a charge, as the bank reads it |
 | `cards.replacement_time` | count, business days | Delivery of a replacement card after a permanent block |
-| `cards.temporary_block_max` | count, days | How long a temporary block lasts before it is lifted or made permanent |
 | `fees.replacement` | money | Fee for a replacement the customer asks for after loss or damage; a replacement after unauthorized use is free |
 | `fees.express_delivery` | money | Fee for express delivery of a replacement card |
 | `fees.foreign_transaction` | percent | Fee on purchases in another currency |
@@ -193,17 +211,15 @@ Every country has every key; the values are in `policy_facts.toml`.
 | `transactions.duplicate_review` | count, business days | Review of a reported duplicate charge |
 | `transactions.recurring_cancel_notice` | count, business days | Notice before the next charge for the bank to stop a recurring charge |
 | `security.never_asks` | list | What the bank never asks for: full card number, security code, PIN, password, one-time code |
-| `security.alert_response` | count, minutes | Time to answer a "was it you" alert before the bank blocks the card preventively |
 | `security.zero_liability_window` | count, days | Report within this time from noticing an unauthorized use to keep zero liability |
 | `channels.phone` | phone | The national service line |
 | `channels.phone_abroad` | phone | The line to call from abroad |
 | `channels.phone_schedule` | schedule | When the phone line answers |
 | `channels.email` | email | The service email |
 | `channels.web_help` | URL | The help center |
-| `channels.app_block` | app path | Where to block a card in the app |
+| `channels.app_help` | app path | The app's help and claims screen |
 | `channels.app_claims` | app path | Where to follow claims in the app |
-| `channels.app_alerts` | app path | Where to set alerts in the app |
-| `channels.app_recurring` | app path | Where to see and stop recurring charges in the app |
+| `channels.app_clara` | app path | Where to talk to Clara, the assistant, in the app; blocking a card and opening a claim happen there |
 | `service.handoff_wait` | count, minutes | Usual wait to talk to a person after the assistant hands off, in service hours |
 | `service.handoff_hours` | schedule | When people answer the chat |
 | `service.ombudsman` | email | The bank's ombudsman office |
@@ -223,7 +239,11 @@ A document may name the regulator and the ombudsman (CNBV, CONDUSEF, SFC, BCRA, 
 ## Tone
 
 - The bank's voice: plain, calm, precise, in second person.
-- The country's register: `tú` in MX and PE, `usted` in CO, `vos` in AR, `você` in BR, `you` in US, with the country's own banking words (aclaración in MX, reclamación in CO, reclamo in AR and PE, contestação in BR, dispute in US).
+- The country's register: `tú` in MX and PE, `usted` in CO, `vos` in AR, `você` in BR, `you` in US.
+- The app's words for a claim, so a document reads like the screen beside it: aclaración in every Spanish-speaking country, contestação in BR, claim in US.
+- The bank never blocks a card on its own: every block is confirmed by the customer, with a tap in the chat with Clara or on the phone line, and unblocking needs a person.
+  Documents never describe a preventive, automatic or temporary block.
+- The app has no screens for alerts settings or recurring charges: documents send the customer to Clara (`channels.app_clara`) or the phone line for those, never to a screen.
 - No promise about money: the bank reviews, decides and informs; a provisional credit or a reversal is described as what may happen under the process, never as a certainty.
 - No specific customer, name, case, merchant or date.
 - Never the words "fraude" or "fraud" in any form (fraudulento, fraudulent): write "cargo no reconocido", "uso no autorizado", "cobrança não reconhecida", "uso não autorizado", "unrecognized charge", "unauthorized use".
@@ -241,7 +261,14 @@ The build validates every document before rendering and fails it, naming the fil
 - a `legal.*` placeholder in a section without its disclaimer;
 - a forbidden word, in the title or the text.
 
-Exempt: the ordered list markers at the start of a line (`1.`), and the words `terceros`, `terceiros` and `third parties`, which read as ordinals but mean someone else.
+Exempt, and only these:
+
+- the ordered list markers at the start of a line (`1.`);
+- `terceros`, `terceiros` and `third parties`, which read as ordinals but mean someone else;
+- in English, `may` and `march`, which are also a verb;
+- in Portuguese, `segundo` and `segunda` (with their plurals) right before an article, a possessive or a pronoun (`o`, `a`, `os`, `as`, `seu`, `sua`, `seus`, `suas`, `ele`, `ela`, `eles`, `elas`, `este`, `esta`, `esse`, `essa`), where they mean "according to".
+
+Every other month name, weekday name and number word fails, wherever it appears.
 In Brazilian Portuguese write "novo cartão" or "reemissão", never "segunda via", which reads as an ordinal.
 
 ## Generation prompt
@@ -249,18 +276,19 @@ In Brazilian Portuguese write "novo cartão" or "reemissão", never "segunda via
 Each document is generated section by section with Claude Sonnet 5, so each call stays within a section's length and sees the sections before it.
 The script that drives it writes the frontmatter itself, calls the model once per section with this prompt, and joins the sections.
 Slots in single braces (`{country}`) are filled by the script; placeholders keep their double braces.
+`{target_words}` comes from the length table, and the generated sections exclude Versioning.
 `{placeholder_table}` lists every key of the table above, one per line, as `{{policy.<group>.<key>}}: <meaning> (for example, <the value rendered for this country>)`.
 
 ```text
 You are writing one section of a customer document of LATAM Bank, a fictional bank.
 
 Country: {country_name} ({country}). Language: {language}. Register: {register}.
-Banking words of this country: {banking_words}.
+The app's word for a claim: {claim_word}.
 Document: "{title}", a {doc_type} on the topic {topic}: {topic_scope}.
 Sections of this document, in order: {headings}.
 Write section {n}: "{heading}". Sections already written, one line each: {previous_summaries}.
 
-Length: {min_words} to {max_words} words, paragraphs of at most 150 words.
+Length: about {target_words} words, never under 300 or over 1,500, paragraphs of at most 150 words.
 Format: start with "## {heading}" and write only this section. Use paragraphs, "-" lists, ordered lists,
 "###" subheadings and **bold**. No tables, links, images, HTML, or other "#" or "##" headings.
 {doc_type_rules}
@@ -278,8 +306,11 @@ Never write: fraude, fraud, or any word built on them; write {unauthorized_words
 Never write "segunda via" (pt-BR); write "novo cartão" or "reemissão".
 
 Tone: plain, calm and precise, the bank speaking to its customer. Never promise money: say what the
-process does and what may happen. No specific customer, case, merchant or date. No article or norm
-numbers, no courts. Nothing about loans, accounts, investments or insurance.
+process does and what may happen. The bank never blocks a card on its own: the customer confirms every
+block, with Clara in the app or on the phone line, and unblocking needs a person. The app has no alert
+or recurring charge settings: send the customer to Clara or the phone line instead. No specific
+customer, case, merchant or date. No article or norm numbers, no courts. Nothing about loans,
+accounts, investments or insurance.
 ```
 
 Where `{doc_type_rules}` is, for faq: "This section is one subtopic: {k} questions as ### headings ending in a question mark, each answered in one to three paragraphs"; for glossary: "This section is one group of terms: each term is a ### heading followed by the paragraphs {definition_label}, {example_label} and {related_label}"; and empty for the other types.

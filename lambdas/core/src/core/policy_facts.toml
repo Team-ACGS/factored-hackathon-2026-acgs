@@ -26,7 +26,6 @@ report_window = { type = "count", value = 90, noun = "day", verified = false }
 
 [MX.cards]
 replacement_time = { type = "count", value = 5, noun = "business_day" }
-temporary_block_max = { type = "count", value = 30, noun = "day" }
 
 [MX.fees]
 replacement = { type = "money", amount = "150.00", currency = "MXN" }
@@ -48,19 +47,17 @@ recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
 
 [MX.security]
 never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
-alert_response = { type = "count", value = 15, noun = "minute" }
 zero_liability_window = { type = "count", value = 60, noun = "day" }
 
 [MX.channels]
-phone = { type = "channel", kind = "phone", value = "+52 55 5100 2000" }
-phone_abroad = { type = "channel", kind = "phone", value = "+52 55 5100 2001" }
-phone_schedule = { type = "channel", kind = "schedule", value = "todos los días, las 24 horas" }
+phone = { type = "channel", kind = "phone", value = "55 5000 0000" }
+phone_abroad = { type = "channel", kind = "phone", value = "+52 55 5000 0001" }
+phone_schedule = { type = "channel", kind = "schedule", value = "las 24 horas, todos los días" }
 email = { type = "channel", kind = "email", value = "ayuda.mx@latambank.example" }
 web_help = { type = "url", value = "https://latambank.example/mx/ayuda" }
-app_block = { type = "channel", kind = "app_path", value = "Tarjetas > Bloquear tarjeta" }
-app_claims = { type = "channel", kind = "app_path", value = "Ayuda > Mis aclaraciones" }
-app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
-app_recurring = { type = "channel", kind = "app_path", value = "Tarjetas > Cargos recurrentes" }
+app_help = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones" }
+app_claims = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones > Tus aclaraciones" }
+app_clara = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones > Hablar con Clara" }
 
 [MX.service]
 handoff_wait = { type = "count", value = 10, noun = "minute" }
@@ -93,7 +90,6 @@ report_window = { type = "count", value = 5, noun = "business_day", verified = f
 
 [CO.cards]
 replacement_time = { type = "count", value = 5, noun = "business_day" }
-temporary_block_max = { type = "count", value = 30, noun = "day" }
 
 [CO.fees]
 replacement = { type = "money", amount = "25000", currency = "COP" }
@@ -115,19 +111,17 @@ recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
 
 [CO.security]
 never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
-alert_response = { type = "count", value = 15, noun = "minute" }
 zero_liability_window = { type = "count", value = 60, noun = "day" }
 
 [CO.channels]
 phone = { type = "channel", kind = "phone", value = "+57 601 300 2000" }
 phone_abroad = { type = "channel", kind = "phone", value = "+57 601 300 2001" }
-phone_schedule = { type = "channel", kind = "schedule", value = "todos los días, las 24 horas" }
+phone_schedule = { type = "channel", kind = "schedule", value = "las 24 horas, todos los días" }
 email = { type = "channel", kind = "email", value = "ayuda.co@latambank.example" }
 web_help = { type = "url", value = "https://latambank.example/co/ayuda" }
-app_block = { type = "channel", kind = "app_path", value = "Tarjetas > Bloquear tarjeta" }
-app_claims = { type = "channel", kind = "app_path", value = "Ayuda > Mis reclamaciones" }
-app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
-app_recurring = { type = "channel", kind = "app_path", value = "Tarjetas > Cargos recurrentes" }
+app_help = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones" }
+app_claims = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones > Tus aclaraciones" }
+app_clara = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones > Hablar con Clara" }
 
 [CO.service]
 handoff_wait = { type = "count", value = 10, noun = "minute" }
@@ -143,8 +137,8 @@ currency = "ARS"
 [AR.claims]
 report_window = { type = "count", value = 30, noun = "day" }
 assign_time = { type = "count", value = 1, noun = "business_day" }
-review_time = { type = "count", value = 10, noun = "business_day" }
-resolution_time = { type = "count", value = 15, noun = "business_day" }
+review_time = { type = "count", value = 8, noun = "business_day" }
+resolution_time = { type = "count", value = 10, noun = "business_day" }
 evidence_window = { type = "count", value = 5, noun = "business_day" }
 provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
 reopen_window = { type = "count", value = 30, noun = "day" }
@@ -160,7 +154,6 @@ report_window = { type = "count", value = 30, noun = "day", verified = false }
 
 [AR.cards]
 replacement_time = { type = "count", value = 7, noun = "business_day" }
-temporary_block_max = { type = "count", value = 30, noun = "day" }
 
 [AR.fees]
 replacement = { type = "money", amount = "9500.00", currency = "ARS" }
@@ -182,19 +175,17 @@ recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
 
 [AR.security]
 never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
-alert_response = { type = "count", value = 15, noun = "minute" }
 zero_liability_window = { type = "count", value = 30, noun = "day" }
 
 [AR.channels]
 phone = { type = "channel", kind = "phone", value = "+54 11 5100 2000" }
 phone_abroad = { type = "channel", kind = "phone", value = "+54 11 5100 2001" }
-phone_schedule = { type = "channel", kind = "schedule", value = "todos los días, las 24 horas" }
+phone_schedule = { type = "channel", kind = "schedule", value = "las 24 horas, todos los días" }
 email = { type = "channel", kind = "email", value = "ayuda.ar@latambank.example" }
 web_help = { type = "url", value = "https://latambank.example/ar/ayuda" }
-app_block = { type = "channel", kind = "app_path", value = "Tarjetas > Bloquear tarjeta" }
-app_claims = { type = "channel", kind = "app_path", value = "Ayuda > Mis reclamos" }
-app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
-app_recurring = { type = "channel", kind = "app_path", value = "Tarjetas > Cargos recurrentes" }
+app_help = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones" }
+app_claims = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones > Tus aclaraciones" }
+app_clara = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones > Hablar con Clara" }
 
 [AR.service]
 handoff_wait = { type = "count", value = 10, noun = "minute" }
@@ -227,7 +218,6 @@ report_window = { type = "count", value = 30, noun = "day", verified = false }
 
 [PE.cards]
 replacement_time = { type = "count", value = 7, noun = "business_day" }
-temporary_block_max = { type = "count", value = 30, noun = "day" }
 
 [PE.fees]
 replacement = { type = "money", amount = "25.00", currency = "PEN" }
@@ -249,19 +239,17 @@ recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
 
 [PE.security]
 never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
-alert_response = { type = "count", value = 15, noun = "minute" }
 zero_liability_window = { type = "count", value = 30, noun = "day" }
 
 [PE.channels]
 phone = { type = "channel", kind = "phone", value = "+51 1 600 2000" }
 phone_abroad = { type = "channel", kind = "phone", value = "+51 1 600 2001" }
-phone_schedule = { type = "channel", kind = "schedule", value = "todos los días, las 24 horas" }
+phone_schedule = { type = "channel", kind = "schedule", value = "las 24 horas, todos los días" }
 email = { type = "channel", kind = "email", value = "ayuda.pe@latambank.example" }
 web_help = { type = "url", value = "https://latambank.example/pe/ayuda" }
-app_block = { type = "channel", kind = "app_path", value = "Tarjetas > Bloquear tarjeta" }
-app_claims = { type = "channel", kind = "app_path", value = "Ayuda > Mis reclamos" }
-app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
-app_recurring = { type = "channel", kind = "app_path", value = "Tarjetas > Cargos recurrentes" }
+app_help = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones" }
+app_claims = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones > Tus aclaraciones" }
+app_clara = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones > Hablar con Clara" }
 
 [PE.service]
 handoff_wait = { type = "count", value = 10, noun = "minute" }
@@ -277,8 +265,8 @@ currency = "BRL"
 [BR.claims]
 report_window = { type = "count", value = 90, noun = "day" }
 assign_time = { type = "count", value = 1, noun = "business_day" }
-review_time = { type = "count", value = 10, noun = "business_day" }
-resolution_time = { type = "count", value = 15, noun = "business_day" }
+review_time = { type = "count", value = 8, noun = "business_day" }
+resolution_time = { type = "count", value = 10, noun = "business_day" }
 evidence_window = { type = "count", value = 5, noun = "business_day" }
 provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
 reopen_window = { type = "count", value = 30, noun = "day" }
@@ -294,7 +282,6 @@ report_window = { type = "count", value = 90, noun = "day", verified = false }
 
 [BR.cards]
 replacement_time = { type = "count", value = 7, noun = "business_day" }
-temporary_block_max = { type = "count", value = 30, noun = "day" }
 
 [BR.fees]
 replacement = { type = "money", amount = "30.00", currency = "BRL" }
@@ -316,19 +303,17 @@ recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
 
 [BR.security]
 never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
-alert_response = { type = "count", value = 15, noun = "minute" }
 zero_liability_window = { type = "count", value = 60, noun = "day" }
 
 [BR.channels]
 phone = { type = "channel", kind = "phone", value = "+55 11 4000 2000" }
 phone_abroad = { type = "channel", kind = "phone", value = "+55 11 4000 2001" }
-phone_schedule = { type = "channel", kind = "schedule", value = "todos os dias, 24 horas" }
+phone_schedule = { type = "channel", kind = "schedule", value = "24 horas, todos os dias" }
 email = { type = "channel", kind = "email", value = "ajuda.br@latambank.example" }
 web_help = { type = "url", value = "https://latambank.example/br/ajuda" }
-app_block = { type = "channel", kind = "app_path", value = "Cartões > Bloquear cartão" }
-app_claims = { type = "channel", kind = "app_path", value = "Ajuda > Minhas contestações" }
-app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
-app_recurring = { type = "channel", kind = "app_path", value = "Cartões > Cobranças recorrentes" }
+app_help = { type = "channel", kind = "app_path", value = "Ajuda e contestações" }
+app_claims = { type = "channel", kind = "app_path", value = "Ajuda e contestações > Suas contestações" }
+app_clara = { type = "channel", kind = "app_path", value = "Ajuda e contestações > Falar com a Clara" }
 
 [BR.service]
 handoff_wait = { type = "count", value = 10, noun = "minute" }
@@ -344,7 +329,7 @@ currency = "USD"
 [US.claims]
 report_window = { type = "count", value = 60, noun = "day" }
 assign_time = { type = "count", value = 1, noun = "business_day" }
-review_time = { type = "count", value = 10, noun = "business_day" }
+review_time = { type = "count", value = 8, noun = "business_day" }
 resolution_time = { type = "count", value = 10, noun = "business_day" }
 evidence_window = { type = "count", value = 5, noun = "business_day" }
 provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
@@ -361,7 +346,6 @@ report_window = { type = "count", value = 60, noun = "day", verified = false }
 
 [US.cards]
 replacement_time = { type = "count", value = 5, noun = "business_day" }
-temporary_block_max = { type = "count", value = 30, noun = "day" }
 
 [US.fees]
 replacement = { type = "money", amount = "10.00", currency = "USD" }
@@ -383,19 +367,17 @@ recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
 
 [US.security]
 never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
-alert_response = { type = "count", value = 15, noun = "minute" }
 zero_liability_window = { type = "count", value = 60, noun = "day" }
 
 [US.channels]
 phone = { type = "channel", kind = "phone", value = "+1 800 555 0100" }
 phone_abroad = { type = "channel", kind = "phone", value = "+1 212 555 0101" }
-phone_schedule = { type = "channel", kind = "schedule", value = "every day, 24 hours" }
+phone_schedule = { type = "channel", kind = "schedule", value = "24 hours, every day" }
 email = { type = "channel", kind = "email", value = "help.us@latambank.example" }
 web_help = { type = "url", value = "https://latambank.example/us/help" }
-app_block = { type = "channel", kind = "app_path", value = "Cards > Lock card" }
-app_claims = { type = "channel", kind = "app_path", value = "Help > My disputes" }
-app_alerts = { type = "channel", kind = "app_path", value = "Profile > Alerts" }
-app_recurring = { type = "channel", kind = "app_path", value = "Cards > Recurring charges" }
+app_help = { type = "channel", kind = "app_path", value = "Help and claims" }
+app_claims = { type = "channel", kind = "app_path", value = "Help and claims > Your claims" }
+app_clara = { type = "channel", kind = "app_path", value = "Help and claims > Talk to Clara" }
 
 [US.service]
 handoff_wait = { type = "count", value = 10, noun = "minute" }
