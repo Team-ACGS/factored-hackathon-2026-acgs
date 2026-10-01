@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-30
-source: 0011_customer_redesign_fidelity
+updated: 2026-10-01
+source: 0012_data_tools
 ---
 
 # assistant: architecture and debt
@@ -275,3 +275,29 @@ source: 0011_customer_redesign_fidelity
 - Revisit when: the chat panel is redesigned.
 - Source: 0011_customer_redesign_fidelity
 
+## 2026-10-01: Clara's facts are typed values, and only renderable ones may be referenced
+
+- Decision: each tool fact field is a typed value. Money, dates, periods, counts, last4, status, enums, merchant, city, country, case id, ratio and note render in es, pt-BR and en. Refs, ref lists, fact ids, flags and trace strings are trace-only: the model sees them, a reference to them fails the check. Grouped `charge_facts` fields are flat dotted names (`charge.amount`). `delta` is the absolute difference and `direction` carries the sign. `search_movements.count` is every match, `ids` only the page. A merchant the model passes in is echoed back only as a name read in that call or a lexicon name, otherwise as trace.
+- Alternatives rejected: rendering every field (booleans and ids have no sayable form); nested field groups (one reference syntax is simpler to check); signed deltas (a negative amount in prose); echoing the argument as a merchant (it would let any text pass the check).
+- Reason: the check can only guarantee "Clara cannot say a value she did not read" if every sayable value comes from code.
+- Debt created: none
+- Revisit when: a tool needs a field type the catalogs do not render.
+- Source: 0012_data_tools
+
+## 2026-10-01: reply parts on the wire, and the check's word lists
+
+- Decision: parts are `{"type": "say", "text"}`, `{"type": "view", "view", "ids"}` and `{"type": "ask", "ask", "target"}`; view ids and ask targets are entity ids present in the ledger. The merchant lexicon skips catalog names that are everyday words (Claro, Éxito, Vivo, Personal, Target, Shell); "may" and "march" are not English date words; pt-BR "segundo" before an article or possessive means "according to". Periods render absolute dates, English uses a 12-hour clock, pt-BR plurals follow CLDR (0 and 1 singular).
+- Alternatives rejected: fact ids in views (the client renders rows by entity id); scanning every catalog name (every "¡Claro!" would fall to the template).
+- Reason: a false failure costs a composed answer; each exception is listed in `core.facts` and tested.
+- Debt created: none
+- Revisit when: the measured check failure rate (C) points at a word list.
+- Source: 0012_data_tools
+
+## 2026-10-01: a charge is found across the customer's cards with a bounded BatchGetItem
+
+- Decision: `charge_facts` resolves a `transaction_ref` with one BatchGetItem over the keys it would have on each of the customer's cards (date from the UUIDv7), retrying unprocessed keys 4 times with backoff from 50 ms, then failing so the registry reports `unavailable`.
+- Alternatives rejected: an unbounded retry loop (spins until the Lambda timeout under throttling); a GSI by `transaction_id` (a new index for a lookup bounded by the number of cards).
+- Reason: the key needs the card, and a customer has a handful of cards.
+- Debt created: none
+- Revisit when: a customer can hold more than 100 cards (BatchGetItem's key limit).
+- Source: 0012_data_tools

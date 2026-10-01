@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0008_chat_latency
+updated: 2026-10-01
+source: 0012_data_tools
 ---
 
 # Identity: database
@@ -38,10 +38,12 @@ There is no `cases` table and no `users` table: `cases` is a module name only (c
 | `customers` | get, query | put (create, `post_confirmation`), update (setup profile and suspicious suffixes, `crud` only) |
 | `transactions` | get, query | put, batch write (batch write can also delete) |
 | `products`, `complaints`, `rooms`, `messages` | get, query | put, update |
+| `memory` | get, query | none yet (A2) |
 
 "Only if absent" is the code's conditional write; IAM cannot force it, so any lambda holding `role-customer` could rewrite that customer's own row.
 - The `customer_id` session tag passed to `AssumeRole` comes from the verified JWT's `sub` (`messages`), the stream record the table itself wrote (`chatbot`) or the Cognito trigger event (`post_confirmation`), never from a request parameter, so a lambda cannot be asked to tag a session with someone else's id.
-- `core.access` caches assumed credentials per warm environment under the whole `AssumeRole` request (role, session name, tags), at most 128, renewed 2 minutes before they expire; a cached session serves only that role and that `customer_id` tag, so the cache changes how often STS is called, never which role or tag a request gets.
+- `customer_session(..., read_only=True)` adds an inline session policy allowing only GetItem, BatchGetItem and Query, so the effective rights are the intersection with the table above; every Clara read tool uses it.
+- `core.access` caches assumed credentials per warm environment under the whole `AssumeRole` request (role, session name, tags, session policy), at most 128, renewed 2 minutes before they expire; a cached session serves only that role and that `customer_id` tag, so the cache changes how often STS is called, never which role or tag a request gets.
 
 ## Migrations of note
 
