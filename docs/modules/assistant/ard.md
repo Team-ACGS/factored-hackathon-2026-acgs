@@ -67,6 +67,7 @@ source: 0013_policy_search
 - Debt created: none.
 - Revisit when: a measured cost or latency need appears.
 - Source: docs/tasks/_drafts/architecture_and_layout.md
+- Amended by: 0013_policy_search, 2026-10-01: embeddings are the one exception; `search_policies` embeds the query with Cohere Embed Multilingual v3 (`docs/ARD.md`, entry of that date).
 
 ## 2026-09-26: legal due dates depend on an unverified deadline table
 
@@ -306,6 +307,7 @@ source: 0013_policy_search
 
 - Decision: each excerpt `search_policies` returns is a fact `pN`, numbered apart from the data facts. `title`, `section`, `effective_date` and `figures.<group>.<key>` render; `text` is untrusted and trace-only, like `chunk_id`, `doc_id`, `version`, `page`, `url` and the `figures.<key>.verified` flag of legal figures. The check fails a sentence that references a `pN` without citing `[p:<chunk_id>]` of that excerpt in the same sentence, and a rendered count, money, percent, channel or url figure of an excerpt of this turn written outside a reference; stage labels and the never-asked list are not scanned, since "en revisión" is ordinary prose. Citations resolve against the ledger, which replaces the `chunks` argument of `check`.
 - Alternatives rejected: scanning every figure type (common words would fail every answer); citing per reply instead of per sentence (a cited excerpt would cover sentences that do not use it).
+- Legal deadlines are `legal.*` keys of `policy_facts.toml` flagged `verified = false`; a document that cites one carries the disclaimer "as the bank reads the applicable rule" (per language, checked by the build), `search_policies` returns the flag, Clara's ban on legal terms stays, and the global legal deadlines debt stays open.
 - Reason: a policy sentence is only as good as its source, and a figure copied from text is exactly what the check exists to stop.
 - Debt created: none
 - Revisit when: the measured check failure rate (C) points at the policy rules.
