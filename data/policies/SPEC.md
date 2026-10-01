@@ -136,19 +136,26 @@ The build writes Versioning at render time from the frontmatter and the facts fi
 
 ### Length
 
-The bank template fits about 350 words per page, so a document of 2 to 3 pages, the cover not counted, has 600 to 1,050 words.
-The validator enforces 60 to 250 words per section and 600 to 1,050 words per document, the same in the three languages.
-Write the Spanish source at about 700 to 950 words, so the Portuguese and English versions fit too.
+A document is 2 to 3 pages, the cover not counted.
+The validator counts source words: 60 to 250 per section and 600 to 1,050 per document, the same in the three languages.
+Pages hold fewer source words than that range suggests, measured on the sample:
 
-| doc_type | Sections | Target words per section | Target words per document |
+- a page of a policy, procedure or guide holds about 420 rendered words, and a page of an faq or glossary about 320, since every `###` question or term takes its own line and space;
+- placeholders render longer than they read: a document grows about 6 to 8% (a spelled-out authority can be 14 words), and English can run about 7% longer than Spanish;
+- a policy's PDF adds Versioning, about 70 words, and every page carries the footer.
+
+So an faq or glossary near 1,050 words renders 4 pages; keep to the targets below, which land within 3.
+
+| doc_type | Sections | Target words per section | Target words per Spanish document |
 |---|---|---|---|
 | policy | 10 | 85 | 850 |
 | procedure | 10 | 85 | 850 |
 | guide | 8 | 105 | 850 |
-| faq | 4 to 6 subtopics, 12 to 16 questions | 140 to 200 | 850 |
-| glossary | 4 to 6 term groups | 140 to 200 | 850 |
+| faq | 4 to 6 subtopics, 12 to 16 questions | 120 to 180 | 700 |
+| glossary | 4 to 6 term groups | 120 to 180 | 700 |
 
-`uv run build-policies render` prints each edition's page count.
+The check on pages is `uv run build-policies render`, which prints each edition's page count; the validator checks words, never pages.
+An edition over 3 pages is shortened at its source.
 
 ### faq
 

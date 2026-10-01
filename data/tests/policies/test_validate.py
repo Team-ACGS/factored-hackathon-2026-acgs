@@ -1,10 +1,13 @@
 from dataclasses import replace
+from datetime import UTC, datetime
 
 import pytest
-from core.policies import CountryFacts, policy_facts
+from core.facts import Ledger, render_value
+from core.facts.check import bounded, fold
+from core.policies import SOURCE_LANGUAGES, CountryFacts, policy_facts
 
 from bankdata.policies.document import Document, parse
-from bankdata.policies.spec import Limits
+from bankdata.policies.spec import INFORMAL, Limits
 from bankdata.policies.validate import validate_all
 from policies_harness import SOURCES
 
@@ -245,3 +248,19 @@ def test_a_document_outside_six_hundred_to_one_thousand_fifty_words_fails() -> N
     found = problems({POLICY: text})
 
     assert found == [(POLICY, line(POLICY, "## Propósito"), "document_length")]
+
+
+@pytest.mark.parametrize("country", SOURCE_LANGUAGES["es"])
+def test_no_spanish_value_renders_in_the_informal_register(country: str) -> None:
+    facts = policy_facts()[country]
+    informal = bounded(fold(word) for word in INFORMAL["es"])
+    ledger = Ledger(country, datetime(2026, 10, 1, tzinfo=UTC))
+
+    found = {
+        key: rendered
+        for key, spec in facts.specs.items()
+        if spec.get("kind") != "app_path"
+        and informal.search(fold(rendered := render_value(facts.figure(key), ledger, "es")))
+    }
+
+    assert found == {}

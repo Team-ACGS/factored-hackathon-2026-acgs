@@ -570,7 +570,7 @@ def test_chunk_facts_number_apart_from_data_facts() -> None:
         (Count(15, "minute"), "US", "en", "15 minutes"),
         (Channel("app_path", "Help and claims > Your claims"), "US", "en", "Help and claims > Your claims"),
         (Url("https://latambank.example/us/help"), "US", "en", "https://latambank.example/us/help"),
-        (Labels("never_asked", ("pin", "cvv")), "MX", "es", "tu PIN y el código de seguridad"),
+        (Labels("never_asked", ("pin", "cvv")), "MX", "es", "el PIN y el código de seguridad"),
     ],
 )
 def test_policy_figures_render_in_the_customers_country(
