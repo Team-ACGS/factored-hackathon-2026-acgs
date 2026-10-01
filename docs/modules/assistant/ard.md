@@ -160,12 +160,12 @@ source: 0012_data_tools
 
 ## 2026-09-28: the demo account follows the dataset, with fixed planted cases
 
-- Decision: rows use the dataset's vocabulary (`Tarjeta Crédito`, `Approved`, `POS`, response codes `00` or `05/14/51/54`), ISO country codes, and Decimal money returned as strings; every card holds exactly 92 Approved, 5 Declined, 2 Pending and 1 Reversed; the fresh hold (fuel, 1 to 3 days), the reversed charge (retail) and the stale pending (delivery) sit on the three different cards; subscriptions get exactly the 4-charge minimum at a fixed amount; the account is derived from `sha256(customer_id | setup_claimed_at)` and a resumed setup keeps the first claim's country and language.
+- Decision: rows use the dataset's vocabulary (`Tarjeta Crédito`, `Approved`, `POS`, response codes `00` or `05/14/51/54`), ISO country codes, and Decimal money returned as strings; every card holds exactly 92 Approved, 5 Declined, 2 Pending and 1 Reversed; the fresh hold (fuel, 1 to 3 days), the reversed charge (retail) and the stale pending (delivery) sit on the three different cards; occasional merchants get at least 4 charges each; subscriptions (streaming, telecom) are billed monthly at a fixed amount, 3 charges on one card on a fixed day (at most the 28th), always Approved, so `recurring_charges` finds them (changed 2026-10-01 by 0012_data_tools; before, they got the 4-charge minimum on random days and cards); the account is derived from `sha256(customer_id | setup_claimed_at)` and a resumed setup keeps the first claim's country and language.
 - Alternatives rejected: approximate proportions (tests could not pin the mix); all cases on one card.
 - Reason: the tools and a future dataset seed share one vocabulary, the demo is reproducible, and each planted case is findable from the guide.
 - Debt created: balances are a setup snapshot (credit: Approved and Pending of the last 30 days) that added transactions do not move; the fresh hold stops being fresh a few days after setup.
 - Revisit when: Clara reads balances, or demo accounts must stay demo-ready for weeks.
-- Source: 0006_customer_data_onboarding
+- Source: 0006_customer_data_onboarding; subscriptions amended by 0012_data_tools
 
 ## 2026-09-28: manual transactions are idempotent like messages
 
