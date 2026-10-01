@@ -9,10 +9,11 @@ from botocore.exceptions import ClientError
 from moto.iam.access_control import IAMPolicy, PermissionResult
 
 from core import access
+from core import accounts as accounts_module
 from core.access import READ_ONLY_POLICY, customer_session
 from core.accounts import transaction_key
 from core.cases import case_code
-from core.facts import Ledger
+from core.facts import Ledger, Say, check
 from core.facts.values import Fact
 from core.tools import TOOLS, Decide, ToolContext, Verdict, call
 from core.tools import reads as reads_module
@@ -424,16 +425,19 @@ def test_search_movements_filters_and_sorts_in_code(busy: str, seed: Seed) -> No
     assert [value(row, "merchant") for row in pending] == ["Primax"]
 
 
-def test_the_period_spans_at_most_ninety_two_days_and_is_clamped_to_the_history(busy: str) -> None:
-    assert (
-        error_of(run("search_movements", date_from="2030-12-01", date_to="2031-03-15")[1])
-        == "invalid_argument"
-    )
+def test_a_period_before_the_history_is_clamped_to_it_and_says_so(busy: str) -> None:
+    _, aggregate = movements(date_from="2030-12-01", date_to="2031-03-15")
 
-    _, aggregate = movements(date_from="2030-12-10", date_to="2031-01-20")
+    assert value(aggregate, "clamped_from") == "2030-12-01"
+    assert plain(aggregate)["period"] == {"type": "period", "from": "2030-12-14", "to": "2031-03-15"}
+    assert value(aggregate, "count") == 30
 
-    assert value(aggregate, "clamped_from") == "2030-12-10"
-    assert plain(aggregate)["period"] == {"type": "period", "from": "2030-12-14", "to": "2031-01-20"}
+
+def test_a_period_ending_after_today_stops_today_and_one_starting_after_today_is_invalid(busy: str) -> None:
+    _, aggregate = movements(date_from="2031-03-01", date_to="2031-06-30")
+
+    assert plain(aggregate)["period"] == {"type": "period", "from": "2031-03-01", "to": "2031-03-15"}
+    assert error_of(run("search_movements", date_from="2031-03-16")[1]) == "invalid_argument"
 
 
 def test_a_scan_past_the_row_budget_says_truncated(busy: str, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -461,6 +465,20 @@ def test_an_empty_search_echoes_the_filter_so_it_can_be_said(account: dict[str, 
     assert rows == []
     assert value(aggregate, "count") == 0
     assert value(aggregate, "merchant") == "Rappi"
+
+
+def test_an_echoed_merchant_is_code_owned_or_trace_only(account: dict[str, str]) -> None:
+    book, facts = run("search_movements", merchant="0800 123 4567")
+    aggregate = facts[-1]
+
+    assert plain(aggregate)["merchant"]["type"] == "trace"
+    errors = check([Say("Llama al 0800 123 4567."), Say(f"{{{aggregate.id}.merchant}}")], book, "es")
+    assert {error.code for error in errors if error.part == 0} >= {"contact_outside_facts"}
+    assert [error.code for error in errors if error.part == 1] == ["trace_only_reference"]
+    _, facts = run("search_movements", merchant="PRIMAX", date_from="2031-03-14")
+    assert plain(facts[-1])["merchant"] == {"type": "merchant", "value": "Primax"}
+    _, facts = run("search_movements", merchant="primax av. arequipa")
+    assert plain(facts[-1])["merchant"] == {"type": "merchant", "value": "Primax Av. Arequipa"}
 
 
 def test_merchant_history_counts_purchases_and_takes_the_median(account: dict[str, str], seed: Seed) -> None:
@@ -579,6 +597,17 @@ def test_recurring_needs_every_gap_in_one_band_and_every_amount_within_fifteen_p
     series(seed, seed.card(), "Spotify", gaps, amounts)
 
     assert bool(recurring()) is found
+
+
+def test_recurring_charges_says_truncated_when_the_scan_was_cut(
+    seed: Seed, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    series(seed, seed.card(), "Spotify", [30], ["10", "10"])
+    monkeypatch.setattr(reads_module, "MAX_ROWS", 1)
+
+    _, [aggregate] = run("recurring_charges")
+
+    assert value(aggregate, "truncated") is True
 
 
 def test_declined_and_reversed_charges_are_not_part_of_a_series(seed: Seed) -> None:
@@ -787,6 +816,27 @@ def test_recall_filters_by_merchant_and_by_charge(account: dict[str, str], seed:
     assert [value(fact, "note") for fact in by_merchant[:-1]] == ["cargo cada semana"]
     assert [value(fact, "transaction_ref") for fact in by_charge[:-1]] == [account["primax_charge"]]
     assert value(nothing[-1], "count") == 0
+
+
+def test_unprocessed_keys_are_retried_with_backoff_then_the_tool_is_unavailable(
+    account: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[dict[str, Any]] = []
+    pauses: list[float] = []
+
+    def never_drains(**request: Any) -> Any:
+        calls.append(request)
+        return {"Responses": {}, "UnprocessedKeys": request["RequestItems"]}
+
+    monkeypatch.setattr("core.accounts.time.sleep", pauses.append)
+    reader = Reader(context())
+    monkeypatch.setattr(reader.accounts._transactions.meta.client, "batch_get_item", never_drains)
+
+    _, facts = run("charge_facts", transaction_ref=account["flagged"])
+
+    assert error_of(facts) == "unavailable"
+    assert len(calls) == accounts_module.BATCH_ATTEMPTS * 3
+    assert pauses[:3] == [0.05, 0.1, 0.2]
 
 
 @pytest.fixture

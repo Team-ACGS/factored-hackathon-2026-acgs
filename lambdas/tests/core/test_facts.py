@@ -460,6 +460,7 @@ def full_ledger() -> Ledger:
     )
     book.add("cases", {"count": Count(0, "case")})
     book.add("memory", {"note": Note("es mi gasolinera")})
+    book.add("memory", {"merchant": Merchant("Primax")})
     book.add("memories", {"count": Count(0, "memory")})
     book.add("error", {"tool": Trace("recall"), "error": Trace("unavailable")})
     return book
@@ -473,7 +474,7 @@ def test_the_fallback_answers_from_the_same_ledger_and_passes_the_check(locale: 
 
     assert check(parts, book, locale) == []
     says = [part for part in render(parts, book, locale) if part["type"] == "say"]
-    assert len(says) == 15
+    assert len(says) == 16
     assert all("{" not in say["text"] for say in says)
     assert {"type": "view", "view": "movements", "ids": ["tx-1"]} in render(parts, book, locale)
 

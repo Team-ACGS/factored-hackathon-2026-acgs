@@ -1,4 +1,5 @@
 import os
+import time
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -38,6 +39,14 @@ TRANSACTION_ATTRIBUTES = (
     "response_code",
     "fraud_score",
 )
+
+
+BATCH_ATTEMPTS = 4
+BATCH_BACKOFF_SECONDS = 0.05
+
+
+class ReadIncomplete(Exception):
+    pass
 
 
 def transaction_date(transaction_id: str) -> str:
@@ -153,8 +162,12 @@ class Accounts:
         ]
         request: dict[str, Any] = {table: {"Keys": keys, "ConsistentRead": True, **projection(attributes)}}
         found: list[dict[str, Any]] = []
-        while request:
+        for attempt in range(BATCH_ATTEMPTS):
+            if attempt:
+                time.sleep(BATCH_BACKOFF_SECONDS * 2 ** (attempt - 1))
             response = self._transactions.meta.client.batch_get_item(RequestItems=request)
             found.extend(response["Responses"].get(table, []))
             request = response.get("UnprocessedKeys") or {}
-        return public(found[0], attributes) if found else None
+            if not request:
+                return public(found[0], attributes) if found else None
+        raise ReadIncomplete(f"{table} kept keys unprocessed after {BATCH_ATTEMPTS} attempts")

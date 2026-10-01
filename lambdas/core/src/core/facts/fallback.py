@@ -87,6 +87,11 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Você me contou: {note}.",
         "en": "You told me: {note}.",
     },
+    "memory_bare": {
+        "es": "Tengo una nota tuya sobre tus cargos.",
+        "pt-BR": "Tenho uma nota sua sobre as suas cobranças.",
+        "en": "I have a note from you about your charges.",
+    },
     "memories_empty": {
         "es": "Todavía no me has contado nada sobre tus cargos.",
         "pt-BR": "Você ainda não me contou nada sobre as suas cobranças.",
@@ -103,9 +108,9 @@ def fallback(step_key: str, ledger: Ledger, locale: str) -> list[Part]:
         return [Say(TEMPLATES["unavailable"][locale])]
     parts: list[Part] = []
     for fact in ledger.facts.values():
-        key = _template_key(fact)
-        if key is not None:
-            parts.append(Say(_bind(TEMPLATES[key][locale], fact)))
+        template = _fitting(_template_key(fact), fact, locale)
+        if template is not None:
+            parts.append(Say(_bind(template, fact)))
         view = _view(fact, ledger)
         if view is not None:
             parts.append(view)
@@ -128,6 +133,14 @@ def _template_key(fact: Fact) -> str | None:
             return "spend_compare" if "compare_total" in fact.fields else "spend"
         case "card" | "recurring" | "charge" | "case" | "memory":
             return fact.kind
+    return None
+
+
+def _fitting(key: str | None, fact: Fact, locale: str) -> str | None:
+    for candidate in (key, f"{key}_bare"):
+        template = TEMPLATES.get(candidate or "", {}).get(locale)
+        if template is not None and all(name in fact.fields for name in _FIELD.findall(template)):
+            return template
     return None
 
 

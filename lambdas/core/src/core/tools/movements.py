@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from core.facts.lexicon import CATALOG_MERCHANTS
 from core.facts.values import (
     Count,
     Day,
@@ -94,7 +95,7 @@ def search_movements(context: ToolContext, ledger: Ledger, args: SearchMovements
             "truncated": Flag(more or scan_truncated),
             "cursor": Trace(_encode_cursor(offset + len(page), args)) if more else None,
             "period": Period(start, end),
-            "merchant": Merchant(args.merchant) if args.merchant else None,
+            "merchant": echoed_merchant(args.merchant, rows),
             "clamped_from": Day(clamped_from) if clamped_from else None,
         },
     )
@@ -113,7 +114,7 @@ def merchant_history(context: ToolContext, ledger: Ledger, args: MerchantHistory
         fact = ledger.add(
             "merchant_history",
             {
-                "merchant": Merchant(args.merchant),
+                "merchant": echoed_merchant(args.merchant, rows),
                 "count": Count(0, "purchase"),
                 "period": Period(start, end),
                 "truncated": Flag(truncated),
@@ -144,15 +145,16 @@ def spend_summary(context: ToolContext, ledger: Ledger, args: SpendSummaryInput)
     start, end, clamped_from = _window(context, args.period.start, args.period.end)
     reader = Reader(context)
     cards = reader.cards_for(args.card_ref)
-    current, truncated = _spending(reader, cards, start, end, args.merchant)
-    compare: list[Movement] = []
+    read, truncated = reader.movements(cards, start, end)
+    compare_read: list[Movement] = []
     compare_window = None
     if args.compare_period is not None:
         compare_window = _window(context, args.compare_period.start, args.compare_period.end)
-        compare, compare_truncated = _spending(
-            reader, cards, compare_window[0], compare_window[1], args.merchant
-        )
+        compare_read, compare_truncated = reader.movements(cards, compare_window[0], compare_window[1])
         truncated = truncated or compare_truncated
+    current = _spending(read, args.merchant)
+    compare = _spending(compare_read, args.merchant)
+    echo = echoed_merchant(args.merchant, read + compare_read)
     currencies = {row.currency for row in current + compare} or {card.currency for card in cards}
     ids = []
     for currency in sorted(currencies):
@@ -167,7 +169,7 @@ def spend_summary(context: ToolContext, ledger: Ledger, args: SpendSummaryInput)
             ),
             "counted": Label("counted", "approved_and_pending"),
             "partial": Flag(end >= context.today),
-            "merchant": Merchant(args.merchant) if args.merchant else None,
+            "merchant": echo,
             "clamped_from": Day(clamped_from) if clamped_from else None,
             "truncated": Flag(truncated),
         }
@@ -184,7 +186,7 @@ def spend_summary(context: ToolContext, ledger: Ledger, args: SpendSummaryInput)
 def recurring_charges(context: ToolContext, ledger: Ledger, args: RecurringChargesInput) -> list[str]:
     reader = Reader(context)
     cards = reader.cards_for(args.card_ref)
-    rows, _ = reader.movements(cards, context.window_start, context.today)
+    rows, scan_truncated = reader.movements(cards, context.window_start, context.today)
     by_id = {card.product_id: card for card in cards}
     series = sorted(
         (found for found in _series(rows, context) if found is not None),
@@ -200,7 +202,7 @@ def recurring_charges(context: ToolContext, ledger: Ledger, args: RecurringCharg
         {
             "count": Count(len(facts), "subscription"),
             "ids": FactIds(tuple(fact.id for fact in facts)),
-            "truncated": Flag(len(series) > MAX_SERIES),
+            "truncated": Flag(scan_truncated or len(series) > MAX_SERIES),
         },
     )
     return [*(fact.id for fact in facts), aggregate.id]
@@ -251,28 +253,31 @@ def _series_fields(
 
 
 def _window(context: ToolContext, start: date, end: date) -> tuple[date, date, date | None]:
-    if end < start:
-        raise InvalidArgument("the period ends before it starts")
-    if (end - start).days + 1 > HISTORY_DAYS:
-        raise InvalidArgument(f"a period spans at most {HISTORY_DAYS} days")
     end = min(end, context.today)
-    if end < context.window_start:
-        raise InvalidArgument(f"the history covers only the last {HISTORY_DAYS} days")
-    if start < context.window_start:
-        return context.window_start, end, start
-    return start, end, None
+    clamped_from = start if start < context.window_start else None
+    start = max(start, context.window_start)
+    if end < start:
+        raise InvalidArgument(f"the period must fall inside the last {HISTORY_DAYS} days, up to today")
+    return start, end, clamped_from
 
 
-def _spending(
-    reader: Reader, cards: list[Card], start: date, end: date, merchant: str | None
-) -> tuple[list[Movement], bool]:
-    rows, truncated = reader.movements(cards, start, end)
-    kept = [
+def _spending(rows: list[Movement], merchant: str | None) -> list[Movement]:
+    return [
         row
         for row in rows
         if counts_as_spending(row) and (merchant is None or matches_merchant(merchant, row.merchant))
     ]
-    return kept, truncated
+
+
+def echoed_merchant(query: str | None, rows: list[Movement]) -> Merchant | Trace | None:
+    if query is None:
+        return None
+    key = merchant_key(query)
+    read = [row for row in rows if merchant_key(row.merchant) == key]
+    if read:
+        return Merchant(max(read, key=lambda row: row.at).merchant)
+    known = next((name for name in sorted(CATALOG_MERCHANTS) if merchant_key(name) == key), None)
+    return Merchant(known) if known else Trace(query)
 
 
 def _direction(total: Decimal, compare_total: Decimal) -> str:
