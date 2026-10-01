@@ -1,0 +1,404 @@
+synthetic = true
+bank = "LATAM Bank"
+
+[MX]
+version = 1
+language = "es-MX"
+currency = "MXN"
+
+[MX.claims]
+report_window = { type = "count", value = 90, noun = "day" }
+assign_time = { type = "count", value = 1, noun = "business_day" }
+review_time = { type = "count", value = 10, noun = "business_day" }
+resolution_time = { type = "count", value = 20, noun = "business_day" }
+evidence_window = { type = "count", value = 5, noun = "business_day" }
+provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
+reopen_window = { type = "count", value = 30, noun = "day" }
+stage_opened = { type = "status", domain = "stage", value = "opened" }
+stage_assigned = { type = "status", domain = "stage", value = "assigned" }
+stage_in_review = { type = "status", domain = "stage", value = "in_review" }
+stage_resolved = { type = "status", domain = "stage", value = "resolved" }
+stage_closed = { type = "status", domain = "stage", value = "closed" }
+
+[MX.legal]
+claim_response = { type = "count", value = 45, noun = "day", verified = false }
+report_window = { type = "count", value = 90, noun = "day", verified = false }
+
+[MX.cards]
+replacement_time = { type = "count", value = 5, noun = "business_day" }
+temporary_block_max = { type = "count", value = 30, noun = "day" }
+
+[MX.fees]
+replacement = { type = "money", amount = "150.00", currency = "MXN" }
+express_delivery = { type = "money", amount = "250.00", currency = "MXN" }
+foreign_transaction = { type = "percent", value = "3.0" }
+
+[MX.holds]
+fresh_hold = { type = "count", value = 7, noun = "day" }
+preauth_general = { type = "count", value = 7, noun = "day" }
+preauth_fuel = { type = "count", value = 3, noun = "day" }
+preauth_hotel = { type = "count", value = 10, noun = "day" }
+preauth_car_rental = { type = "count", value = 30, noun = "day" }
+
+[MX.transactions]
+reversal_pos = { type = "count", value = 5, noun = "business_day" }
+reversal_online = { type = "count", value = 10, noun = "business_day" }
+duplicate_review = { type = "count", value = 10, noun = "business_day" }
+recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
+
+[MX.security]
+never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
+alert_response = { type = "count", value = 15, noun = "minute" }
+zero_liability_window = { type = "count", value = 60, noun = "day" }
+
+[MX.channels]
+phone = { type = "channel", kind = "phone", value = "+52 55 5100 2000" }
+phone_abroad = { type = "channel", kind = "phone", value = "+52 55 5100 2001" }
+phone_schedule = { type = "channel", kind = "schedule", value = "todos los días, las 24 horas" }
+email = { type = "channel", kind = "email", value = "ayuda.mx@latambank.example" }
+web_help = { type = "url", value = "https://latambank.example/mx/ayuda" }
+app_block = { type = "channel", kind = "app_path", value = "Tarjetas > Bloquear tarjeta" }
+app_claims = { type = "channel", kind = "app_path", value = "Ayuda > Mis aclaraciones" }
+app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
+app_recurring = { type = "channel", kind = "app_path", value = "Tarjetas > Cargos recurrentes" }
+
+[MX.service]
+handoff_wait = { type = "count", value = 10, noun = "minute" }
+handoff_hours = { type = "channel", kind = "schedule", value = "todos los días, de 8:00 a 22:00" }
+ombudsman = { type = "channel", kind = "email", value = "une.mx@latambank.example" }
+ombudsman_response = { type = "count", value = 30, noun = "business_day" }
+
+[CO]
+version = 1
+language = "es-CO"
+currency = "COP"
+
+[CO.claims]
+report_window = { type = "count", value = 90, noun = "day" }
+assign_time = { type = "count", value = 1, noun = "business_day" }
+review_time = { type = "count", value = 10, noun = "business_day" }
+resolution_time = { type = "count", value = 15, noun = "business_day" }
+evidence_window = { type = "count", value = 5, noun = "business_day" }
+provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
+reopen_window = { type = "count", value = 30, noun = "day" }
+stage_opened = { type = "status", domain = "stage", value = "opened" }
+stage_assigned = { type = "status", domain = "stage", value = "assigned" }
+stage_in_review = { type = "status", domain = "stage", value = "in_review" }
+stage_resolved = { type = "status", domain = "stage", value = "resolved" }
+stage_closed = { type = "status", domain = "stage", value = "closed" }
+
+[CO.legal]
+claim_response = { type = "count", value = 15, noun = "business_day", verified = false }
+report_window = { type = "count", value = 5, noun = "business_day", verified = false }
+
+[CO.cards]
+replacement_time = { type = "count", value = 5, noun = "business_day" }
+temporary_block_max = { type = "count", value = 30, noun = "day" }
+
+[CO.fees]
+replacement = { type = "money", amount = "25000", currency = "COP" }
+express_delivery = { type = "money", amount = "40000", currency = "COP" }
+foreign_transaction = { type = "percent", value = "3.5" }
+
+[CO.holds]
+fresh_hold = { type = "count", value = 7, noun = "day" }
+preauth_general = { type = "count", value = 7, noun = "day" }
+preauth_fuel = { type = "count", value = 3, noun = "day" }
+preauth_hotel = { type = "count", value = 10, noun = "day" }
+preauth_car_rental = { type = "count", value = 30, noun = "day" }
+
+[CO.transactions]
+reversal_pos = { type = "count", value = 5, noun = "business_day" }
+reversal_online = { type = "count", value = 10, noun = "business_day" }
+duplicate_review = { type = "count", value = 10, noun = "business_day" }
+recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
+
+[CO.security]
+never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
+alert_response = { type = "count", value = 15, noun = "minute" }
+zero_liability_window = { type = "count", value = 60, noun = "day" }
+
+[CO.channels]
+phone = { type = "channel", kind = "phone", value = "+57 601 300 2000" }
+phone_abroad = { type = "channel", kind = "phone", value = "+57 601 300 2001" }
+phone_schedule = { type = "channel", kind = "schedule", value = "todos los días, las 24 horas" }
+email = { type = "channel", kind = "email", value = "ayuda.co@latambank.example" }
+web_help = { type = "url", value = "https://latambank.example/co/ayuda" }
+app_block = { type = "channel", kind = "app_path", value = "Tarjetas > Bloquear tarjeta" }
+app_claims = { type = "channel", kind = "app_path", value = "Ayuda > Mis reclamaciones" }
+app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
+app_recurring = { type = "channel", kind = "app_path", value = "Tarjetas > Cargos recurrentes" }
+
+[CO.service]
+handoff_wait = { type = "count", value = 10, noun = "minute" }
+handoff_hours = { type = "channel", kind = "schedule", value = "todos los días, de 8:00 a 22:00" }
+ombudsman = { type = "channel", kind = "email", value = "defensor.co@latambank.example" }
+ombudsman_response = { type = "count", value = 15, noun = "business_day" }
+
+[AR]
+version = 1
+language = "es-AR"
+currency = "ARS"
+
+[AR.claims]
+report_window = { type = "count", value = 30, noun = "day" }
+assign_time = { type = "count", value = 1, noun = "business_day" }
+review_time = { type = "count", value = 10, noun = "business_day" }
+resolution_time = { type = "count", value = 15, noun = "business_day" }
+evidence_window = { type = "count", value = 5, noun = "business_day" }
+provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
+reopen_window = { type = "count", value = 30, noun = "day" }
+stage_opened = { type = "status", domain = "stage", value = "opened" }
+stage_assigned = { type = "status", domain = "stage", value = "assigned" }
+stage_in_review = { type = "status", domain = "stage", value = "in_review" }
+stage_resolved = { type = "status", domain = "stage", value = "resolved" }
+stage_closed = { type = "status", domain = "stage", value = "closed" }
+
+[AR.legal]
+claim_response = { type = "count", value = 15, noun = "day", verified = false }
+report_window = { type = "count", value = 30, noun = "day", verified = false }
+
+[AR.cards]
+replacement_time = { type = "count", value = 7, noun = "business_day" }
+temporary_block_max = { type = "count", value = 30, noun = "day" }
+
+[AR.fees]
+replacement = { type = "money", amount = "9500.00", currency = "ARS" }
+express_delivery = { type = "money", amount = "15000.00", currency = "ARS" }
+foreign_transaction = { type = "percent", value = "4.0" }
+
+[AR.holds]
+fresh_hold = { type = "count", value = 7, noun = "day" }
+preauth_general = { type = "count", value = 7, noun = "day" }
+preauth_fuel = { type = "count", value = 3, noun = "day" }
+preauth_hotel = { type = "count", value = 10, noun = "day" }
+preauth_car_rental = { type = "count", value = 30, noun = "day" }
+
+[AR.transactions]
+reversal_pos = { type = "count", value = 5, noun = "business_day" }
+reversal_online = { type = "count", value = 10, noun = "business_day" }
+duplicate_review = { type = "count", value = 10, noun = "business_day" }
+recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
+
+[AR.security]
+never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
+alert_response = { type = "count", value = 15, noun = "minute" }
+zero_liability_window = { type = "count", value = 30, noun = "day" }
+
+[AR.channels]
+phone = { type = "channel", kind = "phone", value = "+54 11 5100 2000" }
+phone_abroad = { type = "channel", kind = "phone", value = "+54 11 5100 2001" }
+phone_schedule = { type = "channel", kind = "schedule", value = "todos los días, las 24 horas" }
+email = { type = "channel", kind = "email", value = "ayuda.ar@latambank.example" }
+web_help = { type = "url", value = "https://latambank.example/ar/ayuda" }
+app_block = { type = "channel", kind = "app_path", value = "Tarjetas > Bloquear tarjeta" }
+app_claims = { type = "channel", kind = "app_path", value = "Ayuda > Mis reclamos" }
+app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
+app_recurring = { type = "channel", kind = "app_path", value = "Tarjetas > Cargos recurrentes" }
+
+[AR.service]
+handoff_wait = { type = "count", value = 10, noun = "minute" }
+handoff_hours = { type = "channel", kind = "schedule", value = "todos los días, de 8:00 a 22:00" }
+ombudsman = { type = "channel", kind = "email", value = "defensor.ar@latambank.example" }
+ombudsman_response = { type = "count", value = 15, noun = "business_day" }
+
+[PE]
+version = 1
+language = "es-PE"
+currency = "PEN"
+
+[PE.claims]
+report_window = { type = "count", value = 60, noun = "day" }
+assign_time = { type = "count", value = 1, noun = "business_day" }
+review_time = { type = "count", value = 10, noun = "business_day" }
+resolution_time = { type = "count", value = 15, noun = "business_day" }
+evidence_window = { type = "count", value = 5, noun = "business_day" }
+provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
+reopen_window = { type = "count", value = 30, noun = "day" }
+stage_opened = { type = "status", domain = "stage", value = "opened" }
+stage_assigned = { type = "status", domain = "stage", value = "assigned" }
+stage_in_review = { type = "status", domain = "stage", value = "in_review" }
+stage_resolved = { type = "status", domain = "stage", value = "resolved" }
+stage_closed = { type = "status", domain = "stage", value = "closed" }
+
+[PE.legal]
+claim_response = { type = "count", value = 15, noun = "business_day", verified = false }
+report_window = { type = "count", value = 30, noun = "day", verified = false }
+
+[PE.cards]
+replacement_time = { type = "count", value = 7, noun = "business_day" }
+temporary_block_max = { type = "count", value = 30, noun = "day" }
+
+[PE.fees]
+replacement = { type = "money", amount = "25.00", currency = "PEN" }
+express_delivery = { type = "money", amount = "40.00", currency = "PEN" }
+foreign_transaction = { type = "percent", value = "3.0" }
+
+[PE.holds]
+fresh_hold = { type = "count", value = 7, noun = "day" }
+preauth_general = { type = "count", value = 7, noun = "day" }
+preauth_fuel = { type = "count", value = 3, noun = "day" }
+preauth_hotel = { type = "count", value = 10, noun = "day" }
+preauth_car_rental = { type = "count", value = 30, noun = "day" }
+
+[PE.transactions]
+reversal_pos = { type = "count", value = 5, noun = "business_day" }
+reversal_online = { type = "count", value = 10, noun = "business_day" }
+duplicate_review = { type = "count", value = 10, noun = "business_day" }
+recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
+
+[PE.security]
+never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
+alert_response = { type = "count", value = 15, noun = "minute" }
+zero_liability_window = { type = "count", value = 30, noun = "day" }
+
+[PE.channels]
+phone = { type = "channel", kind = "phone", value = "+51 1 600 2000" }
+phone_abroad = { type = "channel", kind = "phone", value = "+51 1 600 2001" }
+phone_schedule = { type = "channel", kind = "schedule", value = "todos los días, las 24 horas" }
+email = { type = "channel", kind = "email", value = "ayuda.pe@latambank.example" }
+web_help = { type = "url", value = "https://latambank.example/pe/ayuda" }
+app_block = { type = "channel", kind = "app_path", value = "Tarjetas > Bloquear tarjeta" }
+app_claims = { type = "channel", kind = "app_path", value = "Ayuda > Mis reclamos" }
+app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
+app_recurring = { type = "channel", kind = "app_path", value = "Tarjetas > Cargos recurrentes" }
+
+[PE.service]
+handoff_wait = { type = "count", value = 10, noun = "minute" }
+handoff_hours = { type = "channel", kind = "schedule", value = "todos los días, de 8:00 a 22:00" }
+ombudsman = { type = "channel", kind = "email", value = "defensoria.pe@latambank.example" }
+ombudsman_response = { type = "count", value = 15, noun = "business_day" }
+
+[BR]
+version = 1
+language = "pt-BR"
+currency = "BRL"
+
+[BR.claims]
+report_window = { type = "count", value = 90, noun = "day" }
+assign_time = { type = "count", value = 1, noun = "business_day" }
+review_time = { type = "count", value = 10, noun = "business_day" }
+resolution_time = { type = "count", value = 15, noun = "business_day" }
+evidence_window = { type = "count", value = 5, noun = "business_day" }
+provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
+reopen_window = { type = "count", value = 30, noun = "day" }
+stage_opened = { type = "status", domain = "stage", value = "opened" }
+stage_assigned = { type = "status", domain = "stage", value = "assigned" }
+stage_in_review = { type = "status", domain = "stage", value = "in_review" }
+stage_resolved = { type = "status", domain = "stage", value = "resolved" }
+stage_closed = { type = "status", domain = "stage", value = "closed" }
+
+[BR.legal]
+claim_response = { type = "count", value = 10, noun = "business_day", verified = false }
+report_window = { type = "count", value = 90, noun = "day", verified = false }
+
+[BR.cards]
+replacement_time = { type = "count", value = 7, noun = "business_day" }
+temporary_block_max = { type = "count", value = 30, noun = "day" }
+
+[BR.fees]
+replacement = { type = "money", amount = "30.00", currency = "BRL" }
+express_delivery = { type = "money", amount = "50.00", currency = "BRL" }
+foreign_transaction = { type = "percent", value = "4.0" }
+
+[BR.holds]
+fresh_hold = { type = "count", value = 7, noun = "day" }
+preauth_general = { type = "count", value = 7, noun = "day" }
+preauth_fuel = { type = "count", value = 3, noun = "day" }
+preauth_hotel = { type = "count", value = 10, noun = "day" }
+preauth_car_rental = { type = "count", value = 30, noun = "day" }
+
+[BR.transactions]
+reversal_pos = { type = "count", value = 5, noun = "business_day" }
+reversal_online = { type = "count", value = 10, noun = "business_day" }
+duplicate_review = { type = "count", value = 10, noun = "business_day" }
+recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
+
+[BR.security]
+never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
+alert_response = { type = "count", value = 15, noun = "minute" }
+zero_liability_window = { type = "count", value = 60, noun = "day" }
+
+[BR.channels]
+phone = { type = "channel", kind = "phone", value = "+55 11 4000 2000" }
+phone_abroad = { type = "channel", kind = "phone", value = "+55 11 4000 2001" }
+phone_schedule = { type = "channel", kind = "schedule", value = "todos os dias, 24 horas" }
+email = { type = "channel", kind = "email", value = "ajuda.br@latambank.example" }
+web_help = { type = "url", value = "https://latambank.example/br/ajuda" }
+app_block = { type = "channel", kind = "app_path", value = "Cartões > Bloquear cartão" }
+app_claims = { type = "channel", kind = "app_path", value = "Ajuda > Minhas contestações" }
+app_alerts = { type = "channel", kind = "app_path", value = "Perfil > Alertas" }
+app_recurring = { type = "channel", kind = "app_path", value = "Cartões > Cobranças recorrentes" }
+
+[BR.service]
+handoff_wait = { type = "count", value = 10, noun = "minute" }
+handoff_hours = { type = "channel", kind = "schedule", value = "todos os dias, das 8h às 22h" }
+ombudsman = { type = "channel", kind = "email", value = "ouvidoria.br@latambank.example" }
+ombudsman_response = { type = "count", value = 10, noun = "business_day" }
+
+[US]
+version = 1
+language = "en-US"
+currency = "USD"
+
+[US.claims]
+report_window = { type = "count", value = 60, noun = "day" }
+assign_time = { type = "count", value = 1, noun = "business_day" }
+review_time = { type = "count", value = 10, noun = "business_day" }
+resolution_time = { type = "count", value = 10, noun = "business_day" }
+evidence_window = { type = "count", value = 5, noun = "business_day" }
+provisional_credit_time = { type = "count", value = 10, noun = "business_day" }
+reopen_window = { type = "count", value = 30, noun = "day" }
+stage_opened = { type = "status", domain = "stage", value = "opened" }
+stage_assigned = { type = "status", domain = "stage", value = "assigned" }
+stage_in_review = { type = "status", domain = "stage", value = "in_review" }
+stage_resolved = { type = "status", domain = "stage", value = "resolved" }
+stage_closed = { type = "status", domain = "stage", value = "closed" }
+
+[US.legal]
+claim_response = { type = "count", value = 10, noun = "business_day", verified = false }
+report_window = { type = "count", value = 60, noun = "day", verified = false }
+
+[US.cards]
+replacement_time = { type = "count", value = 5, noun = "business_day" }
+temporary_block_max = { type = "count", value = 30, noun = "day" }
+
+[US.fees]
+replacement = { type = "money", amount = "10.00", currency = "USD" }
+express_delivery = { type = "money", amount = "25.00", currency = "USD" }
+foreign_transaction = { type = "percent", value = "3.0" }
+
+[US.holds]
+fresh_hold = { type = "count", value = 7, noun = "day" }
+preauth_general = { type = "count", value = 7, noun = "day" }
+preauth_fuel = { type = "count", value = 3, noun = "day" }
+preauth_hotel = { type = "count", value = 10, noun = "day" }
+preauth_car_rental = { type = "count", value = 30, noun = "day" }
+
+[US.transactions]
+reversal_pos = { type = "count", value = 5, noun = "business_day" }
+reversal_online = { type = "count", value = 10, noun = "business_day" }
+duplicate_review = { type = "count", value = 10, noun = "business_day" }
+recurring_cancel_notice = { type = "count", value = 3, noun = "business_day" }
+
+[US.security]
+never_asks = { type = "enum_list", domain = "never_asked", values = ["full_card_number", "cvv", "pin", "password", "one_time_code"] }
+alert_response = { type = "count", value = 15, noun = "minute" }
+zero_liability_window = { type = "count", value = 60, noun = "day" }
+
+[US.channels]
+phone = { type = "channel", kind = "phone", value = "+1 800 555 0100" }
+phone_abroad = { type = "channel", kind = "phone", value = "+1 212 555 0101" }
+phone_schedule = { type = "channel", kind = "schedule", value = "every day, 24 hours" }
+email = { type = "channel", kind = "email", value = "help.us@latambank.example" }
+web_help = { type = "url", value = "https://latambank.example/us/help" }
+app_block = { type = "channel", kind = "app_path", value = "Cards > Lock card" }
+app_claims = { type = "channel", kind = "app_path", value = "Help > My disputes" }
+app_alerts = { type = "channel", kind = "app_path", value = "Profile > Alerts" }
+app_recurring = { type = "channel", kind = "app_path", value = "Cards > Recurring charges" }
+
+[US.service]
+handoff_wait = { type = "count", value = 10, noun = "minute" }
+handoff_hours = { type = "channel", kind = "schedule", value = "every day, 8:00 AM to 10:00 PM" }
+ombudsman = { type = "channel", kind = "email", value = "advocate.us@latambank.example" }
+ombudsman_response = { type = "count", value = 10, noun = "business_day" }
