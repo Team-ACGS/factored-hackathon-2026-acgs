@@ -12,6 +12,8 @@ module "backend" {
   cognito_allow_password_auth = false
 
   bedrock_inference_profile_id = local.bedrock_inference_profile_id
+  policy_embedding_model_id    = local.policy_embedding_model_id
+  policy_min_similarity        = local.policy_min_similarity
 
   github_owner             = local.github_owner
   github_repository        = local.github_repository

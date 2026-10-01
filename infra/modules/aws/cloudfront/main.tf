@@ -18,7 +18,7 @@ resource "aws_cloudfront_distribution" "this" {
   is_ipv6_enabled     = true
   http_version        = "http2and3"
   aliases             = [var.domain]
-  default_root_object = "index.html"
+  default_root_object = var.single_page_app ? "index.html" : null
   comment             = var.name
   price_class         = "PriceClass_100"
 
@@ -40,7 +40,7 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   dynamic "custom_error_response" {
-    for_each = [403, 404]
+    for_each = var.single_page_app ? [403, 404] : []
 
     content {
       error_code            = custom_error_response.value

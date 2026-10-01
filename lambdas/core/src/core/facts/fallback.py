@@ -92,6 +92,11 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Tenho uma nota sua sobre as suas cobranças.",
         "en": "I have a note from you about your charges.",
     },
+    "policies_empty": {
+        "es": "No tengo información del banco sobre eso. ¿Quieres hablar con una persona?",
+        "pt-BR": "Não tenho informações do banco sobre isso. Quer falar com uma pessoa?",
+        "en": "I do not have the bank's information on that. Do you want to talk to a person?",
+    },
     "memories_empty": {
         "es": "Todavía no me has contado nada sobre tus cargos.",
         "pt-BR": "Você ainda não me contou nada sobre as suas cobranças.",
@@ -123,7 +128,7 @@ def _template_key(fact: Fact) -> str | None:
     match fact.kind:
         case "error":
             return "error"
-        case "cards" | "movements" | "recurring_list" | "cases" | "memories" if empty:
+        case "cards" | "movements" | "recurring_list" | "cases" | "memories" | "policies" if empty:
             return f"{fact.kind}_empty"
         case "cards" | "movements":
             return fact.kind

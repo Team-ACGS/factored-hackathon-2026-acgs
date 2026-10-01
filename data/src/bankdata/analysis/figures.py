@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 
 import duckdb
+import pandas as pd
 
 from bankdata.settings import Settings
 
@@ -10,7 +11,7 @@ def run(con: duckdb.DuckDBPyConnection, s: Settings, group: str) -> Path:
     sql_root = s.sql_dir / "figures" / group
     if not sql_root.is_dir():
         raise SystemExit(f"no figure group at {sql_root}")
-    results = {}
+    results: dict[Path, pd.DataFrame] = {}
     for path in sorted(sql_root.rglob("*.sql")):
         try:
             results[path.relative_to(sql_root).with_suffix(".csv")] = con.execute(path.read_text()).df()

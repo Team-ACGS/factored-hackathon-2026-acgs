@@ -23,6 +23,7 @@ from core.tools.movements import (
     search_movements,
     spend_summary,
 )
+from core.tools.policies import SearchPoliciesInput, search_policies
 
 RETRIES = 2
 
@@ -50,6 +51,7 @@ TOOLS: dict[str, Tool] = {
         Tool("charge_facts", "movements", ChargeFactsInput, charge_facts),
         Tool("case_status", "cases", CaseStatusInput, case_status),
         Tool("recall", "memory", RecallInput, recall),
+        Tool("search_policies", "policies", SearchPoliciesInput, search_policies),
     )
 }
 

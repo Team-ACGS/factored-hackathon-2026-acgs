@@ -239,10 +239,11 @@ def resolved(arguments: dict[str, Any], account: dict[str, str]) -> dict[str, An
     }
 
 
-def test_the_nine_tools_are_registered_and_no_schema_takes_a_customer_id(aws: Aws) -> None:
-    assert set(TOOLS) == set(EVERY_CALL)
-    for name, tool in TOOLS.items():
-        assert "customer_id" not in json.dumps(tool.input_schema())
+def test_the_nine_data_tools_are_registered_and_no_schema_takes_a_customer_id(aws: Aws) -> None:
+    assert set(TOOLS) == {*EVERY_CALL, "search_policies"}
+    assert "customer_id" not in json.dumps(TOOLS["search_policies"].input_schema())
+    for name in EVERY_CALL:
+        assert "customer_id" not in json.dumps(TOOLS[name].input_schema())
         _, facts = run(name, customer_id=OTHER, **EVERY_CALL[name])
         assert error_of(facts) == "invalid_argument"
 

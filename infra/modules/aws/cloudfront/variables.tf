@@ -23,6 +23,12 @@ variable "origin_domain_name" {
   type        = string
 }
 
+variable "single_page_app" {
+  description = "Serve index.html at the root and for every missing path. Off for a file host, where a missing file answers 404."
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Tags added to the provider default tags"
   type        = map(string)
