@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0013_policy_search
+source: 0014_ingestion
 ---
 
 # assistant: database
@@ -27,6 +27,9 @@ Status: `customers`, `products` and `transactions` are written and read by `crud
 - No tool accepts `customer_id` as an argument; it always comes from the session's assumed-role credentials, never from client input (`docs/tasks/_drafts/turn_flow.md`); in `crud` it is the token's `sub`, never the body, path or cursor.
 - Every read of `customers`, `products` or `transactions` goes through the allow-lists in `core.customers` and `core.accounts`, used both as projection and as mapping: `transactions.origin` (`setup`, `manual_normal`, `manual_suspicious`), `customers.setup_claimed_at` and `customers.suspicious_suffixes` never reach the app or a tool, so nothing reveals which charges were planted.
 - `origin` is written only by `crud`.
+- A new transaction enters only through `core.ingestion.accept`: the row passes contract v`TRANSACTION_CONTRACT_VERSION` (undeclared fields refused, so no lineage fields) and is written in one TransactWriteItems with its card's balance move, so a `transaction_id` is written once, moves the balance once, and the balance never moves without its row.
+- Only an Approved charge moves `products.current_balance`: credit adds the amount used and may not pass `credit_limit`, debit subtracts from the funds and may not go negative; each move stamps `balance_as_of`, and `card_status` shows a balance only with it.
+- Setup writes its generated rows in bulk, checked against the contract but moving no balance: the generator seeds balances consistent with its own history and stamps `balance_as_of` with the setup claim.
 - Setup completes once: a conditional claim on the `customers` row, the account derived only from that claim and written with idempotent overwrites, and a conditional completion last.
 - A suspicious merchant suffix is unique per customer, reserved atomically in `customers.suspicious_suffixes` before the transaction is written.
 - Every tool reads under `customer_session(..., read_only=True)`, whose session policy allows only GetItem, BatchGetItem and Query, so a tool cannot write even through a bug.

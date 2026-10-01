@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0013_policy_search
+source: 0014_ingestion
 ---
 
 # data: technical
@@ -21,7 +21,8 @@ DuckDB is the engine at every step; Parquet is the storage format, local or S3, 
 | `hackathon/data/src/bankdata/pipeline/contracts.py` | Contract checks: non-empty, dictionary ratio, declared columns and types, unique non-null key, event date within the data clock |
 | `hackathon/data/src/bankdata/analysis/figures.py` | Runs every SQL file of a group, rewrites that group's output |
 | `hackathon/data/src/bankdata/analysis/scratch.py` | Runs scratch queries, writes each result next to its SQL |
-| `hackathon/data/sql/figures/eda/` | One query per figure of the dataset analysis (14 queries) |
+| `hackathon/data/sql/figures/eda/` | One query per figure of the dataset analysis (12 queries) |
+| `hackathon/data/sql/figures/pitch/` | The pitch's figures, each beside its base rate over any other transaction, each cited by one line of `docs/analysis/findings.md` in the docs root |
 | `hackathon/data/sql/scratch/` | Work-in-progress queries, git-ignored output |
 | `hackathon/data/figures/` | Committed CSV output, always rewritten from `sql/figures/` |
 | `hackathon/data/src/bankdata/policies/` | The policy corpus build: `document` (parse), `validate`, `render` (placeholders with `core.facts`' renderers, figure spans), `chunk`, `dedupe`, `pdf` (Markdown to HTML, WeasyPrint with `template/`, page location with PyMuPDF), `build` (manifest, skip unchanged, vectors, uploads), `tune`, `store` (local folder or S3), `cli` |

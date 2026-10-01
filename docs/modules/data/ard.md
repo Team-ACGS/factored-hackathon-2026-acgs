@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0013_policy_search
+source: 0014_ingestion
 ---
 
 # data: architecture and debt
@@ -85,3 +85,12 @@ source: 0013_policy_search
 - Debt created: none
 - Revisit when: Sebastian's review of the real PDFs finds a page off.
 - Source: 0013_policy_search
+
+## 2026-10-01: the pitch's base rates use ASOF joins
+
+- Decision: "followed by a contact or a claim within 30 days" is computed with an ASOF join to the customer's next contact or claim on or after the charge, for every transaction, not with a correlated EXISTS; the two moved queries keep their counts (537 contacts, 42 claims).
+- Alternatives rejected: EXISTS over 4.4M transactions (the base rate needs every row, not only the 4,316 frauds).
+- Reason: the base rate runs in seconds within the 2 GB DuckDB limit.
+- Debt created: none
+- Revisit when: a figure needs every contact in the window, not only the first.
+- Source: 0014_ingestion

@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0008_chat_latency
+updated: 2026-10-01
+source: 0014_ingestion
 ---
 
 # Identity: technical
@@ -19,10 +19,10 @@ Status: built (tasks 0001 and 0003); the staff group against app client check wa
 
 None over API Gateway.
 The three functions in `lambdas/auth/` are invoked by Cognito itself as Lambda triggers (`post_confirmation`, `pre_token_generation`, `custom_message`), not through a route.
-`post_confirmation` runs only on the `customers` pool; on a sign-up confirmation it creates the `customers` row (`customer_id` = the event's `sub`, `email`, `created_at`) through `core.customers`, only if absent, assuming `role-customer` tagged with that `sub`. Its own role can assume `role-customer` and touch no table. A password-reset confirmation only logs.
+`post_confirmation` runs only on the `customers` pool; on a sign-up confirmation it creates the `customers` row (`customer_id` = the event's `sub`, `email`, `created_at`, and `given_name` trimmed when it is 1 to 50 characters; any other name is dropped, never failing the confirmation) through `core.customers`, only if absent, assuming `role-customer` tagged with that `sub`. Its own role can assume `role-customer` and touch no table. A password-reset confirmation only logs.
 
 Emails: `custom_message` runs on both pools and writes every Cognito email in the user's `locale`: `en`, `es` or `pt-BR`, English when missing or unknown; one text per kind (a code for sign-up, resend and attribute verification, a password reset, and the staff invitation with `{username}` and the temporary password). It has no table permission. There is no fallback template: until its handler is deployed the bootstrap fails, and so does every email.
-Writable attributes: every client writes only `email` and `locale`; Cognito requires `email` in the list because it is required, and it cannot change after creation (immutable in the pool schema).
+Writable attributes: the customer client writes `email`, `given_name` and `locale`, the staff clients only `email` and `locale`; Cognito requires `email` in the list because it is required, and it cannot change after creation (immutable in the pool schema).
 
 Jobs, listeners or scheduled work: none.
 
@@ -50,6 +50,6 @@ Every trigger uses AWS Lambda Powertools (Python) for structured JSON logging an
 
 ## Testing
 
-- `lambdas/tests/auth/`: a sign-up confirmation creates one row keyed by `sub` through a session tagged with it, a second one changes nothing, a password reset writes nothing, a failed write fails the confirmation, no email in the logs; every custom message source in every language carries only that language, the invitation keeps both placeholders, and a missing or unknown `locale` gets English.
+- `lambdas/tests/auth/`: a sign-up confirmation creates one row keyed by `sub` through a session tagged with it, a second one changes nothing, a password reset writes nothing, a failed write fails the confirmation, a valid name is stored trimmed and an invalid one dropped, no email in the logs; every custom message source in every language carries only that language, the invitation keeps both placeholders, and a missing or unknown `locale` gets English.
 - `lambdas/tests/core/test_access.py`: pool and group mapping and the session tag, on moto.
 - Planned with the support app: `pre_token_generation` rejects a `staff` user on the wrong app client.
