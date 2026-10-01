@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0014_ingestion
+source: 0015_policy_base_layout
 ---
 
 # assistant: architecture and debt
@@ -340,3 +340,12 @@ source: 0014_ingestion
 - Debt created: none
 - Revisit when: a second caller (a dataset load or a feed) needs fields the contract does not declare.
 - Source: 0014_ingestion
+
+## 2026-10-01: authority names are facts, and Spanish labels carry no register
+
+- Decision: `policy_facts.toml` (version 2 for every country) adds `name`-typed keys (`authority.regulator`, `authority.consumer_agency`, `authority.norm_name`, `service.ombudsman_name`), rendered as core's `Text`, plus `cards.express_replacement_time`. Public authorities carry their real names, in plain words without article; the ombudsman offices are the bank's own and fictional. The Spanish `never_asked` labels drop `tu` and `te` ("el PIN", "los códigos que envía el banco"), so one label reads right in a `usted` document and in Clara's replies in every Spanish-speaking country; a data test rejects any informal word in a rendered Spanish value.
+- Alternatives rejected: names written in the documents (one text cannot name four countries' authorities); labels per register (three variants for one phrase, and a document has no register slot).
+- Reason: everything that varies by country lives in the facts, and a shared label cannot assume a register.
+- Debt created: none
+- Revisit when: a country's authority or norm changes name, or Sebastian reviews the real names.
+- Source: 0015_policy_base_layout

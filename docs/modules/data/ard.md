@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0014_ingestion
+source: 0015_policy_base_layout
 ---
 
 # data: architecture and debt
@@ -94,3 +94,30 @@ source: 0014_ingestion
 - Debt created: none
 - Revisit when: a figure needs every contact in the window, not only the first.
 - Source: 0014_ingestion
+
+## 2026-10-01: literal names and the informal register are rejected in every language
+
+- Decision: the literal-name lists (countries, demonyms, authorities, norms, every `name` value of the facts, and case-sensitive acronyms) apply to every source whatever its language, so a Spanish text naming Brazil fails too; "American" is banned as the US demonym. The register check adds `te` to the listed Spanish words and `teus` and `tuas` to the Portuguese ones.
+- Alternatives rejected: one list per language (a name in another language would pass); banning only the listed pronouns (`te` is as informal as `tú`).
+- Reason: one text serves several countries, and no country's name or register may leak into it.
+- Debt created: none
+- Revisit when: a document needs a word the lists reject in a sense that is not a name, such as "Latin American".
+- Source: 0015_policy_base_layout
+
+## 2026-10-01: pages are checked by rendering, and the word targets follow measured density
+
+- Decision: the validator keeps 600 to 1,050 words per document; `SPEC.md` aims faq and glossary at 700 Spanish words and the other types at 850, from the sample's measured density (about 420 rendered words a page for policy, procedure and guide, 320 for faq and glossary, placeholders adding 6 to 8%), and names `build-policies render` as the page check. The 0013 sample limits, invalid fixtures and chunk windowing are gone: the sample is valid under the production limits, each invalid case is one changed line in a test, and a section is one chunk.
+- Alternatives rejected: a page limit in the validator (it would need a PDF render per check); lowering the word cap for faq (Acceptance 5 sets the same limits for every type).
+- Reason: the words a page holds depend on the document type and on the facts, which only a render shows.
+- Debt created: none
+- Revisit when: the 0016 documents render outside 2 to 3 pages within the targets.
+- Source: 0015_policy_base_layout
+
+## 2026-10-01: the base layout bumps the build version
+
+- Decision: `BUILD_VERSION` goes to 2 with the new chunking parameters, so every published edition rebuilds once; the facts version 2 of every country forces it anyway.
+- Alternatives rejected: keeping version 1 (the content hash would change silently through the chunking parameters alone).
+- Reason: a change of how editions are built is named, not inferred.
+- Debt created: none
+- Revisit when: the build changes how it chunks or renders again.
+- Source: 0015_policy_base_layout

@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0013_policy_search
+source: 0015_policy_base_layout
 ---
 
 # data: product
@@ -34,8 +34,8 @@ Errors and empty states: a query using `USING SAMPLE` is barred from `sql/figure
 
 ### Publish the bank's policy documents
 
-1. Sebastian generates each document against `data/policies/SPEC.md` (taxonomy, sections, placeholders, tone, prompt) and puts it in the policies bucket.
-2. `uv run build-policies` validates every document and names file and line for each rule broken; valid documents are rendered with their country's figures, chunked, embedded and published, each edition as its own PDF.
+1. The writers produce each of the 20 documents once per language (es, pt-BR, en-US) against `data/policies/SPEC.md`, checking them with `uv run build-policies validate` and their pages with `render`, both without AWS.
+2. `uv run build-policies publish` validates every source and names file and line for each rule broken; each valid source becomes one edition per country of its language, rendered with that country's figures, chunked, embedded and published as its own PDF.
 3. A rerun publishes only what changed; a crash resumes where it stopped.
 4. `uv run tune-policies` measures recall@3 on labeled questions and proposes the similarity threshold `search_policies` uses.
 
@@ -45,6 +45,7 @@ Errors and empty states: a document that fails validation, or changed without a 
 
 - Every committed figure must trace to a SQL file under `sql/figures/`; nothing is hand-edited into `figures/`.
 - A dataset that fails `bankdata check` is not fit to generate figures from, even if the commands would still run.
+- One text serves every country of its language: it never names a country, an authority or a norm (those are facts), and the three languages of a document carry the same sections and placeholders.
 - A published edition never changes: a new text needs a new document `version`, a new figure a new country facts `version`, and the old PDF stays reachable.
 - Fixture-based tests never touch the real dataset, so this module's test suite proves the pipeline's logic, not the current data's cleanliness; only `bankdata check` against real data does that (see `docs/analysis/findings.md` for the last real run).
 

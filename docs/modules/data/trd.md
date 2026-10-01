@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0014_ingestion
+source: 0015_policy_base_layout
 ---
 
 # data: technical
@@ -25,8 +25,8 @@ DuckDB is the engine at every step; Parquet is the storage format, local or S3, 
 | `hackathon/data/sql/figures/pitch/` | The pitch's figures, each beside its base rate over any other transaction, each cited by one line of `docs/analysis/findings.md` in the docs root |
 | `hackathon/data/sql/scratch/` | Work-in-progress queries, git-ignored output |
 | `hackathon/data/figures/` | Committed CSV output, always rewritten from `sql/figures/` |
-| `hackathon/data/src/bankdata/policies/` | The policy corpus build: `document` (parse), `validate`, `render` (placeholders with `core.facts`' renderers, figure spans), `chunk`, `dedupe`, `pdf` (Markdown to HTML, WeasyPrint with `template/`, page location with PyMuPDF), `build` (manifest, skip unchanged, vectors, uploads), `tune`, `store` (local folder or S3), `cli` |
-| `hackathon/data/policies/` | `SPEC.md` (the document contract), `RUNBOOK.md`, and `sample/` (valid documents, one invalid fixture per rule, labeled queries), used only by tests |
+| `hackathon/data/src/bankdata/policies/` | The policy corpus build: `document` (parse), `validate`, `sources` (expand each base file into its country editions), `render` (placeholders with `core.facts`' renderers, figure spans), `chunk` (one chunk per section), `dedupe`, `pdf` (Markdown to HTML, WeasyPrint with `template/`, page location with PyMuPDF), `build` (manifest, skip unchanged, vectors, uploads), `tune`, `store` (local folder or S3), `cli` |
+| `hackathon/data/policies/` | `SPEC.md` (the document contract), `RUNBOOK.md`, and `sample/` (two documents in the three languages, valid under the production limits, and labeled queries), used by tests and as the worked example of the spec |
 | `hackathon/data/tests/` | Unit tests on synthetic fixtures under `tests/fixtures/raw/` and the policy sample, never touch the real dataset |
 
 ## CLI commands (no HTTP endpoints; this module is a pipeline, not a service)
@@ -37,7 +37,9 @@ DuckDB is the engine at every step; Parquet is the storage format, local or S3, 
 | `bankdata check [tables...]` | Runs contracts, exit code 1 on any failure |
 | `bankdata figures <group>` | Runs `sql/figures/<group>`, rewrites `figures/<group>/` |
 | `bankdata scratch [names...]` | Runs `sql/scratch` queries, prints and writes `<name>.csv` |
-| `build-policies [--sources <folder>] [--prune]` | Builds and publishes the policy corpus; exit 1 when any document fails |
+| `build-policies publish [--sources <folder>] [--prune]` | Builds and publishes the policy corpus; exit 1 when any document fails |
+| `build-policies validate --sources <folder>` | Every problem with file and line, no AWS; exit 1 on any |
+| `build-policies render --sources <folder> --out <dir> [--country XX]` | Each edition's PDF and its page count, no AWS; renders drafts that fail only length, word or parity rules |
 | `tune-policies --queries <toml>` | Recall@3 and the similarity threshold on the real index, written to `policies/tuning.json` with the corpus hash |
 
 Jobs, listeners or scheduled work: none; every command is run by hand from a developer's machine (the corpus build with the `policies-builder` role, assumed from the `personal` profile).
