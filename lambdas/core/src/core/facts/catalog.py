@@ -142,15 +142,15 @@ STATUS_LABELS: dict[str, dict[str, dict[str, str]]] = {
 LABELS: dict[str, dict[str, dict[str, str]]] = {
     "never_asked": {
         "full_card_number": {
-            "es": "el número completo de tu tarjeta",
+            "es": "el número completo de la tarjeta",
             "pt-BR": "o número completo do seu cartão",
             "en": "your full card number",
         },
         "cvv": {"es": "el código de seguridad", "pt-BR": "o código de segurança", "en": "the security code"},
-        "pin": {"es": "tu PIN", "pt-BR": "a senha do cartão", "en": "your PIN"},
-        "password": {"es": "tu contraseña", "pt-BR": "a senha de acesso", "en": "your password"},
+        "pin": {"es": "el PIN", "pt-BR": "a senha do cartão", "en": "your PIN"},
+        "password": {"es": "la contraseña", "pt-BR": "a senha de acesso", "en": "your password"},
         "one_time_code": {
-            "es": "los códigos que te enviamos",
+            "es": "los códigos que envía el banco",
             "pt-BR": "os códigos que enviamos para você",
             "en": "the codes we send you",
         },

@@ -7,7 +7,6 @@ from core.retrieval import VectorRetriever
 
 from bankdata.policies.build import build
 from bankdata.policies.chunk import Chunking
-from bankdata.policies.spec import SAMPLE_LIMITS
 from bankdata.policies.tune import Outcome, load_queries, threshold, tune
 from policies_harness import SAMPLE, corpus
 
@@ -17,7 +16,7 @@ QUERIES = load_queries(SAMPLE / "queries.toml")
 @pytest.fixture(scope="module")
 def outcomes(tmp_path_factory: pytest.TempPathFactory) -> tuple[Outcome, ...]:
     sample = corpus(tmp_path_factory.mktemp("retrieval"))
-    report = build(sample.target, limits=SAMPLE_LIMITS, chunking=Chunking())
+    report = build(sample.target, chunking=Chunking())
     retriever = VectorRetriever(local_embedder(sample.bedrock), local_index(sample.vectors))
     tuning = tune(retriever, QUERIES, report.corpus_hash, MODEL_ID)
     summary = json.loads(tuning.to_json())
@@ -48,7 +47,7 @@ def test_the_tuned_threshold_keeps_every_hit_and_cuts_every_unrelated_question(
 
 def test_queries_only_reach_their_country(tmp_path: Path) -> None:
     sample = corpus(tmp_path)
-    build(sample.target, limits=SAMPLE_LIMITS, chunking=Chunking())
+    build(sample.target, chunking=Chunking())
     retriever = VectorRetriever(local_embedder(sample.bedrock), local_index(sample.vectors))
 
     chunks = retriever.search("Quanto tempo leva a análise da minha contestação?", "PE", 8, {})

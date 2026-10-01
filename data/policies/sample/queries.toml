@@ -1,74 +1,56 @@
 [[query]]
 country = "PE"
 query = "¿Cuánto tarda la revisión de mi aclaración?"
-doc_id = "pe-dispute-lifecycle"
+doc_id = "pe-unrecognized-charges-faq"
+section = 3
+
+[[query]]
+country = "PE"
+query = "No estoy de acuerdo con la decisión, ¿puedo pedir que el banco reabra mi caso?"
+doc_id = "pe-dispute-deadlines"
 section = 6
 
 [[query]]
-country = "PE"
-query = "¿Qué evidencia me pide el analista?"
-doc_id = "pe-dispute-lifecycle"
-section = 7
+country = "MX"
+query = "¿Qué regulador bancario y qué norma sigue el banco?"
+doc_id = "mx-dispute-deadlines"
+section = 10
 
 [[query]]
-country = "PE"
-query = "No estoy de acuerdo con la decisión, ¿puedo reabrir mi caso?"
-doc_id = "pe-dispute-lifecycle"
-section = 9
+country = "CO"
+query = "Tengo un cargo duplicado, ¿cuánto tarda esa revisión?"
+doc_id = "co-dispute-deadlines"
+section = 8
 
 [[query]]
-country = "PE"
-query = "¿Cuándo se libera la preautorización del hotel?"
-doc_id = "pe-pending-charges"
-section = 5
-
-[[query]]
-country = "PE"
-query = "El grifo reservó un monto fijo y veo dos montos"
-doc_id = "pe-pending-charges"
-section = 7
-
-[[query]]
-country = "PE"
-query = "¿Cuánto cuesta la reposición de mi tarjeta por pérdida?"
-doc_id = "pe-card-replacement"
-section = 6
-
-[[query]]
-country = "PE"
-query = "¿Cuánto tengo que esperar para hablar con una persona?"
-doc_id = "pe-assistant-handoff"
-section = 6
+country = "AR"
+query = "¿Qué es un abono provisional mientras el banco revisa el caso?"
+doc_id = "ar-dispute-deadlines"
+section = 3
 
 [[query]]
 country = "BR"
 query = "Quanto tempo leva a análise da minha contestação?"
 doc_id = "br-unrecognized-charges-faq"
-section = 2
-
-[[query]]
-country = "BR"
-query = "Perdi o cartão, falo com a Clara para confirmar o bloqueio?"
-doc_id = "br-lost-or-stolen-card"
 section = 3
 
 [[query]]
 country = "BR"
-query = "Quando chega o novo cartão no meu endereço?"
-doc_id = "br-lost-or-stolen-card"
-section = 5
+query = "Qual é o prazo da norma para o banco responder uma reclamação?"
+doc_id = "br-dispute-deadlines"
+section = 9
 
 [[query]]
-country = "BR"
-query = "Uma compra recusada gera cobrança?"
-doc_id = "br-transaction-statuses"
-section = 7
+country = "US"
+query = "Where do I open a claim, and can I talk to a person?"
+doc_id = "us-unrecognized-charges-faq"
+section = 2
 
 [[query]]
-country = "BR"
-query = "O que é uma contestação?"
-doc_id = "br-disputes-glossary"
-section = 1
+country = "US"
+query = "Which banking regulator and consumer protection agency does the bank follow?"
+doc_id = "us-dispute-deadlines"
+section = 10
 
 [[query]]
 country = "PE"
@@ -81,3 +63,7 @@ query = "¿Qué clima hará en Lima la próxima semana?"
 [[query]]
 country = "BR"
 query = "Como investir em ações na bolsa?"
+
+[[query]]
+country = "US"
+query = "What is the best mortgage rate this year?"

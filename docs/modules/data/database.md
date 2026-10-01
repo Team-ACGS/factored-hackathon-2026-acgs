@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0013_policy_search
+source: 0015_policy_base_layout
 ---
 
 # data: database
@@ -34,7 +34,7 @@ None. This module reads only its own raw CSV input; no other module's data is re
 
 | Store | Purpose |
 |---|---|
-| Policies bucket (versioned) | Sources at `<country>/<topic>/<doc_id>.md`, rendered editions at `rendered/<country>/<edition>.md`, and `manifest.json` (documents, versions, hashes, vector keys, PDF URLs, corpus hash; no timestamps) |
+| Policies bucket (versioned) | Sources at `<doc_id>/<language>.md` (one base file per language, expanded to its countries' editions), rendered editions at `rendered/<country>/<edition>.md`, and `manifest.json` (documents, versions, hashes, vector keys, PDF URLs, corpus hash; no timestamps) |
 | Documents bucket, behind `docs.factoredai.sdfles.com` | One PDF per edition at `<country>/<doc_id>-v<version>-f<facts_version>.pdf`, immutable and cached for a year |
 | S3 Vectors index `policies` | One vector per excerpt, keyed by its chunk id; metadata layout in `core.retrieval.ChunkRecord` |
 

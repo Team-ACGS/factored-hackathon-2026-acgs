@@ -4,8 +4,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import yaml
+from core.policies import LANGUAGES, SOURCE_LANGUAGES, doc_id
 
-SOURCE_KEY = re.compile(r"^(?P<country>[A-Z]{2})/(?P<topic>[a-z_]+)/(?P<doc_id>[a-z0-9-]+)\.md$")
+SOURCE_KEY = re.compile(r"^(?P<doc_id>[a-z0-9-]+)/(?P<language>[A-Za-z-]+)\.md$")
 SECTION = re.compile(r"^## (?P<heading>\S.*?)\s*$")
 TITLE = re.compile(r"^# ")
 
@@ -54,6 +55,36 @@ class Document:
 
     def line_of(self, name: str) -> int:
         return self.meta_lines.get(name, 1)
+
+    @property
+    def last_line(self) -> int:
+        return self.text.count("\n") + 1
+
+
+@dataclass(frozen=True)
+class Edition:
+    source: Document
+    country: str
+
+    @property
+    def doc_id(self) -> str:
+        return doc_id(self.country, str(self.source.meta["topic"]))
+
+    @property
+    def language(self) -> str:
+        return LANGUAGES[self.country]
+
+
+def expand(source: Document) -> tuple[Edition, ...]:
+    return tuple(Edition(source, country) for country in SOURCE_LANGUAGES[str(source.meta["language"])])
+
+
+def edition_ids(key: str) -> tuple[str, ...]:
+    path = SOURCE_KEY.match(key)
+    if path is None:
+        return ()
+    countries = SOURCE_LANGUAGES.get(path["language"], ())
+    return tuple(f"{country.lower()}-{path['doc_id']}" for country in countries)
 
 
 def parse(key: str, text: str) -> Document:

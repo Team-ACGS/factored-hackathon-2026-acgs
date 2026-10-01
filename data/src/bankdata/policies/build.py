@@ -7,16 +7,16 @@ from core.policies import CountryFacts, chunk_id, edition, encode_figures, pdf_k
 from core.retrieval import ChunkRecord
 from core.vectors import SEARCH_DOCUMENT, Embedder, Vector, VectorIndex
 
-from bankdata.policies.chunk import Chunk, Chunking, chunk_document
+from bankdata.policies.chunk import Chunk, Chunking, chunk_document, embedding_input
 from bankdata.policies.dedupe import Candidate, dedupe
-from bankdata.policies.document import SOURCE_KEY, Problem, parse
+from bankdata.policies.document import Problem
 from bankdata.policies.pdf import render_pdf
-from bankdata.policies.render import RenderedDocument, render
+from bankdata.policies.render import RenderedDocument
+from bankdata.policies.sources import load
 from bankdata.policies.spec import Limits
 from bankdata.policies.store import Store
-from bankdata.policies.validate import validate
 
-BUILD_VERSION = 1
+BUILD_VERSION = 2
 MANIFEST_KEY = "manifest.json"
 FACTS_FILE = "lambdas/core/src/core/policy_facts.toml"
 PDF_CACHE = "public, max-age=31536000, immutable"
@@ -78,29 +78,24 @@ def build(
     facts_state = _facts_state(facts, previous, report)
     stale_countries = {country for country, state in facts_state.items() if state.get("stale")}
 
+    loaded = load(target.sources, facts, limits, chunking)
+    report.problems.extend(loaded.problems)
     rendered: list[RenderedDocument] = []
-    source_hashes: dict[str, str] = {}
-    present: set[str] = set()
-    for key in target.sources.names():
-        path = SOURCE_KEY.match(key)
-        if path is None:
-            continue
-        present.add(path["doc_id"])
-        source = parse(key, (target.sources.read(key) or b"").decode("utf-8"))
-        problems = validate(source, facts, limits)
-        prior = before.get(path["doc_id"])
-        if not problems and str(source.meta["country"]) in stale_countries:
-            problems = [Problem(key, 1, "facts_version", f"the {source.meta['country']} facts changed")]
-        if not problems and prior is not None:
-            problems = _version_problems(key, source.meta["version"], source.source_hash, prior)
+    for document in loaded.editions:
+        prior = before.get(document.doc_id)
+        source_hash = loaded.source_hashes[document.key]
+        problems: list[Problem] = []
+        if document.country in stale_countries:
+            problems = [Problem(document.key, 1, "facts_version", f"the {document.country} facts changed")]
+        elif prior is not None:
+            problems = _version_problems(document.key, document.version, source_hash, prior)
         if problems:
-            report.problems.extend(problems)
+            report.problems.extend(problem for problem in problems if problem not in report.problems)
             continue
-        source_hashes[path["doc_id"]] = source.source_hash
-        rendered.append(render(source, facts[str(source.meta["country"])]))
+        rendered.append(document)
 
     rendered.sort(key=lambda item: item.doc_id)
-    chunks = {document.doc_id: chunk_document(document, chunking) for document in rendered}
+    chunks = {document.doc_id: chunk_document(document) for document in rendered}
     candidates = [
         Candidate(_chunk_id(document, chunk), document.country, document.topic, chunk.text)
         for document in rendered
@@ -126,7 +121,7 @@ def build(
         if prior is not None and prior["content_hash"] == content_hash:
             report.skipped.append(document.doc_id)
             continue
-        entry = _publish(target, document, kept, content_hash, source_hashes[document.doc_id], report)
+        entry = _publish(target, document, kept, content_hash, loaded.source_hashes[document.key], report)
         stale = sorted(set(prior["vectors"]) - set(entry["vectors"])) if prior else []
         if stale:
             report.deleted += target.index.delete(stale)
@@ -134,7 +129,7 @@ def build(
         report.built.append(document.doc_id)
         _write_manifest(target, chunking, facts_state, entries, report)
 
-    for doc_id in sorted(set(before) - present) if prune else []:
+    for doc_id in sorted(set(before) - loaded.present) if prune else []:
         report.deleted += target.index.delete(before[doc_id]["vectors"])
         report.removed.append(doc_id)
         del entries[doc_id]
@@ -185,9 +180,7 @@ def _facts_state(facts: dict[str, CountryFacts], previous: Entry, report: Report
     return state
 
 
-def _version_problems(key: str, version: object, source_hash: str, prior: Entry) -> list[Problem]:
-    if not isinstance(version, int):
-        return []
+def _version_problems(key: str, version: int, source_hash: str, prior: Entry) -> list[Problem]:
     if version < prior["version"]:
         return [Problem(key, 1, "version", f"version went back from {prior['version']}")]
     if version == prior["version"] and source_hash != prior["source_hash"]:
@@ -266,4 +259,4 @@ def _publish(
 
 
 def embedding_text(record: ChunkRecord) -> str:
-    return f"{record.title}\n{record.section}\n\n{record.text}"
+    return embedding_input(record.title, record.section, record.text)

@@ -9,6 +9,7 @@ from bankdata.policies.build import Target
 from bankdata.policies.store import LocalStore
 
 SAMPLE = Path(__file__).resolve().parents[1] / "policies" / "sample"
+SOURCES = SAMPLE / "sources"
 DOMAIN = "docs.factoredai.sdfles.com"
 
 
@@ -35,8 +36,8 @@ class Corpus:
         return self.sources.root / key
 
 
-def corpus(root: Path, sample: str = "valid") -> Corpus:
-    shutil.copytree(SAMPLE / sample, root / "sources")
+def corpus(root: Path) -> Corpus:
+    shutil.copytree(SOURCES, root / "sources")
     return Corpus(
         LocalStore(root / "sources"),
         LocalStore(root / "policies"),

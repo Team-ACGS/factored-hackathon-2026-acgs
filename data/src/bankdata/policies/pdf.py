@@ -68,6 +68,7 @@ class Pdf:
     data: bytes
     section_pages: dict[int, int]
     pages: dict[tuple[int, int], tuple[int, int]]
+    page_count: int
 
 
 def long_date(day: date, locale: str) -> str:
@@ -122,7 +123,7 @@ def render_pdf(document: RenderedDocument, chunks: list[Chunk]) -> Pdf:
     with pymupdf.open(stream=data, filetype="pdf") as pdf:
         texts = [_plain(page.get_text()) for page in pdf]
     pages = {(chunk.section, chunk.number): _locate(chunk, section_pages, texts) for chunk in chunks}
-    return Pdf(data, section_pages, pages)
+    return Pdf(data, section_pages, pages, len(texts))
 
 
 def _locate(chunk: Chunk, section_pages: dict[int, int], texts: list[str]) -> tuple[int, int]:

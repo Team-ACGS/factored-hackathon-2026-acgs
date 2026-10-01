@@ -11,15 +11,19 @@ from core.policies import CountryFacts, decode_figures, policy_facts
 
 from bankdata.policies.build import MANIFEST_KEY, Report, build
 from bankdata.policies.chunk import Chunking
-from bankdata.policies.spec import SAMPLE_LIMITS
 from policies_harness import DOMAIN, Corpus, corpus
 
-DISPUTES = "PE/dispute_lifecycle/pe-dispute-lifecycle.md"
+DEADLINES = "dispute-deadlines/es.md"
+FAQ = "unrecognized-charges-faq/en-US.md"
+EDITIONS = ("mx", "co", "ar", "pe", "br", "us")
+DEADLINES_EDITIONS = sorted(f"{country}-dispute-deadlines" for country in EDITIONS)
+FAQ_EDITIONS = sorted(f"{country}-unrecognized-charges-faq" for country in EDITIONS)
+NOT_SPANISH = ["br-dispute-deadlines", "us-dispute-deadlines"]
 NON_WORD = re.compile(r"[^a-z0-9]+")
 
 
 def run(sample: Corpus, facts: dict[str, CountryFacts] | None = None, prune: bool = True) -> Report:
-    return build(sample.target, facts=facts, limits=SAMPLE_LIMITS, chunking=Chunking(), prune=prune)
+    return build(sample.target, facts=facts, chunking=Chunking(), prune=prune)
 
 
 def manifest(sample: Corpus) -> dict[str, object]:
@@ -41,17 +45,26 @@ def sample(tmp_path: Path) -> Corpus:
     return corpus(tmp_path)
 
 
-def test_the_first_build_publishes_every_document(sample: Corpus) -> None:
+def test_the_first_build_publishes_one_edition_per_country_in_the_0013_form(sample: Corpus) -> None:
     report = run(sample)
 
     assert report.problems == []
-    assert len(report.built) == 8
-    assert report.embedded == report.written == len(sample.vectors.vectors)
-    disputes = entry(sample, "pe-dispute-lifecycle")
-    assert disputes["pdf_url"] == f"https://{DOMAIN}/PE/pe-dispute-lifecycle-v1-f1.pdf"
-    assert sample.documents.read("PE/pe-dispute-lifecycle-v1-f1.pdf")
-    assert sample.policies.read("rendered/PE/pe-dispute-lifecycle-v1-f1.md")
-    assert "pe-dispute-lifecycle-v1-f1-s6-c1" in sample.vectors.vectors
+    assert len(report.built) == 12
+    assert report.embedded == report.written == len(sample.vectors.vectors) == 6 * 10 + 6 * 4
+    deadlines = entry(sample, "pe-dispute-deadlines")
+    assert deadlines["pdf_url"] == f"https://{DOMAIN}/PE/pe-dispute-deadlines-v1-f2.pdf"
+    assert deadlines["source_key"] == DEADLINES
+    assert sample.documents.read("PE/pe-dispute-deadlines-v1-f2.pdf")
+    assert sample.documents.read("US/us-unrecognized-charges-faq-v1-f2.pdf")
+    assert sample.policies.read("rendered/MX/mx-dispute-deadlines-v1-f2.md")
+    assert "pe-dispute-deadlines-v1-f2-s9-c1" in sample.vectors.vectors
+    assert "br-unrecognized-charges-faq-v1-f2-s4-c1" in sample.vectors.vectors
+    metadata = sample.vectors.vectors["co-dispute-deadlines-v1-f2-s10-c1"][1]
+    assert (metadata["country"], metadata["language"], metadata["doc_id"]) == (
+        "CO",
+        "es-CO",
+        "co-dispute-deadlines",
+    )
     assert {call["input_type"] for call in sample.bedrock.calls} == {"search_document"}
 
 
@@ -86,23 +99,19 @@ def test_a_new_facts_value_with_a_new_facts_version_rebuilds_the_country(sample:
     facts = policy_facts()
     peru = facts["PE"]
     review = {"type": "count", "value": 12, "noun": "business_day"}
-    changed = {**facts, "PE": replace(peru, version=2, specs={**peru.specs, "claims.review_time": review})}
+    changed = {**facts, "PE": replace(peru, version=3, specs={**peru.specs, "claims.review_time": review})}
 
     report = run(sample, changed)
 
     assert report.problems == []
-    assert sorted(report.built) == [
-        "pe-assistant-handoff",
-        "pe-card-replacement",
-        "pe-dispute-lifecycle",
-        "pe-pending-charges",
-    ]
-    old, new = "pe-dispute-lifecycle-v1-f1-s6-c1", "pe-dispute-lifecycle-v1-f2-s6-c1"
+    assert sorted(report.built) == ["pe-dispute-deadlines", "pe-unrecognized-charges-faq"]
+    old, new = "pe-dispute-deadlines-v1-f2-s7-c1", "pe-dispute-deadlines-v1-f3-s7-c1"
     assert old not in sample.vectors.vectors
     metadata = sample.vectors.vectors[new][1]
     assert "12 días hábiles" in metadata["text"]
     assert decode_figures(metadata["figures"])["claims.review_time"] == review
-    assert sample.documents.read("PE/pe-dispute-lifecycle-v1-f1.pdf")
+    assert "10 días hábiles" in sample.vectors.vectors["mx-dispute-deadlines-v1-f2-s7-c1"][1]["text"]
+    assert sample.documents.read("PE/pe-dispute-deadlines-v1-f2.pdf")
 
 
 def test_a_facts_value_changed_without_a_new_version_fails_the_country(sample: Corpus) -> None:
@@ -115,72 +124,98 @@ def test_a_facts_value_changed_without_a_new_version_fails_the_country(sample: C
     report = run(sample, changed)
 
     assert {problem.code for problem in report.problems} == {"facts_version"}
+    assert {problem.file for problem in report.problems} == {
+        "lambdas/core/src/core/policy_facts.toml",
+        DEADLINES,
+        "unrecognized-charges-faq/es.md",
+    }
     assert report.built == []
-    assert "pe-dispute-lifecycle-v1-f1-s6-c1" in sample.vectors.vectors
+    assert "pe-dispute-deadlines-v1-f2-s7-c1" in sample.vectors.vectors
+
+
+def bump(sample: Corpus, document: str, old: str | None = None, new: str = "") -> None:
+    for path in sample.source(document).iterdir():
+        text = path.read_text(encoding="utf-8").replace("version: 1", "version: 2")
+        path.write_text(text.replace(old, new) if old and path.name == "es.md" else text, encoding="utf-8")
 
 
 def test_a_new_document_version_replaces_its_vectors_and_keeps_the_old_pdf(sample: Corpus) -> None:
     run(sample)
-    path = sample.source(DISPUTES)
-    text = path.read_text(encoding="utf-8").replace("version: 1", "version: 2")
-    path.write_text(text.replace("en cualquier momento", "cuando quieras"), encoding="utf-8")
+    bump(sample, "dispute-deadlines", "en cualquier momento", "cuando lo necesite")
 
     report = run(sample)
 
-    assert report.built == ["pe-dispute-lifecycle"]
-    assert not any(key.startswith("pe-dispute-lifecycle-v1-") for key in sample.vectors.vectors)
-    assert "pe-dispute-lifecycle-v2-f1-s10-c1" in sample.vectors.vectors
-    assert sample.documents.read("PE/pe-dispute-lifecycle-v1-f1.pdf")
-    assert sample.documents.read("PE/pe-dispute-lifecycle-v2-f1.pdf")
+    assert report.problems == []
+    assert sorted(report.built) == DEADLINES_EDITIONS
+    assert not any("dispute-deadlines-v1-" in key for key in sample.vectors.vectors)
+    assert "mx-dispute-deadlines-v2-f2-s10-c1" in sample.vectors.vectors
+    assert sample.documents.read("MX/mx-dispute-deadlines-v1-f2.pdf")
+    assert sample.documents.read("MX/mx-dispute-deadlines-v2-f2.pdf")
 
 
-def test_a_changed_text_without_a_new_version_fails_and_keeps_the_published_one(sample: Corpus) -> None:
+def test_a_changed_text_without_a_new_version_fails_every_edition_and_keeps_the_published_ones(
+    sample: Corpus,
+) -> None:
     run(sample)
-    path = sample.source(DISPUTES)
+    path = sample.source(DEADLINES)
     path.write_text(path.read_text(encoding="utf-8").replace("en cualquier momento", "ya"), encoding="utf-8")
 
     report = run(sample)
 
-    assert [(problem.file, problem.code) for problem in report.problems] == [(DISPUTES, "version")]
-    assert entry(sample, "pe-dispute-lifecycle")["version"] == 1
-    assert "pe-dispute-lifecycle-v1-f1-s10-c1" in sample.vectors.vectors
+    assert [(problem.file, problem.code) for problem in report.problems] == [(DEADLINES, "version")]
+    assert report.built == []
+    assert sorted(report.skipped) == sorted([*FAQ_EDITIONS, *NOT_SPANISH])
+    assert entry(sample, "pe-dispute-deadlines")["version"] == 1
+    assert "pe-dispute-deadlines-v1-f2-s10-c1" in sample.vectors.vectors
 
 
-def test_an_invalid_document_fails_alone(sample: Corpus) -> None:
-    path = sample.source(DISPUTES)
-    path.write_text(path.read_text(encoding="utf-8").replace("debes reportarlo", "debes reportar un fraude"))
+def test_an_invalid_base_file_fails_its_editions_alone(sample: Corpus) -> None:
+    path = sample.source(DEADLINES)
+    path.write_text(path.read_text(encoding="utf-8").replace("que no hizo la compra", "que no hubo fraude"))
 
     report = run(sample)
 
-    assert [(problem.file, problem.line, problem.code) for problem in report.problems] == [
-        (DISPUTES, 22, "forbidden_word")
-    ]
-    assert len(report.built) == 7
+    assert [(problem.file, problem.code) for problem in report.problems] == [(DEADLINES, "forbidden_word")]
+    assert sorted(report.built) == sorted([*FAQ_EDITIONS, *NOT_SPANISH])
 
 
-def test_a_removed_document_loses_its_vectors_but_not_its_pdf(sample: Corpus) -> None:
+def test_a_parity_failure_fails_every_edition_of_the_document(sample: Corpus) -> None:
+    path = sample.source(FAQ)
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("or to {{policy.channels.email}}.", "or by email.")
+    )
+
+    report = run(sample)
+
+    assert [(problem.file, problem.code) for problem in report.problems] == [(FAQ, "parity")]
+    assert sorted(report.built) == DEADLINES_EDITIONS
+
+
+def test_a_removed_document_loses_its_vectors_but_not_its_pdfs(sample: Corpus) -> None:
     run(sample)
-    sample.source(DISPUTES).unlink()
+    for path in sample.source("dispute-deadlines").iterdir():
+        path.unlink()
 
     report = run(sample)
 
-    assert report.removed == ["pe-dispute-lifecycle"]
-    assert not any(key.startswith("pe-dispute-lifecycle") for key in sample.vectors.vectors)
-    assert sample.documents.read("PE/pe-dispute-lifecycle-v1-f1.pdf")
+    assert sorted(report.removed) == DEADLINES_EDITIONS
+    assert not any("dispute-deadlines" in key for key in sample.vectors.vectors)
+    assert sample.documents.read("PE/pe-dispute-deadlines-v1-f2.pdf")
     documents = manifest(sample)["documents"]
     assert isinstance(documents, dict)
-    assert "pe-dispute-lifecycle" not in documents
+    assert len(documents) == 6
 
 
 def test_a_folder_build_keeps_the_published_documents_it_does_not_hold(sample: Corpus) -> None:
     run(sample)
-    sample.source(DISPUTES).unlink()
+    for path in sample.source("dispute-deadlines").iterdir():
+        path.unlink()
 
     report = run(sample, prune=False)
 
     assert report.removed == []
-    assert "pe-dispute-lifecycle-v1-f1-s6-c1" in sample.vectors.vectors
-    assert entry(sample, "pe-dispute-lifecycle")["version"] == 1
+    assert "pe-dispute-deadlines-v1-f2-s9-c1" in sample.vectors.vectors
+    assert entry(sample, "pe-dispute-deadlines")["version"] == 1
 
 
 def test_a_build_that_stops_midway_resumes_where_it_stopped(sample: Corpus) -> None:
@@ -198,8 +233,8 @@ def test_a_build_that_stops_midway_resumes_where_it_stopped(sample: Corpus) -> N
     report = run(sample)
 
     assert sorted(report.skipped) == sorted(done)
-    assert len(report.built) == 5
-    assert len(sample.bedrock.calls) == 5
+    assert len(report.built) == 9
+    assert len(sample.bedrock.calls) == 9
     assert report.embedded == sum(report.chunks_per_document[doc_id] for doc_id in report.built)
 
 

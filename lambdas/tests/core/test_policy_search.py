@@ -122,7 +122,7 @@ def test_returns_cited_chunks_of_the_contexts_country_only(
     chunks = [ledger.facts[fact_id] for fact_id in result.ids if fact_id.startswith("p")]
     assert chunks
     assert {fact.fields["country"] for fact in chunks} == {Trace("PE")}
-    assert chunks[0].fields["chunk_id"] == Trace("pe-dispute-lifecycle-v2-f1-s3-c1")
+    assert chunks[0].fields["chunk_id"] == Trace("pe-dispute-lifecycle-v2-f2-s3-c1")
     assert ledger.facts[result.ids[-1]].fields["ids"] == FactIds(tuple(fact.id for fact in chunks))
     assert clients[0].calls[0]["input_type"] == "search_query"
 
@@ -139,7 +139,7 @@ def test_a_chunk_is_facts_with_typed_figures_and_a_url_at_its_page(
     assert fields["section"] == Text("Plazos")
     assert fields["text"] == Passage("La revisión de tu aclaración toma hasta 10 días hábiles.")
     assert fields["effective_date"] == Day(date(2026, 9, 1))
-    assert fields["url"] == Trace(f"https://{DOMAIN}/PE/pe-dispute-lifecycle-v2-f1.pdf#page=4")
+    assert fields["url"] == Trace(f"https://{DOMAIN}/PE/pe-dispute-lifecycle-v2-f2.pdf#page=4")
     assert fields["figures.claims.review_time"] == Count(10, "business_day")
     assert fields["figures.legal.claim_response"] == Count(15, "business_day")
     assert fields["figures.legal.claim_response.verified"] == Flag(False)
@@ -212,7 +212,7 @@ def test_an_unreadable_answer_is_unavailable_never_a_crash(
     clients: tuple[FakeBedrockRuntime, FakeS3Vectors], broken: str
 ) -> None:
     bedrock, vectors = clients
-    key = "pe-dispute-lifecycle-v2-f1-s3-c1"
+    key = "pe-dispute-lifecycle-v2-f2-s3-c1"
     data, metadata = vectors.vectors[key]
     if broken == "short_embeddings":
         bedrock.short = True

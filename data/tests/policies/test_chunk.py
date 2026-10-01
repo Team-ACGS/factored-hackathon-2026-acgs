@@ -1,90 +1,97 @@
 import re
-from itertools import pairwise
 
 from core.policies import policy_facts
 
-from bankdata.policies.chunk import Chunking, chunk_document, chunk_section, estimate_tokens
+from bankdata.policies.chunk import Chunking, chunk_document, oversized
 from bankdata.policies.dedupe import Candidate, dedupe
-from bankdata.policies.document import parse
-from bankdata.policies.render import RenderedDocument, RenderedSection, render
-from policies_harness import SAMPLE
+from bankdata.policies.document import expand, parse
+from bankdata.policies.render import RenderedDocument, render
+from policies_harness import SOURCES
 
-SMALL = Chunking(min_tokens=20, max_tokens=60, overlap=0.15)
 DIGIT = re.compile(r"\d")
 LIST_MARKER = re.compile(r"^\s*\d+\.\s", re.MULTILINE)
+KEYS = sorted(path.relative_to(SOURCES).as_posix() for path in SOURCES.rglob("*.md"))
 
 
-def sample(key: str) -> RenderedDocument:
-    document = parse(key, (SAMPLE / "valid" / key).read_text(encoding="utf-8"))
-    return render(document, policy_facts()[key[:2]])
+def editions(key: str, text: str | None = None) -> list[RenderedDocument]:
+    source = parse(key, text or (SOURCES / key).read_text(encoding="utf-8"))
+    return [render(edition, policy_facts()[edition.country]) for edition in expand(source)]
 
 
-def guide() -> RenderedDocument:
-    return sample("PE/pending_charges/pe-pending-charges.md")
+def test_a_base_file_expands_into_one_edition_per_country_of_its_language() -> None:
+    found = {key: [(document.country, document.doc_id) for document in editions(key)] for key in KEYS}
+
+    assert found["dispute-deadlines/es.md"] == [
+        ("MX", "mx-dispute-deadlines"),
+        ("CO", "co-dispute-deadlines"),
+        ("AR", "ar-dispute-deadlines"),
+        ("PE", "pe-dispute-deadlines"),
+    ]
+    assert found["dispute-deadlines/pt-BR.md"] == [("BR", "br-dispute-deadlines")]
+    assert found["unrecognized-charges-faq/en-US.md"] == [("US", "us-unrecognized-charges-faq")]
+    assert [document.language for document in editions("dispute-deadlines/es.md")] == [
+        "es-MX",
+        "es-CO",
+        "es-AR",
+        "es-PE",
+    ]
 
 
-def test_chunks_stay_inside_their_section_and_are_deterministic() -> None:
-    document = guide()
+def test_each_section_becomes_one_chunk() -> None:
+    for key in KEYS:
+        for document in editions(key):
+            chunks = chunk_document(document)
 
-    chunks = chunk_document(document, SMALL)
-
-    assert chunks == chunk_document(guide(), SMALL)
-    for chunk in chunks:
-        section = document.sections[chunk.section - 1]
-        assert section.text[chunk.start : chunk.end] == chunk.text
-    assert {chunk.section for chunk in chunks} == {section.number for section in document.sections}
-
-
-def test_consecutive_chunks_overlap_by_about_fifteen_percent() -> None:
-    document = guide()
-    section = document.sections[6]
-
-    chunks = chunk_section(section, SMALL)
-
-    assert len(chunks) > 2
-    for previous, following in pairwise(chunks):
-        overlap = previous.end - following.start
-        assert 0 < overlap <= 0.15 * (previous.end - previous.start)
-        assert estimate_tokens(previous.text) <= SMALL.max_tokens
+            assert [(chunk.section, chunk.number) for chunk in chunks] == [
+                (section.number, 1) for section in document.sections
+            ]
+            assert [chunk.text for chunk in chunks] == [section.text.strip() for section in document.sections]
+            assert oversized(document, Chunking()) == []
 
 
-def test_production_chunks_hold_three_to_four_hundred_fifty_tokens() -> None:
-    sentence = "El banco revisa cada movimiento con cuidado y te explica lo que encontró en tu caso. "
-    section = RenderedSection(1, "Reglas", (sentence * 60).strip(), ())
+def test_a_section_too_long_to_embed_fails_with_file_line_and_country() -> None:
+    key = "dispute-deadlines/es.md"
+    text = (SOURCES / key).read_text(encoding="utf-8")
+    words = " ".join(["administración"] * 240)
+    long = text.replace("Este resumen no reemplaza la norma ni cita sus artículos.", words)
+    line = text.splitlines().index("## Marco regulatorio") + 1
 
-    chunks = chunk_section(section, Chunking())
+    found = [problem for document in editions(key, long) for problem in oversized(document, Chunking())]
 
-    assert len(chunks) > 3
-    assert all(300 <= estimate_tokens(chunk.text) <= 450 for chunk in chunks[:-1])
-    assert all(estimate_tokens(chunk.text) <= 450 for chunk in chunks)
-    assert all(previous.end > following.start for previous, following in pairwise(chunks))
+    assert [(problem.file, problem.line, problem.code) for problem in found] == [
+        (key, line, "chunk_length")
+    ] * 4
+    assert [problem.message.split(" in ")[1].split()[0] for problem in found] == ["MX", "CO", "AR", "PE"]
+
+
+def test_one_text_renders_each_country_its_own_figures_and_names() -> None:
+    [mexico, colombia, argentina, peru] = editions("dispute-deadlines/es.md")
+    regulatory = [document.sections[9] for document in (mexico, colombia, argentina, peru)]
+
+    assert "(Comisión Nacional Bancaria y de Valores)" in regulatory[0].text
+    assert "(Banco Central de la República Argentina)" in regulatory[2].text
+    assert "(Reglamento de Tarjetas de Crédito y Débito)" in regulatory[3].text
+    assert "10 días hábiles" in mexico.sections[6].text
+    assert "8 días hábiles" in argentina.sections[6].text
+    chunk = chunk_document(colombia)[9]
+    figures = colombia.figures(chunk.start, chunk.end, colombia.sections[9])
+    assert figures["authority.regulator"] == {
+        "type": "name",
+        "value": "Superintendencia Financiera de Colombia",
+    }
 
 
 def test_every_rendered_figure_of_a_chunk_is_in_its_figures_map() -> None:
-    for key in ("PE/pending_charges/pe-pending-charges.md", "PE/dispute_lifecycle/pe-dispute-lifecycle.md"):
-        document = sample(key)
-        for chunk in chunk_document(document, SMALL):
-            section = document.sections[chunk.section - 1]
-            figures = document.figures(chunk.start, chunk.end, section)
-            text = section.text
-            for span in section.spans:
-                if span.start < chunk.end and span.end > chunk.start:
+    for key in KEYS:
+        for document in editions(key):
+            for chunk in chunk_document(document):
+                section = document.sections[chunk.section - 1]
+                figures = document.figures(chunk.start, chunk.end, section)
+                text = section.text
+                for span in section.spans:
                     assert span.key in figures
                     text = text[: span.start] + " " * (span.end - span.start) + text[span.end :]
-            assert not DIGIT.search(LIST_MARKER.sub("", text[chunk.start : chunk.end])), (key, chunk)
-
-
-def test_a_figure_renders_from_the_country_facts() -> None:
-    document = guide()
-
-    times = document.sections[4]
-
-    assert "10 días" in times.text
-    assert {span.key for span in times.spans} == {
-        "holds.preauth_hotel",
-        "holds.preauth_fuel",
-        "holds.preauth_car_rental",
-    }
+                assert not DIGIT.search(LIST_MARKER.sub("", text[chunk.start : chunk.end])), (key, chunk)
 
 
 def test_dedupe_drops_exact_and_near_duplicates_within_a_country() -> None:

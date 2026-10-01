@@ -5,11 +5,16 @@ from typing import Annotated
 
 import boto3
 import typer
+from core.policies import COUNTRIES, pdf_key, policy_facts
 from core.retrieval import VectorRetriever
 from core.vectors import BUILD_CONFIG, Embedder, VectorIndex, bedrock_runtime, s3vectors
 from dotenv import load_dotenv
 
 from bankdata.policies.build import Target, build, read_manifest
+from bankdata.policies.chunk import Chunking, chunk_document
+from bankdata.policies.pdf import render_pdf
+from bankdata.policies.sources import load
+from bankdata.policies.spec import RENDERABLE, Limits
 from bankdata.policies.store import LocalStore, S3Store
 from bankdata.policies.tune import load_queries, tune
 from bankdata.settings import DATA_DIR
@@ -20,6 +25,9 @@ tune_app = typer.Typer(add_completion=False)
 BUILD_SESSION_SECONDS = 4 * 3600
 
 Profile = Annotated[str, typer.Option(help="AWS profile that assumes the policies-builder role")]
+Folder = Annotated[
+    Path, typer.Option(exists=True, file_okay=False, help="A local folder of sources, <doc_id>/<language>.md")
+]
 
 
 @dataclass(frozen=True)
@@ -63,8 +71,8 @@ class Config:
         return session, embedder, VectorIndex(s3vectors(BUILD_CONFIG, session), self.index_arn)
 
 
-@build_app.command()
-def build_policies(
+@build_app.command("publish")
+def publish(
     sources: Annotated[
         Path | None, typer.Option(help="A local folder of sources instead of the policies bucket")
     ] = None,
@@ -100,6 +108,39 @@ def build_policies(
         typer.echo(f"{doc_id:48s} {count:>5} chunks")
     typer.echo(f"corpus {report.corpus_hash}")
     raise typer.Exit(code=1 if report.problems else 0)
+
+
+@build_app.command("validate")
+def validate_sources(sources: Folder) -> None:
+    loaded = load(LocalStore(sources), policy_facts(), Limits(), Chunking())
+    for problem in loaded.problems:
+        typer.echo(str(problem), err=True)
+    files = len({problem.file for problem in loaded.problems})
+    typer.echo(f"{len(loaded.editions)} editions valid, {files} files with problems")
+    raise typer.Exit(code=1 if loaded.problems else 0)
+
+
+@build_app.command("render")
+def render_sources(
+    sources: Folder,
+    out: Annotated[Path, typer.Option(file_okay=False, help="Where to write <country>/<edition>.pdf")],
+    country: Annotated[str | None, typer.Option(help="Render only this country's editions")] = None,
+) -> None:
+    if country is not None and country not in COUNTRIES:
+        raise typer.BadParameter(f"one of {', '.join(COUNTRIES)}", param_hint="--country")
+    loaded = load(LocalStore(sources), policy_facts(), Limits(), Chunking(), RENDERABLE)
+    for problem in loaded.problems:
+        typer.echo(str(problem), err=True)
+    for document in sorted(loaded.editions, key=lambda item: item.doc_id):
+        if country is not None and document.country != country:
+            continue
+        pdf = render_pdf(document, chunk_document(document))
+        key = pdf_key(document.country, document.doc_id, document.version, document.facts.version)
+        path = out / key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(pdf.data)
+        typer.echo(f"{key:56s} {pdf.page_count - 1:>3} pages")
+    raise typer.Exit(code=1 if loaded.problems else 0)
 
 
 @tune_app.command()

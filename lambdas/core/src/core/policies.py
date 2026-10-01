@@ -8,10 +8,15 @@ from functools import cache
 from importlib.resources import files
 from typing import Any
 
-from core.facts.values import Channel, Count, Labels, Money, Percent, Status, Url, Value
+from core.facts.values import Channel, Count, Labels, Money, Percent, Status, Text, Url, Value
 
 COUNTRIES = ("MX", "CO", "AR", "PE", "BR", "US")
 LANGUAGES = {"MX": "es-MX", "CO": "es-CO", "AR": "es-AR", "PE": "es-PE", "BR": "pt-BR", "US": "en-US"}
+SOURCE_LANGUAGES: dict[str, tuple[str, ...]] = {
+    "es": ("MX", "CO", "AR", "PE"),
+    "pt-BR": ("BR",),
+    "en-US": ("US",),
+}
 DOC_TYPES = ("policy", "procedure", "guide", "faq", "glossary")
 
 TOPICS: dict[str, tuple[str, str]] = {
@@ -91,6 +96,8 @@ def figure(spec: Mapping[str, Any]) -> Value:
             return Channel(str(spec["kind"]), str(spec["value"]))
         case "url":
             return Url(str(spec["value"]))
+        case "name":
+            return Text(str(spec["value"]))
         case "status":
             return Status(str(spec["domain"]), str(spec["value"]))
         case "enum_list":
@@ -109,8 +116,12 @@ def decode_figures(encoded: str) -> dict[str, Mapping[str, Any]]:
     return decoded
 
 
+def base_id(topic: str) -> str:
+    return topic.replace("_", "-")
+
+
 def doc_id(country: str, topic: str) -> str:
-    return f"{country.lower()}-{topic.replace('_', '-')}"
+    return f"{country.lower()}-{base_id(topic)}"
 
 
 def edition(document: str, version: int, facts_version: int) -> str:

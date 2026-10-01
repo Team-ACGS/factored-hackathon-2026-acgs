@@ -1,26 +1,28 @@
 # Policy corpus spec
 
-The contract for LATAM Bank's policy documents: what Sebastian generates, what `uv run build-policies` accepts, and what `search_policies` returns from.
+The contract for LATAM Bank's policy documents: what the writers produce, what `uv run build-policies` accepts, and what `search_policies` returns from.
 LATAM Bank is fictional, and so is every value in its documents.
-120 documents: 20 per country, six countries, one topic each, about 40 pages each.
+20 base documents, each written once in Spanish (`es`), Brazilian Portuguese (`pt-BR`) and US English (`en-US`): 60 sources.
+The build renders each source once per country of its language, so the corpus is 120 editions of 2 to 3 pages each.
 
 ## Where documents live
 
-- Sources live in the policies bucket at `<country>/<topic>/<doc_id>.md`, never in git; only the sample under `data/policies/sample/` is committed.
-- `country` is the uppercase code (`MX`, `CO`, `AR`, `PE`, `BR`, `US`), `topic` is a topic slug from the taxonomy below, and `doc_id` is `<country lowercase>-<topic with hyphens>`, for example `mx-dispute-lifecycle`.
+- Sources live at `<doc_id>/<language>.md`: in the docs root's `docs/policies/`, built with `--sources`, or in the policies bucket in the same layout; only the sample under `data/policies/sample/sources/` is committed here.
+- `doc_id` is the topic with hyphens (`dispute-lifecycle`), and `language` is `es`, `pt-BR` or `en-US`.
+- Each source expands into one edition per country of its language: `es` into MX, CO, AR and PE, `pt-BR` into BR, `en-US` into US.
+- An edition's `doc_id` is `<country lowercase>-<doc_id>` (`mx-dispute-lifecycle`), its language the country's (`es-MX`), and its figures the country's values.
 - Every figure comes from `lambdas/core/src/core/policy_facts.toml`, the same file the rules read, so a document can never contradict a rule.
-- An edition of a document is its `version` plus its country's facts `version`: a new edition gets its own PDF at `<country>/<doc_id>-v<version>-f<facts_version>.pdf`, and older PDFs stay reachable.
+- An edition is the source's `version` plus its country's facts `version`: a new edition gets its own PDF at `<country>/<edition doc_id>-v<version>-f<facts_version>.pdf`, and older PDFs stay reachable.
 
 ## Frontmatter
 
-Every document starts with this YAML frontmatter and nothing else above it:
+Every source starts with this YAML frontmatter and nothing else above it:
 
 ```yaml
 ---
-doc_id: mx-dispute-lifecycle
+doc_id: dispute-lifecycle
 title: Ciclo de una aclaración, de la apertura al cierre
-country: MX
-language: es-MX
+language: es
 topic: dispute_lifecycle
 doc_type: procedure
 version: 1
@@ -30,18 +32,20 @@ effective_date: 2026-10-01
 
 | Field | Rule |
 |---|---|
-| `doc_id` | `<country lowercase>-<topic with hyphens>`, matching the path |
-| `title` | In the document's language, at most 90 characters, no digit, no forbidden word |
-| `country` | `MX`, `CO`, `AR`, `PE`, `BR` or `US`, matching the path |
-| `language` | The country's: `es-MX`, `es-CO`, `es-AR`, `es-PE`, `pt-BR`, `en-US` |
-| `topic` | A topic slug from the taxonomy, matching the path |
+| `doc_id` | The topic with hyphens, matching the folder |
+| `title` | In the source's language, at most 90 characters, no digit, no forbidden word, no literal name |
+| `language` | `es`, `pt-BR` or `en-US`, matching the file name |
+| `topic` | A topic slug from the taxonomy |
 | `doc_type` | The taxonomy's `doc_type` for that topic |
-| `version` | Integer from 1, raised on every change of the text |
+| `version` | Integer from 1, raised on every change of the text, in the three files together |
 | `effective_date` | ISO date |
+
+There is no `country`: the build sets it when it expands the source.
 
 ## Taxonomy
 
-Four groups, 20 topics, one document per topic and country.
+Four groups, 20 topics, one base document per topic, written once in each of the three languages.
+The folder of a document is its topic with hyphens: `dispute_lifecycle` lives in `dispute-lifecycle/`.
 The group is not written in the frontmatter: the build derives it from the topic, and `search_policies` filters by it.
 
 ### `disputes`: unrecognized charges and disputes
@@ -87,14 +91,13 @@ The group is not written in the frontmatter: the build derives it from the topic
 ## Sections
 
 Every document is a sequence of `##` sections, with no text before the first one and no `#` heading (the title comes from the frontmatter).
-Each section has 300 to 1,500 words and paragraphs of at most 150 words, so chunks of 300 to 450 tokens never cross a section.
-The sections in the sources are the ones the writer generates; a policy's last section, Versioning, is not in the source (see below).
 Inside a section, use paragraphs, `-` lists, ordered lists, `###` subheadings and `**bold**`; never tables, links, images, HTML or code.
 The build numbers sections in order (`s1`, `s2`, ...) and uses that number for the PDF anchor and the chunk id, so headings carry no number.
+Each section becomes one chunk, so a section is self-contained: it names what it talks about instead of leaning on the section before it.
 
 ### policy, procedure, guide: fixed headings
 
-The headings are exactly these, in this order, in the document's language (the three Spanish variants share one list).
+The headings are exactly these, in this order, in the source's language.
 
 | doc_type | es | pt-BR | en |
 |---|---|---|---|
@@ -133,28 +136,37 @@ The build writes Versioning at render time from the frontmatter and the facts fi
 
 ### Length
 
-The bank template fits about 350 words per page, so a document of about 40 pages has about 14,000 words.
-The generation prompt aims each section at the target below; the validator only enforces 300 to 1,500.
+A document is 2 to 3 pages, the cover not counted.
+The validator counts source words: 60 to 250 per section and 600 to 1,050 per document, the same in the three languages.
+Pages hold fewer source words than that range suggests, measured on the sample:
 
-| doc_type | Generated sections | Target words per section | Words per document | Pages, with the cover |
-|---|---|---|---|---|
-| policy | 10 | 1,400 | 14,000 | about 41 |
-| procedure | 10 | 1,400 | 14,000 | about 41 |
-| guide | 8 | 1,450 | 11,600 | about 34 |
-| faq | 10 subtopics, 5 questions each | 1,400 | 14,000 | about 41 |
-| glossary | 10 term groups | 1,400 | 14,000 | about 41 |
+- a page of a policy, procedure or guide holds about 420 rendered words, and a page of an faq or glossary about 320, since every `###` question or term takes its own line and space;
+- placeholders render longer than they read: a document grows about 6 to 8% (a spelled-out authority can be 14 words), and English can run about 7% longer than Spanish;
+- a policy's PDF adds Versioning, about 70 words, and every page carries the footer.
 
-A guide cannot reach 40 pages under the 1,500-word cap with its eight sections, and is about 34 pages.
+So an faq or glossary near 1,050 words renders 4 pages; keep to the targets below, which land within 3.
+
+| doc_type | Sections | Target words per section | Target words per Spanish document |
+|---|---|---|---|
+| policy | 10 | 85 | 850 |
+| procedure | 10 | 85 | 850 |
+| guide | 8 | 105 | 850 |
+| faq | 4 to 6 subtopics, 12 to 16 questions | 120 to 180 | 700 |
+| glossary | 4 to 6 term groups | 120 to 180 | 700 |
+
+The check on pages is `uv run build-policies render`, which prints each edition's page count; the validator checks words, never pages.
+An edition over 3 pages is shortened at its source.
 
 ### faq
 
-- Six to ten `##` sections (ten is the target), one per subtopic, with a heading the writer chooses (no digit, no forbidden word).
+- Four to six `##` sections, one per subtopic, with a heading the writer chooses (no digit, no forbidden word, no literal name).
 - Each question is a `###` heading ending in a question mark (`¿...?` in Spanish), followed by its answer in one to three paragraphs.
-- Forty to sixty questions in the document.
+- Twelve to sixteen questions in the document.
 
 ### glossary
 
-- Five to ten `##` sections (ten is the target), one per group of related terms, with a heading the writer chooses.
+- Four to six `##` sections, one per group of related terms, with a heading the writer chooses.
+- As many terms as fit the document's length.
 - Each term is a `###` heading followed by three paragraphs that start with these labels, in this order:
 
 | es | pt-BR | en |
@@ -163,19 +175,41 @@ A guide cannot reach 40 pages under the 1,500-word cap with its eight sections, 
 | `**Ejemplo:**` | `**Exemplo:**` | `**Example:**` |
 | `**Términos relacionados:**` | `**Termos relacionados:**` | `**Related terms:**` |
 
+## Parity across languages
+
+The three files of a document say the same thing.
+The build compares `pt-BR` and `en-US` with `es` and fails the whole document, every edition of it, when:
+
+- a language file is missing;
+- `doc_id`, `topic`, `doc_type`, `version` or `effective_date` differ;
+- the number of sections differs, compared by position;
+- a section has a different set of placeholders than the same section in `es`.
+
+Translate section by section and keep every placeholder in its section.
+
 ## Figures are placeholders
 
-Every figure is a placeholder `{{policy.<group>.<key>}}`: a time, an amount, a fee, a percentage, a stage name, a phone, an email, an app path, a schedule or a URL.
-The country is never in the placeholder: the build renders it with the document's country values.
+Every figure is a placeholder `{{policy.<group>.<key>}}`: a time, an amount, a fee, a percentage, a stage name, a phone, an email, an app path, a schedule, a URL or a name.
+The country is never in the placeholder: the build renders it with each edition's country values.
 Placeholders go in the text, never in headings, and are written exactly as below, without spaces inside the braces.
 
 ```
-Cuando tu caso queda {{policy.claims.stage_assigned}}, la revisión toma hasta {{policy.claims.review_time}}.
+Cuando su caso queda {{policy.claims.stage_assigned}}, la revisión toma hasta {{policy.claims.review_time}}.
 ```
 
-Rendered for MX: "Cuando tu caso queda asignado, la revisión toma hasta 10 días hábiles."
+Rendered for MX: "Cuando su caso queda asignado, la revisión toma hasta 10 días hábiles."
 A count renders with its noun ("10 días hábiles"), so the text never repeats the noun after it.
-A stage renders as the label the app shows, which agrees with "caso" (masculine in Spanish and Portuguese), so write it next to "tu caso", "seu caso" or "your case".
+A stage renders as the label the app shows, which agrees with "caso" (masculine in Spanish and Portuguese), so write it next to "su caso", "seu caso" or "your case".
+
+### Names
+
+A `name` placeholder renders as plain text, without an article, and its gender changes from country to country (el Banco Central, la Comisión).
+Introduce it after a generic noun, in parentheses or by apposition with commas, never after a colon in the middle of a sentence:
+
+```
+El banco sigue las reglas del regulador bancario ({{policy.authority.regulator}}).
+Puede escribir a la defensoría del banco, {{policy.service.ombudsman_name}}, en {{policy.service.ombudsman}}.
+```
 
 ### Keys
 
@@ -198,6 +232,7 @@ Every country has every key; the values are in `policy_facts.toml`.
 | `legal.claim_response` | count, legal | The norm's maximum time for the bank to answer a claim, as the bank reads it |
 | `legal.report_window` | count, legal | The norm's time for the customer to question a charge, as the bank reads it |
 | `cards.replacement_time` | count, business days | Delivery of a replacement card after a permanent block |
+| `cards.express_replacement_time` | count, business days | Express delivery of a replacement card, shorter than `cards.replacement_time` |
 | `fees.replacement` | money | Fee for a replacement the customer asks for after loss or damage; a replacement after unauthorized use is free |
 | `fees.express_delivery` | money | Fee for express delivery of a replacement card |
 | `fees.foreign_transaction` | percent | Fee on purchases in another currency |
@@ -222,8 +257,12 @@ Every country has every key; the values are in `policy_facts.toml`.
 | `channels.app_clara` | app path | Where to talk to Clara, the assistant, in the app; blocking a card and opening a claim happen there |
 | `service.handoff_wait` | count, minutes | Usual wait to talk to a person after the assistant hands off, in service hours |
 | `service.handoff_hours` | schedule | When people answer the chat |
-| `service.ombudsman` | email | The bank's ombudsman office |
+| `service.ombudsman` | email | The email of the bank's ombudsman office |
+| `service.ombudsman_name` | name | The name of the bank's ombudsman office (fictional, the bank's own) |
 | `service.ombudsman_response` | count, business days | Time the ombudsman office takes to answer |
+| `authority.regulator` | name | The banking regulator |
+| `authority.consumer_agency` | name | The public agency that protects financial consumers |
+| `authority.norm_name` | name | The norm on card claims, named in plain words, never by an article or a number |
 
 ### Legal deadlines
 
@@ -234,13 +273,27 @@ A section that uses a `legal.*` placeholder also contains the disclaimer of its 
 |---|---|---|
 | según la lectura que hace el banco de la norma aplicable | conforme a leitura que o banco faz da norma aplicável | as the bank reads the applicable rule |
 
-A document may name the regulator and the ombudsman (CNBV, CONDUSEF, SFC, BCRA, SBS, INDECOPI, BACEN, Procon, CFPB, OCC) and say what the norm asks in plain words, but never cites an article, a norm number or a court.
+A document says what the norm asks in plain words, but never cites an article, a norm number or a court.
+
+## No literal names
+
+One text serves several countries, so it never names one.
+Every name that varies by country is a `name` placeholder, and the text uses a generic noun otherwise: the banking regulator, the consumer protection agency, the bank's ombudsman office, the norm.
+The build rejects, in any language and in any case:
+
+- the six countries and their demonyms in Spanish, Portuguese and English (México, Brasil, Brazil, Estados Unidos, United States, mexicano, brasileiro, Brazilian, American, estadounidense, ...);
+- the regulators, agencies, ombudsman offices and norms, spelled out (Comisión Nacional Bancaria y de Valores, Banco Central do Brasil, Consumer Financial Protection Bureau, Código de Defesa do Consumidor, Regulation Z, ...), and every `name` value of `policy_facts.toml`;
+- their acronyms, matched with their case (CNBV, CONDUSEF, SFC, SIC, BCRA, SBS, INDECOPI, BACEN, CFPB, OCC, US, USA, U.S., EUA, EE. UU.), so the pronoun "us" passes.
+
+Generic nouns pass (banco central, defensoría, ouvidoria, ombudsman, regulator), and so do "LATAM Bank" and "Clara".
+The full lists are in `data/src/bankdata/policies/spec.py`.
 
 ## Tone
 
 - The bank's voice: plain, calm, precise, in second person.
-- The country's register: `tú` in MX and PE, `usted` in CO, `vos` in AR, `você` in BR, `you` in US.
-- The app's words for a claim, so a document reads like the screen beside it: aclaración in every Spanish-speaking country, contestação in BR, claim in US.
+- The register: `usted` in Spanish, so one text reads naturally in the four Spanish-speaking countries; `você` in Portuguese; `you` in English.
+  Clara's own replies keep each country's register; the documents do not.
+- The app's words for a claim, so a document reads like the screen beside it: aclaración in Spanish, contestação in Portuguese, claim in English.
 - The bank never blocks a card on its own: every block is confirmed by the customer, with a tap in the chat with Clara or on the phone line, and unblocking needs a person.
   Documents never describe a preventive, automatic or temporary block.
 - The app has no screens for alerts settings or recurring charges: documents send the customer to Clara (`channels.app_clara`) or the phone line for those, never to a screen.
@@ -251,15 +304,19 @@ A document may name the regulator and the ombudsman (CNBV, CONDUSEF, SFC, BCRA, 
 
 ## What the build rejects
 
-The build validates every document before rendering and fails it, naming the file and the line, on:
+The build validates every source once, and its placeholders against every country of its language, before rendering; it fails the source, naming the file and the line, on:
 
 - frontmatter: a missing or extra field, a value outside its rule, or a mismatch with the path;
-- structure: text before the first section, a `#` heading, a heading that is not the next one expected, a missing section, a section outside 300 to 1,500 words, an faq or glossary outside its counts, a glossary term without its three labels;
+- structure: text before the first section, a `#` heading, a heading that is not the next one expected, a missing section, an faq or glossary outside its counts, a glossary term without its three labels;
+- length: a section outside 60 to 250 words, a document outside 600 to 1,050 words, or a rendered section too long to embed with its title and heading (about 512 tokens);
 - a raw figure outside a placeholder: any digit, a currency code or symbol, a phone, an email, a URL, a month or weekday name;
 - a number word outside a placeholder: two to twenty and second to twentieth in Spanish, Portuguese and English (`uno`, `una`, `primero`, `primera`, `um`, `uma`, `one` and `first` are articles or plain words and pass);
-- a placeholder that is malformed or whose key is not in the table above;
+- a placeholder that is malformed, or whose key is missing for any country of the source's language (the problem names the country);
 - a `legal.*` placeholder in a section without its disclaimer;
-- a forbidden word, in the title or the text.
+- a forbidden word, in the title or the text;
+- a literal name, in the title or the text;
+- the informal register: `tú`, `tu`, `tus`, `ti`, `te`, `contigo` or `vos` in Spanish, `tu`, `teu`, `teus`, `tua`, `tuas`, `ti` or `contigo` in Portuguese;
+- parity across the three languages.
 
 Exempt, and only these:
 
@@ -271,24 +328,38 @@ Exempt, and only these:
 Every other month name, weekday name and number word fails, wherever it appears.
 In Brazilian Portuguese write "novo cartão" or "reemissão", never "segunda via", which reads as an ordinal.
 
+## Working without AWS
+
+Both commands read a local folder in the source layout, never load the AWS configuration, and exit 1 on any problem.
+
+- `uv run build-policies validate --sources <folder>` prints every problem with file and line.
+- `uv run build-policies render --sources <folder> --out <dir> [--country XX]` writes each edition to `<dir>/<country>/<edition>.pdf` with the bank template and prints its page count, the cover not counted.
+  A draft that fails only length, word or parity rules still renders, so a writer can check its pages before the other languages exist.
+
+`uv run build-policies publish` builds and publishes; see `RUNBOOK.md`.
+
 ## Generation prompt
 
-Each document is generated section by section with Claude Sonnet 5, so each call stays within a section's length and sees the sections before it.
+Each source is generated section by section with Claude Sonnet 5, so each call stays within a section's length and sees the sections before it: first the Spanish source, then the Portuguese and English versions from it, section by section.
 The script that drives it writes the frontmatter itself, calls the model once per section with this prompt, and joins the sections.
-Slots in single braces (`{country}`) are filled by the script; placeholders keep their double braces.
+Slots in single braces (`{language}`) are filled by the script; placeholders keep their double braces.
 `{target_words}` comes from the length table, and the generated sections exclude Versioning.
-`{placeholder_table}` lists every key of the table above, one per line, as `{{policy.<group>.<key>}}: <meaning> (for example, <the value rendered for this country>)`.
+`{placeholder_table}` lists every key of the table above, one per line, as `{{policy.<group>.<key>}}: <meaning>`.
+`{source_section}` is the same section of the Spanish source when writing the Portuguese or English version, and empty otherwise.
 
 ```text
-You are writing one section of a customer document of LATAM Bank, a fictional bank.
+You are writing one section of a customer document of LATAM Bank, a fictional bank that serves
+several countries. One text serves every country of its language, so it never names a country.
 
-Country: {country_name} ({country}). Language: {language}. Register: {register}.
+Language: {language}. Register: {register}.
 The app's word for a claim: {claim_word}.
 Document: "{title}", a {doc_type} on the topic {topic}: {topic_scope}.
 Sections of this document, in order: {headings}.
 Write section {n}: "{heading}". Sections already written, one line each: {previous_summaries}.
+{source_section}
 
-Length: about {target_words} words, never under 300 or over 1,500, paragraphs of at most 150 words.
+Length: about {target_words} words, never under 60 or over 250. The section is read on its own,
+so name what it talks about instead of referring to other sections.
 Format: start with "## {heading}" and write only this section. Use paragraphs, "-" lists, ordered lists,
 "###" subheadings and **bold**. No tables, links, images, HTML, or other "#" or "##" headings.
 {doc_type_rules}
@@ -301,6 +372,13 @@ A count placeholder already includes its noun ("{{policy.claims.review_time}}" r
 If a sentence needs a figure that is not in the list, rewrite the sentence without it.
 When you use a {{policy.legal.*}} placeholder, include in the same section the words:
 "{legal_disclaimer}".
+When translating, keep every placeholder of the source section, and no other.
+
+Names: never write a country, a nationality, a regulator, an agency, an ombudsman office or a norm.
+Use the generic noun (the banking regulator, the consumer protection agency, the bank's ombudsman
+office, the norm), and where the name matters, add its placeholder after the noun, in parentheses
+or between commas: "the banking regulator ({{policy.authority.regulator}})". LATAM Bank and Clara
+may be named.
 
 Never write: fraude, fraud, or any word built on them; write {unauthorized_words} instead.
 Never write "segunda via" (pt-BR); write "novo cartão" or "reemissão".
@@ -315,13 +393,12 @@ accounts, investments or insurance.
 
 Where `{doc_type_rules}` is, for faq: "This section is one subtopic: {k} questions as ### headings ending in a question mark, each answered in one to three paragraphs"; for glossary: "This section is one group of terms: each term is a ### heading followed by the paragraphs {definition_label}, {example_label} and {related_label}"; and empty for the other types.
 
-The frontmatter the script writes:
+The frontmatter the script writes, the same in the three files but `title` and `language`:
 
 ```yaml
 ---
 doc_id: {doc_id}
 title: {title}
-country: {country}
 language: {language}
 topic: {topic}
 doc_type: {doc_type}
