@@ -5,8 +5,17 @@ from datetime import date
 from functools import cache
 from typing import Any, Protocol
 
-from core.policies import decode_figures, encode_figures
-from core.vectors import SEARCH_QUERY, Embedder, Match, VectorIndex, bedrock_runtime, s3vectors, where_equal
+from core.policies import decode_figures, encode_figures, figure
+from core.vectors import (
+    SEARCH_QUERY,
+    Embedder,
+    Match,
+    VectorIndex,
+    VectorStoreError,
+    bedrock_runtime,
+    s3vectors,
+    where_equal,
+)
 
 
 @dataclass(frozen=True)
@@ -102,7 +111,17 @@ class ChunkRecord:
 
 
 def to_chunk(match: Match) -> RetrievedChunk:
+    try:
+        return _chunk(match)
+    except (ValueError, KeyError, TypeError) as error:
+        raise VectorStoreError(f"{match.key}: unreadable metadata: {error}") from error
+
+
+def _chunk(match: Match) -> RetrievedChunk:
     metadata = match.metadata
+    figures = decode_figures(str(metadata.get("figures") or ""))
+    for spec in figures.values():
+        figure(spec)
     return RetrievedChunk(
         chunk_id=match.key,
         doc_id=str(metadata["doc_id"]),
@@ -115,7 +134,7 @@ def to_chunk(match: Match) -> RetrievedChunk:
         facts_version=int(metadata["policy_facts_version"]),
         effective_date=date.fromisoformat(str(metadata["effective_date"])),
         page=int(metadata["page_start"]),
-        figures=decode_figures(str(metadata.get("figures") or "")),
+        figures=figures,
         similarity=1.0 - match.distance,
     )
 

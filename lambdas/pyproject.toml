@@ -13,6 +13,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "clara-testing",
     "boto3-stubs[bedrock-runtime,dynamodb,dynamodbstreams,events,s3vectors,sqs,sts]>=1.43",
     "moto[dynamodb,events,sqs,sts]>=5.2",
     "mypy>=2.3",
@@ -24,10 +25,11 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["core", "auth", "crud", "messages", "chat_notifier", "chatbot"]
+members = ["core", "auth", "crud", "messages", "chat_notifier", "chatbot", "testing"]
 
 [tool.uv.sources]
 clara-core = { workspace = true }
+clara-testing = { workspace = true }
 clara-auth = { workspace = true }
 clara-crud = { workspace = true }
 clara-messages = { workspace = true }
@@ -36,7 +38,7 @@ clara-chatbot = { workspace = true }
 
 [tool.ruff]
 line-length = 110
-src = [".", "tests", "core/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
+src = [".", "tests", "core/src", "testing/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -49,10 +51,10 @@ ignore = ["S101"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["build.py", "conftest.py", "tests", "core/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
+files = ["build.py", "conftest.py", "tests", "core/src", "testing/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
 exclude = ["/\\.venv/", "^dist/"]
 explicit_package_bases = true
-mypy_path = ["tests", "core/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
+mypy_path = ["tests", "core/src", "testing/src", "auth/src", "crud/src", "messages/src", "chat_notifier/src", "chatbot/src"]
 
 [[tool.mypy.overrides]]
 module = ["moto", "moto.*"]

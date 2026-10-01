@@ -119,8 +119,9 @@ data "aws_iam_policy_document" "policies_builder" {
 }
 
 resource "aws_iam_role" "policies_builder" {
-  name               = "${local.name_prefix}-policies-builder"
-  assume_role_policy = data.aws_iam_policy_document.policies_builder_trust.json
+  name                 = "${local.name_prefix}-policies-builder"
+  assume_role_policy   = data.aws_iam_policy_document.policies_builder_trust.json
+  max_session_duration = 4 * 3600
 
   tags = { Name = "${local.name_prefix}-policies-builder" }
 }

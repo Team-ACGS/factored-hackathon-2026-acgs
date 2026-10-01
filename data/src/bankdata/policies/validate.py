@@ -224,9 +224,12 @@ def _scan(key: str, line: Line, language: str, facts: CountryFacts) -> list[Prob
     def report(code: str, message: str) -> None:
         problems.append(Problem(key, line.number, code, message))
 
+    heading = line.text.startswith("#")
     for match in BRACES.finditer(line.text):
         placeholder = PLACEHOLDER.fullmatch(match.group(0))
-        if placeholder is None:
+        if heading:
+            report("placeholder_heading", f"{match.group(0)} in a heading; headings carry no figure")
+        elif placeholder is None:
             report("placeholder_malformed", f"{match.group(0)} is not {{{{policy.<group>.<key>}}}}")
         elif placeholder.group(1) not in facts.specs:
             report("placeholder_unknown", f"{match.group(0)} is not a key of {facts.country}")

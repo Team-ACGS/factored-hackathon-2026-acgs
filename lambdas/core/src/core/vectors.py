@@ -19,12 +19,27 @@ LIST_PAGE = 1000
 SEARCH_DOCUMENT = "search_document"
 SEARCH_QUERY = "search_query"
 
-TURN_CONFIG = Config(connect_timeout=1, read_timeout=3, retries={"total_max_attempts": 1, "mode": "standard"})
+TURN_SECONDS = 12.0
+TURN_ATTEMPTS = 3
+SEARCH_CALLS = 2
+CONNECT_SECONDS = 0.2
+READ_SECONDS = 0.8
+WORST_SEARCH_SECONDS = TURN_ATTEMPTS * SEARCH_CALLS * (CONNECT_SECONDS + READ_SECONDS)
+
+TURN_CONFIG = Config(
+    connect_timeout=CONNECT_SECONDS,
+    read_timeout=READ_SECONDS,
+    retries={"total_max_attempts": 1, "mode": "standard"},
+)
 BUILD_CONFIG = Config(
     connect_timeout=5, read_timeout=60, retries={"total_max_attempts": 5, "mode": "adaptive"}
 )
 
 Metadata = dict[str, Any]
+
+
+class VectorStoreError(Exception):
+    pass
 
 
 def bedrock_runtime(
@@ -51,10 +66,14 @@ class Embedder:
                 accept="application/json",
                 body=json.dumps({"texts": list(batch), "input_type": input_type, "truncate": "NONE"}),
             )
-            embeddings = json.loads(response["body"].read())["embeddings"]
-            if len(embeddings) != len(batch):
-                raise ValueError(f"expected {len(batch)} embeddings, got {len(embeddings)}")
-            vectors.extend([float(x) for x in embedding] for embedding in embeddings)
+            try:
+                embeddings = json.loads(response["body"].read())["embeddings"]
+                parsed = [[float(x) for x in embedding] for embedding in embeddings]
+            except (ValueError, KeyError, TypeError) as error:
+                raise VectorStoreError(f"unreadable embeddings: {error}") from error
+            if len(parsed) != len(batch) or any(len(vector) != EMBEDDING_DIMENSION for vector in parsed):
+                raise VectorStoreError(f"expected {len(batch)} embeddings of {EMBEDDING_DIMENSION}")
+            vectors.extend(parsed)
         return vectors
 
 
@@ -86,10 +105,13 @@ class VectorIndex:
             returnMetadata=True,
             returnDistance=True,
         )
-        return [
-            Match(item["key"], float(item.get("distance", 1.0)), item.get("metadata") or {})
-            for item in response["vectors"]
-        ]
+        try:
+            return [
+                Match(str(item["key"]), float(item["distance"]), dict(item.get("metadata") or {}))
+                for item in response["vectors"]
+            ]
+        except (ValueError, KeyError, TypeError) as error:
+            raise VectorStoreError(f"unreadable query result: {error}") from error
 
     def put(self, vectors: Iterable[Vector]) -> int:
         written = 0

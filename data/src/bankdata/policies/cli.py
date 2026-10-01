@@ -17,6 +17,8 @@ from bankdata.settings import DATA_DIR
 build_app = typer.Typer(add_completion=False)
 tune_app = typer.Typer(add_completion=False)
 
+BUILD_SESSION_SECONDS = 4 * 3600
+
 Profile = Annotated[str, typer.Option(help="AWS profile that assumes the policies-builder role")]
 
 
@@ -47,7 +49,9 @@ class Config:
         session = boto3.Session(profile_name=profile, region_name=self.region)
         if self.builder_role_arn:
             credentials = session.client("sts").assume_role(
-                RoleArn=self.builder_role_arn, RoleSessionName="build-policies"
+                RoleArn=self.builder_role_arn,
+                RoleSessionName="build-policies",
+                DurationSeconds=BUILD_SESSION_SECONDS,
             )["Credentials"]
             session = boto3.Session(
                 aws_access_key_id=credentials["AccessKeyId"],
@@ -64,6 +68,9 @@ def build_policies(
     sources: Annotated[
         Path | None, typer.Option(help="A local folder of sources instead of the policies bucket")
     ] = None,
+    prune: Annotated[
+        bool, typer.Option(help="With --sources, remove the published documents missing from the folder")
+    ] = False,
     profile: Profile = "personal",
 ) -> None:
     config = Config.load()
@@ -78,7 +85,7 @@ def build_policies(
         index=index,
         docs_domain=config.docs_domain,
     )
-    report = build(target)
+    report = build(target, prune=prune or sources is None)
     for problem in report.problems:
         typer.echo(str(problem), err=True)
     typer.echo(

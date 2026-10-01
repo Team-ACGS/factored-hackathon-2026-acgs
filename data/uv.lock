@@ -121,6 +121,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "boto3-stubs", extra = ["bedrock-runtime", "s3", "s3vectors"] },
+    { name = "clara-testing" },
     { name = "mypy" },
     { name = "pandas-stubs" },
     { name = "pytest" },
@@ -146,6 +147,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "boto3-stubs", extras = ["bedrock-runtime", "s3", "s3vectors"], specifier = ">=1.43" },
+    { name = "clara-testing", editable = "../lambdas/testing" },
     { name = "mypy", specifier = ">=2.3" },
     { name = "pandas-stubs", specifier = ">=2.3" },
     { name = "pytest", specifier = ">=8.4" },
@@ -287,6 +289,17 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.43" },
     { name = "pydantic", specifier = ">=2.11" },
 ]
+
+[[package]]
+name = "clara-testing"
+version = "0.1.0"
+source = { editable = "../lambdas/testing" }
+dependencies = [
+    { name = "clara-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "clara-core", editable = "../lambdas/core" }]
 
 [[package]]
 name = "colorama"

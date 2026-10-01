@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 
 import pytest
+from clara_testing import MODEL_ID, local_embedder, local_index
 from core.retrieval import VectorRetriever
-from core.testing import MODEL_ID, local_embedder, local_index
 
 from bankdata.policies.build import build
 from bankdata.policies.chunk import Chunking

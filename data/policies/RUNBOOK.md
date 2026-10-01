@@ -15,10 +15,14 @@ The spec the documents follow is `SPEC.md`; the build is `uv run build-policies`
 
 1. Upload the sources to the policies bucket at `<country>/<topic>/<doc_id>.md`, or keep them in a local folder.
 2. Run `uv run build-policies` (sources from the bucket) or `uv run build-policies --sources <folder>`.
+   A folder build only adds and updates: it never removes a published document missing from the folder unless you pass `--prune`; a bucket build removes the documents no longer in the bucket.
 3. Fix every document the build names, with file and line, regenerating it or editing it, and run again: valid documents that did not change are skipped, so a rerun only builds what changed.
 4. A changed text needs a new `version` in its frontmatter, and a changed value in `policy_facts.toml` needs a new `version` for that country; the build refuses both otherwise, so a citation in an old message keeps opening the text it cited.
 
 The build prints the documents built, skipped and removed, the vectors written and deleted, the duplicate ratio and the chunks per document, and the corpus hash.
+
+Never build `sample/` into prd: its documents use the real `doc_id`s, so publishing them would take the paths and versions of the real documents.
+The sample exists only for the tests in CI.
 
 ## Tuning
 
@@ -29,5 +33,7 @@ The build prints the documents built, skipped and removed, the vectors written a
 
 ## Checks after the first build
 
-- `https://docs.factoredai.sdfles.com/<country>/<doc_id>-v<version>-f<facts_version>.pdf#page=N` opens the PDF at page N.
-- Recall@3 on the real index, from `tuning.json`, goes into the PR or the task's result.
+These run on Sebastian's documents after the merge; no PR text depends on them.
+
+- `https://docs.factoredai.sdfles.com/<country>/<doc_id>-v<version>-f<facts_version>.pdf#page=N` opens a real document at page N.
+- Recall@3 and the threshold on the real index are in `tuning.json`; Sebastian reads them there and applies the threshold.

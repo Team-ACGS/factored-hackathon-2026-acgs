@@ -11,6 +11,7 @@ members = [
     "clara-crud",
     "clara-lambdas",
     "clara-messages",
+    "clara-testing",
 ]
 
 [[package]]
@@ -324,6 +325,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "boto3-stubs", extra = ["bedrock-runtime", "dynamodb", "dynamodbstreams", "events", "s3vectors", "sqs", "sts"] },
+    { name = "clara-testing" },
     { name = "moto", extra = ["dynamodb", "events"] },
     { name = "mypy" },
     { name = "pytest" },
@@ -343,6 +345,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "boto3-stubs", extras = ["bedrock-runtime", "dynamodb", "dynamodbstreams", "events", "s3vectors", "sqs", "sts"], specifier = ">=1.43" },
+    { name = "clara-testing", editable = "testing" },
     { name = "moto", extras = ["dynamodb", "events", "sqs", "sts"], specifier = ">=5.2" },
     { name = "mypy", specifier = ">=2.3" },
     { name = "pytest", specifier = ">=9.1" },
@@ -353,6 +356,17 @@ dev = [
 name = "clara-messages"
 version = "0.1.0"
 source = { editable = "messages" }
+dependencies = [
+    { name = "clara-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "clara-core", editable = "core" }]
+
+[[package]]
+name = "clara-testing"
+version = "0.1.0"
+source = { editable = "testing" }
 dependencies = [
     { name = "clara-core" },
 ]

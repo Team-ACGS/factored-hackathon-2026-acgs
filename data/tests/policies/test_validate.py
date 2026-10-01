@@ -39,10 +39,15 @@ def test_every_sample_document_is_valid(path: Path) -> None:
         ("placeholder_malformed", 30, "placeholder_malformed"),
         ("legal_disclaimer", 26, "legal_disclaimer"),
         ("forbidden_word", 22, "forbidden_word"),
+        ("placeholder_heading", 22, "placeholder_heading"),
     ],
 )
 def test_each_invalid_fixture_fails_on_its_rule_naming_file_and_line(rule: str, line: int, code: str) -> None:
-    assert problems(SAMPLE / "invalid" / rule, GUIDE) == [(GUIDE, line, code)]
+    root = SAMPLE / "invalid" / rule
+    [path] = root.rglob("*.md")
+    key = path.relative_to(root).as_posix()
+
+    assert problems(root, key) == [(key, line, code)]
 
 
 def test_articles_and_plain_words_pass_while_ordinals_do_not() -> None:

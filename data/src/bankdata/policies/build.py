@@ -67,6 +67,7 @@ def build(
     facts: dict[str, CountryFacts] | None = None,
     limits: Limits | None = None,
     chunking: Chunking | None = None,
+    prune: bool = True,
 ) -> Report:
     facts = facts or policy_facts()
     limits = limits or Limits()
@@ -79,7 +80,6 @@ def build(
 
     rendered: list[RenderedDocument] = []
     source_hashes: dict[str, str] = {}
-    failed: set[str] = set()
     present: set[str] = set()
     for key in target.sources.names():
         path = SOURCE_KEY.match(key)
@@ -95,7 +95,6 @@ def build(
             problems = _version_problems(key, source.meta["version"], source.source_hash, prior)
         if problems:
             report.problems.extend(problems)
-            failed.add(path["doc_id"])
             continue
         source_hashes[path["doc_id"]] = source.source_hash
         rendered.append(render(source, facts[str(source.meta["country"])]))
@@ -110,7 +109,7 @@ def build(
     dropped = dedupe(candidates)
     report.candidates, report.duplicates = len(candidates), len(dropped)
 
-    entries: dict[str, Entry] = {}
+    entries: dict[str, Entry] = dict(before)
     for document in rendered:
         kept = [chunk for chunk in chunks[document.doc_id] if _chunk_id(document, chunk) not in dropped]
         report.chunks_per_document[document.doc_id] = len(kept)
@@ -125,7 +124,6 @@ def build(
         )
         prior = before.get(document.doc_id)
         if prior is not None and prior["content_hash"] == content_hash:
-            entries[document.doc_id] = prior
             report.skipped.append(document.doc_id)
             continue
         entry = _publish(target, document, kept, content_hash, source_hashes[document.doc_id], report)
@@ -134,13 +132,23 @@ def build(
             report.deleted += target.index.delete(stale)
         entries[document.doc_id] = entry
         report.built.append(document.doc_id)
+        _write_manifest(target, chunking, facts_state, entries, report)
 
-    for doc_id in failed & set(before):
-        entries[doc_id] = before[doc_id]
-    for doc_id in sorted(set(before) - present):
+    for doc_id in sorted(set(before) - present) if prune else []:
         report.deleted += target.index.delete(before[doc_id]["vectors"])
         report.removed.append(doc_id)
+        del entries[doc_id]
+    _write_manifest(target, chunking, facts_state, entries, report)
+    return report
 
+
+def _write_manifest(
+    target: Target,
+    chunking: Chunking,
+    facts_state: dict[str, Entry],
+    entries: dict[str, Entry],
+    report: Report,
+) -> None:
     documents = dict(sorted(entries.items()))
     report.corpus_hash = digest({doc_id: entry["content_hash"] for doc_id, entry in documents.items()})
     manifest = {
@@ -157,7 +165,6 @@ def build(
     data = (json.dumps(manifest, sort_keys=True, indent=2, ensure_ascii=False) + "\n").encode()
     if data != target.policies.read(MANIFEST_KEY):
         target.policies.write(MANIFEST_KEY, data, "application/json")
-    return report
 
 
 def _facts_state(facts: dict[str, CountryFacts], previous: Entry, report: Report) -> dict[str, Entry]:

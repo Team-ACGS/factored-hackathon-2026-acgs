@@ -2,8 +2,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from clara_testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
 from core.retrieval import NON_FILTERABLE
-from core.testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
 
 from bankdata.policies.build import Target
 from bankdata.policies.store import LocalStore

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pymupdf
 import pytest
+from botocore.exceptions import ClientError
 from core.facts.check import fold
 from core.policies import CountryFacts, decode_figures, policy_facts
 
@@ -17,8 +18,8 @@ DISPUTES = "PE/dispute_lifecycle/pe-dispute-lifecycle.md"
 NON_WORD = re.compile(r"[^a-z0-9]+")
 
 
-def run(sample: Corpus, facts: dict[str, CountryFacts] | None = None) -> Report:
-    return build(sample.target, facts=facts, limits=SAMPLE_LIMITS, chunking=Chunking())
+def run(sample: Corpus, facts: dict[str, CountryFacts] | None = None, prune: bool = True) -> Report:
+    return build(sample.target, facts=facts, limits=SAMPLE_LIMITS, chunking=Chunking(), prune=prune)
 
 
 def manifest(sample: Corpus) -> dict[str, object]:
@@ -169,6 +170,37 @@ def test_a_removed_document_loses_its_vectors_but_not_its_pdf(sample: Corpus) ->
     documents = manifest(sample)["documents"]
     assert isinstance(documents, dict)
     assert "pe-dispute-lifecycle" not in documents
+
+
+def test_a_folder_build_keeps_the_published_documents_it_does_not_hold(sample: Corpus) -> None:
+    run(sample)
+    sample.source(DISPUTES).unlink()
+
+    report = run(sample, prune=False)
+
+    assert report.removed == []
+    assert "pe-dispute-lifecycle-v1-f1-s6-c1" in sample.vectors.vectors
+    assert entry(sample, "pe-dispute-lifecycle")["version"] == 1
+
+
+def test_a_build_that_stops_midway_resumes_where_it_stopped(sample: Corpus) -> None:
+    sample.bedrock.fail_on_call = 4
+
+    with pytest.raises(ClientError):
+        run(sample)
+
+    done = manifest(sample)["documents"]
+    assert isinstance(done, dict)
+    assert len(done) == 3
+    sample.bedrock.fail_on_call = None
+    sample.bedrock.calls.clear()
+
+    report = run(sample)
+
+    assert sorted(report.skipped) == sorted(done)
+    assert len(report.built) == 5
+    assert len(sample.bedrock.calls) == 5
+    assert report.embedded == sum(report.chunks_per_document[doc_id] for doc_id in report.built)
 
 
 def plain(text: str) -> str:

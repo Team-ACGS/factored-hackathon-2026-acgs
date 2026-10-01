@@ -2,13 +2,21 @@ from datetime import UTC, date, datetime
 
 import pytest
 
+from clara_testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
 from core.facts import Ledger
 from core.facts.values import Count, Day, FactIds, Flag, Passage, Text, Trace
 from core.policies import chunk_id, policy_facts
 from core.retrieval import NON_FILTERABLE, ChunkRecord, PolicySearch, VectorRetriever
-from core.testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
 from core.tools import TOOLS, ToolContext, search_policies
-from core.vectors import SEARCH_DOCUMENT, Vector
+from core.tools.registry import RETRIES
+from core.vectors import (
+    SEARCH_CALLS,
+    SEARCH_DOCUMENT,
+    TURN_ATTEMPTS,
+    TURN_SECONDS,
+    WORST_SEARCH_SECONDS,
+    Vector,
+)
 
 NOW = datetime(2026, 10, 1, 15, 0, tzinfo=UTC)
 DOMAIN = "docs.factoredai.sdfles.com"
@@ -191,3 +199,30 @@ def test_invalid_arguments_are_refused(
     result = search_policies(context(clients), ledger, **arguments)
 
     assert ledger.facts[result.ids[0]].fields["error"] == Trace("invalid_argument")
+
+
+def test_three_attempts_of_both_calls_fit_in_half_the_turn() -> None:
+    assert TURN_ATTEMPTS == RETRIES + 1
+    assert SEARCH_CALLS == 2
+    assert WORST_SEARCH_SECONDS <= TURN_SECONDS / 2
+
+
+@pytest.mark.parametrize("broken", ["short_embeddings", "metadata", "figures"])
+def test_an_unreadable_answer_is_unavailable_never_a_crash(
+    clients: tuple[FakeBedrockRuntime, FakeS3Vectors], broken: str
+) -> None:
+    bedrock, vectors = clients
+    key = "pe-dispute-lifecycle-v2-f1-s3-c1"
+    data, metadata = vectors.vectors[key]
+    if broken == "short_embeddings":
+        bedrock.short = True
+    elif broken == "metadata":
+        vectors.vectors[key] = (data, {**metadata, "page_start": "first"})
+    else:
+        vectors.vectors[key] = (data, {**metadata, "figures": '{"claims.review_time": {"type": "unknown"}}'})
+    ledger = Ledger("PE", NOW)
+
+    result = search_policies(context(clients), ledger, query="revisión de mi aclaración", k=8)
+
+    [error] = [ledger.facts[fact_id] for fact_id in result.ids]
+    assert error.fields["error"] == Trace("unavailable")

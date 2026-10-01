@@ -49,6 +49,8 @@ def _error(code: str, operation: str, message: str) -> ClientError:
 @dataclass
 class FakeBedrockRuntime:
     failures: int = 0
+    short: bool = False
+    fail_on_call: int | None = None
     calls: list[Mapping[str, Any]] = field(default_factory=list)
 
     def invoke_model(self, **request: Any) -> dict[str, Any]:
@@ -57,6 +59,8 @@ class FakeBedrockRuntime:
             raise _error("ThrottlingException", "InvokeModel", "slow down")
         body = json.loads(request["body"])
         self.calls.append(body)
+        if self.fail_on_call == len(self.calls):
+            raise _error("ThrottlingException", "InvokeModel", "slow down")
         texts = body["texts"]
         if not 1 <= len(texts) <= EMBED_BATCH or body.get("truncate") != "NONE":
             raise _error("ValidationException", "InvokeModel", "bad request")
@@ -68,7 +72,7 @@ class FakeBedrockRuntime:
             "id": "local",
             "response_type": "embeddings_floats",
             "texts": texts,
-            "embeddings": [local_embedding(text) for text in texts],
+            "embeddings": [local_embedding(text) for text in texts[: -1 if self.short else None]],
         }
         return {"body": io.BytesIO(json.dumps(payload).encode()), "contentType": "application/json"}
 

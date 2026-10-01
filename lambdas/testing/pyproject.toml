@@ -1,0 +1,16 @@
+[project]
+name = "clara-testing"
+version = "0.1.0"
+description = "Test doubles of Bedrock and S3 Vectors, for the tests of lambdas and data; never bundled"
+requires-python = ">=3.12,<3.13"
+dependencies = ["clara-core"]
+
+[tool.uv.sources]
+clara-core = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clara_testing"]
