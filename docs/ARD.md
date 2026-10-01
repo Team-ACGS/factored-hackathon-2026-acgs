@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0012_data_tools
+source: 0013_policy_search
 ---
 
 # Architecture and Debt Record
@@ -129,3 +129,4 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | evaluation | 2026-09-27 | Held-out written from scenario cards the team designed; Portuguese entirely team-generated | state it in the presentation |
 | data | 2026-09-27 | Contracts check structure, not content; known semantic defects pass | if curated data feeds a model |
 | identity | 2026-10-01 | The read-only session policy is tested as a document, since moto ignores session policies; the denial is checked once on prd | when moto evaluates session policies, or an AccessDenied appears in a tool trace |
+| assistant | 2026-10-01 | `search_policies` timeouts and the default similarity threshold (0.35) are not measured against the real index | after the first real build and `tune-policies`, and when C measures `unavailable` rates |

@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-30
-source: 0011_customer_redesign_fidelity
+updated: 2026-10-01
+source: 0013_policy_search
 ---
 
 # assistant: product
@@ -66,7 +66,9 @@ Source: `docs/product/01-flows.md` flow 2; `hackathon/docs/kickoff-compliance.md
 - The assistant never decides about money: no provisional credit, no refund, that is always a human decision downstream (`hackathon/docs/dispute-process.md`).
 - The assistant never unblocks a card; that needs stronger identity and a human.
 - When facts and signals leave doubt between claim and protect, the assistant protects: an unnecessary block costs a card replacement, a missed one costs everything spent until someone acts.
-- Any legal due date the assistant quotes must come from the country's verified deadline table; `hackathon/docs/domain/legal-deadlines.md` is explicitly unverified as of 2026-09-26 and must not reach a customer as-is until checked against the primary legal text.
+- How the bank works (claim steps and times, blocks, replacements, holds, reversals, fees, contact channels) is answered only from the bank's own documents of the customer's country, each sentence citing the excerpt it uses, and the citation opens the document's PDF at that page; with no matching excerpt, Clara says she does not have it and offers a person, never answers from the model's own knowledge.
+- A policy figure (a time, a fee, a phone) is said only as a reference to the excerpt's figures, rendered from the same facts the rules read, so a document and a rule cannot disagree; a timeframe is the bank's process, never a promise.
+- Legal deadlines are the bank's reading of each norm, flagged unverified (`policy_facts.toml`, `verified = false`), and must not reach a customer as-is until checked against the primary legal text.
 - A write (block a card, open a claim) only happens after the customer confirms, and the assistant only tells the customer it happened after reading the result back, never on request alone.
 - The customer only ever sees their own data, never another customer's, never an invented deadline, never a promise of a specific agent (`docs/product/01-flows.md` flow 1).
 - A stale pending charge (older than 7 days) is never explained to the customer as "temporary" (`hackathon/docs/domain/triage.md`).

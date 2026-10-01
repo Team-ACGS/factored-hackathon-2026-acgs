@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-01
-source: 0012_data_tools
+source: 0013_policy_search
 ---
 
 # assistant: architecture and debt
@@ -301,3 +301,30 @@ source: 0012_data_tools
 - Debt created: none
 - Revisit when: a customer can hold more than 100 cards (BatchGetItem's key limit).
 - Source: 0012_data_tools
+
+## 2026-10-01: policy excerpts are `pN` facts, cited per sentence, with figures only by reference
+
+- Decision: each excerpt `search_policies` returns is a fact `pN`, numbered apart from the data facts. `title`, `section`, `effective_date` and `figures.<group>.<key>` render; `text` is untrusted and trace-only, like `chunk_id`, `doc_id`, `version`, `page`, `url` and the `figures.<key>.verified` flag of legal figures. The check fails a sentence that references a `pN` without citing `[p:<chunk_id>]` of that excerpt in the same sentence, and a rendered count, money, percent, channel or url figure of an excerpt of this turn written outside a reference; stage labels and the never-asked list are not scanned, since "en revisión" is ordinary prose. Citations resolve against the ledger, which replaces the `chunks` argument of `check`.
+- Alternatives rejected: scanning every figure type (common words would fail every answer); citing per reply instead of per sentence (a cited excerpt would cover sentences that do not use it).
+- Reason: a policy sentence is only as good as its source, and a figure copied from text is exactly what the check exists to stop.
+- Debt created: none
+- Revisit when: the measured check failure rate (C) points at the policy rules.
+- Source: 0013_policy_search
+
+## 2026-10-01: `search_policies` fails as `unavailable` within half a turn
+
+- Decision: the turn's Bedrock and S3 Vectors clients wait 0.2 s to connect and 0.8 s to read, with botocore retries off; the registry's 3 attempts of the 2 calls are then at most 6 s, half the 12 s turn, pinned by a test. Unreadable embeddings, query results or excerpt metadata raise `VectorStoreError`, which the registry maps to `unavailable` like a client error. `no_match` is the aggregate fact with `count` 0 and `outcome` `no_match`, rendered by the `policies_empty` fallback; similarity is `1 - distance`, and an excerpt of another country is dropped even if the filter let it through.
+- Alternatives rejected: longer timeouts (3 attempts would not fit the turn); a crash on a malformed answer (the registry exists so a tool failure never ends the turn).
+- Reason: the degraded path must arrive in time to be said.
+- Debt created: the timeouts and the default similarity threshold (0.35) are not measured against the real index.
+- Revisit when: after the first real build and `tune-policies`, and when C measures `unavailable` rates.
+- Source: 0013_policy_search
+
+## 2026-10-01: test doubles of Bedrock and S3 Vectors live in a dev-only package
+
+- Decision: `clara-testing` (`lambdas/testing`) holds the Bedrock and S3 Vectors doubles, with the documented response shapes, batch limits and metadata caps, over a deterministic hashing embedder; `lambdas` and `data` list it only as a dev dependency, and `build.py` bundles only `core`.
+- Alternatives rejected: canned responses (they would not exercise retrieval); doubles inside `core` (they would ship in every lambda zip).
+- Reason: CI runs the real retriever and build code end to end without AWS.
+- Debt created: none
+- Revisit when: a test needs behavior of the real services the doubles do not model.
+- Source: 0013_policy_search

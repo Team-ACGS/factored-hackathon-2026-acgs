@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-10-01
+source: 0013_policy_search
 ---
 
 # data: database
@@ -30,6 +30,14 @@ Columns and types live in `hackathon/data/src/bankdata/pipeline/schemas.py` (`TA
 
 None. This module reads only its own raw CSV input; no other module's data is read here.
 
+## Stores of the policy corpus
+
+| Store | Purpose |
+|---|---|
+| Policies bucket (versioned) | Sources at `<country>/<topic>/<doc_id>.md`, rendered editions at `rendered/<country>/<edition>.md`, and `manifest.json` (documents, versions, hashes, vector keys, PDF URLs, corpus hash; no timestamps) |
+| Documents bucket, behind `docs.factoredai.sdfles.com` | One PDF per edition at `<country>/<doc_id>-v<version>-f<facts_version>.pdf`, immutable and cached for a year |
+| S3 Vectors index `policies` | One vector per excerpt, keyed by its chunk id; metadata layout in `core.retrieval.ChunkRecord` |
+
 ## Invariants kept in code
 
 - Every table's declared columns and types (`pipeline/schemas.py`) must be present in the curated Parquet, checked by `bankdata check`, not by Parquet itself.
@@ -37,6 +45,10 @@ None. This module reads only its own raw CSV input; no other module's data is re
 - Event-dated tables (`complaints`, `transactions`, and others with an `event_date`) must not contain rows past the data clock (`2026-06-18`, plus one day tolerance); enforced only by the contract check.
 - Fact tables are partitioned by `year`/`month` (and carry a `day` column from the source partition); dimension tables are not.
 - Row counts must sit within 0.5x to 2x of the dataset's advertised dictionary count (`contracts.DICTIONARY_RATIO`); a documented tolerance, not a hard equality, because the real delivered counts run 0.84x to 1.56x of the dictionary (`docs/analysis/findings.md`).
+
+- An edition is immutable: the build refuses a changed source with the same `version` and a changed facts value with the same country facts `version`.
+- The manifest lists exactly the vectors of each document; a new edition deletes the previous keys, and only a bucket build (or `--prune`) removes a document missing from the sources; PDFs are never deleted.
+- The manifest is rewritten after each published document, so a crash loses at most the document in flight.
 
 ## Migrations of note
 
