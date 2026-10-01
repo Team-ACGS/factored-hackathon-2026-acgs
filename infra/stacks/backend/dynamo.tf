@@ -53,6 +53,12 @@ locals {
       attributes       = { customer_id = "S", message_key = "S" }
       stream_view_type = "NEW_IMAGE"
     }
+
+    memory = {
+      hash_key   = "customer_id"
+      range_key  = "memory_key"
+      attributes = { customer_id = "S", memory_key = "S" }
+    }
   }
 
   tables = {

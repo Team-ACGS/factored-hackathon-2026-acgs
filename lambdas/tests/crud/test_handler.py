@@ -110,6 +110,9 @@ def test_setup_writes_the_account_in_the_customer_partition_and_returns_the_plan
     assert set(sessions) == {SUB}
     assert len(items(aws.products)) == 3
     assert len(items(aws.transactions)) == 300
+    [seeded] = items(aws.complaints)
+    assert seeded["transaction_id"] in {item["transaction_id"] for item in items(aws.transactions)}
+    assert seeded["status"] == "In Process"
     assert [case["kind"] for case in body["cases"]] == [kind.value for kind in CaseKind]
     stored = {item["transaction_id"]: item for item in items(aws.transactions)}
     for case in body["cases"]:
@@ -152,6 +155,7 @@ def test_a_setup_that_failed_halfway_resumes_to_the_same_data(
 
     assert body["profile"]["country"] == "CO"
     assert len(items(aws.transactions)) == 300
+    assert len(items(aws.complaints)) == 1
     assert {item["currency"] for item in items(aws.transactions)} == {"COP"}
 
 

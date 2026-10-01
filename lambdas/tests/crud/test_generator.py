@@ -6,9 +6,10 @@ from typing import Any
 
 import pytest
 
-from core.ids import parse_uuid7, uuid7_time
+from core.ids import format_instant, parse_uuid7, uuid7_time
+from core.tools.movements import cadence_of
 from crud.catalog import COUNTRIES, SUSPICIOUS_POOL
-from crud.generator import CaseKind, Claim, Score, generate, manual_transaction
+from crud.generator import Account, CaseKind, Claim, Score, generate, manual_transaction, seeded_claim
 from harness import uuid7
 
 ANCHOR = datetime(2026, 9, 28, 15, 30, tzinfo=UTC)
@@ -59,12 +60,97 @@ def test_each_card_has_one_hundred_transactions_over_the_last_three_months(count
 
 
 @pytest.mark.parametrize("country", sorted(COUNTRIES))
-def test_every_merchant_of_the_country_has_at_least_four_transactions(country: str) -> None:
+def test_every_occasional_merchant_of_the_country_has_at_least_four_transactions(country: str) -> None:
     account = generate(claim(country))
 
     counts = Counter(item["merchant_name"] for item in account.transactions)
     assert set(counts) == {merchant.name for merchant in COUNTRIES[country].merchants}
-    assert min(counts.values()) >= 4
+    occasional = [
+        merchant.name for merchant in COUNTRIES[country].merchants if not merchant.profile.recurring
+    ]
+    assert min(counts[name] for name in occasional) >= 4
+
+
+@pytest.mark.parametrize("customer_id", ["customer-1", "customer-2", "customer-3", "customer-4"])
+@pytest.mark.parametrize("country", sorted(COUNTRIES))
+def test_each_subscription_bills_one_card_monthly_on_a_fixed_day(country: str, customer_id: str) -> None:
+    account = generate(claim(country, customer_id))
+
+    zone = COUNTRIES[country].zone
+    for merchant in COUNTRIES[country].merchants:
+        if not merchant.profile.recurring:
+            continue
+        charges = sorted(
+            (item for item in account.transactions if item["merchant_name"] == merchant.name), key=when
+        )
+        days = [when(item).astimezone(zone).date() for item in charges]
+        assert len(charges) == 3
+        assert len({item["product_id"] for item in charges}) == 1
+        assert len({day.day for day in days}) == 1
+        assert cadence_of(days) == "monthly"
+        assert {item["transaction_status"] for item in charges} == {"Approved"}
+        assert len({item["amount"] for item in charges}) == 1
+
+
+def debit_card(account: Account) -> dict[str, Any]:
+    return next(card for card in account.cards if card["product_type"] == "Tarjeta Débito")
+
+
+@pytest.mark.parametrize("customer_id", ["customer-1", "customer-2", "customer-3", "customer-4"])
+@pytest.mark.parametrize("country", sorted(COUNTRIES))
+def test_the_seeded_claim_disputes_the_newest_quiet_in_store_debit_purchase_a_week_old(
+    country: str, customer_id: str
+) -> None:
+    account = generate(claim(country, customer_id))
+
+    card = debit_card(account)
+    cutoff = uuid7_time(parse_uuid7(card["product_id"])) - timedelta(days=7)
+    eligible = [
+        item
+        for item in account.transactions
+        if item["product_id"] == card["product_id"]
+        and item["transaction_status"] == "Approved"
+        and item["channel"] == "POS"
+        and item["fraud_score"] <= 30
+        and when(item) <= cutoff
+    ]
+    disputed = max(eligible, key=when)
+    assert account.claim is not None
+    opened = when(disputed) + timedelta(days=1)
+    assert account.claim == {
+        "customer_id": customer_id,
+        "complaint_id": disputed["transaction_id"],
+        "area": "claims",
+        "status": "In Process",
+        "creation_date": format_instant(opened),
+        "assignment_date": format_instant(opened + timedelta(days=2)),
+        "first_response_date": format_instant(opened + timedelta(days=6)),
+        "transaction_id": disputed["transaction_id"],
+        "product_id": card["product_id"],
+    }
+
+
+def test_the_seeded_claim_skips_charges_with_a_signal_or_too_recent() -> None:
+    account = generate(claim())
+    card = debit_card(account)
+    assert account.claim is not None
+    disputed = next(
+        item for item in account.transactions if item["transaction_id"] == account.claim["transaction_id"]
+    )
+    flagged = {**disputed, "fraud_score": Decimal("31")}
+    abroad = {**disputed, "transaction_country": "US"}
+    others = [item for item in account.transactions if item is not disputed]
+
+    for changed in (flagged, abroad):
+        moved = seeded_claim(claim(), account.cards, [*others, changed])
+        assert moved is not None
+        assert moved["transaction_id"] != disputed["transaction_id"]
+    assert (
+        seeded_claim(
+            claim(), account.cards, [item for item in others if item["product_id"] != card["product_id"]]
+        )
+        is None
+    )
 
 
 def test_each_card_follows_the_dataset_status_mix() -> None:
@@ -133,6 +219,7 @@ def test_transaction_keys_sort_a_card_by_date() -> None:
 
 def test_one_claim_always_generates_the_same_account() -> None:
     assert generate(claim()) == generate(claim())
+    assert generate(claim()).claim == generate(claim()).claim
     assert generate(claim()).transactions != generate(claim(customer_id="customer-2")).transactions
     assert (
         generate(claim()).transactions != generate(claim(anchor=ANCHOR + timedelta(seconds=1))).transactions

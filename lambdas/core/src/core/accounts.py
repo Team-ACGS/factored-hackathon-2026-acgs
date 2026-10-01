@@ -1,5 +1,5 @@
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from boto3.dynamodb.conditions import Key
@@ -48,10 +48,6 @@ def transaction_key(product_id: str, transaction_id: str) -> str:
     return f"{product_id}#{transaction_date(transaction_id)}#{transaction_id}"
 
 
-def public_card(item: Mapping[str, Any]) -> dict[str, Any]:
-    return public(item, CARD_ATTRIBUTES)
-
-
 def public_transaction(item: Mapping[str, Any]) -> dict[str, Any]:
     return public(item, TRANSACTION_ATTRIBUTES)
 
@@ -67,31 +63,39 @@ class Accounts:
             dynamodb.Table(os.environ["TABLE_PRODUCTS"]), dynamodb.Table(os.environ["TABLE_TRANSACTIONS"])
         )
 
-    def cards(self, customer_id: str) -> list[dict[str, Any]]:
+    def cards(self, customer_id: str, attributes: Sequence[str] = CARD_ATTRIBUTES) -> list[dict[str, Any]]:
         request = {
             "KeyConditionExpression": Key("customer_id").eq(customer_id),
-            **projection(CARD_ATTRIBUTES),
+            **projection(attributes),
         }
         page = self._products.query(**request)
         items = list(page["Items"])
         while "LastEvaluatedKey" in page:
             page = self._products.query(**request, ExclusiveStartKey=page["LastEvaluatedKey"])
             items.extend(page["Items"])
-        return [public_card(item) for item in items]
+        return [public(item, attributes) for item in items]
 
-    def card(self, customer_id: str, product_id: str) -> dict[str, Any] | None:
+    def card(
+        self, customer_id: str, product_id: str, attributes: Sequence[str] = CARD_ATTRIBUTES
+    ) -> dict[str, Any] | None:
         item = self._products.get_item(
-            Key={"customer_id": customer_id, "product_id": product_id}, **projection(CARD_ATTRIBUTES)
+            Key={"customer_id": customer_id, "product_id": product_id}, **projection(attributes)
         ).get("Item")
-        return public_card(item) if item else None
+        return public(item, attributes) if item else None
 
-    def transaction(self, customer_id: str, product_id: str, transaction_id: str) -> dict[str, Any] | None:
+    def transaction(
+        self,
+        customer_id: str,
+        product_id: str,
+        transaction_id: str,
+        attributes: Sequence[str] = TRANSACTION_ATTRIBUTES,
+    ) -> dict[str, Any] | None:
         item = self._transactions.get_item(
             Key={"customer_id": customer_id, "transaction_key": transaction_key(product_id, transaction_id)},
             ConsistentRead=True,
-            **projection(TRANSACTION_ATTRIBUTES),
+            **projection(attributes),
         ).get("Item")
-        return public_transaction(item) if item else None
+        return public(item, attributes) if item else None
 
     def newest_transactions(
         self, customer_id: str, product_id: str, limit: int, after_key: str | None = None
@@ -112,3 +116,45 @@ class Accounts:
             return page, None
         last = page[-1]
         return page, transaction_key(last["product_id"], last["transaction_id"])
+
+    def transactions_between(
+        self,
+        customer_id: str,
+        product_id: str,
+        start: str,
+        end: str,
+        attributes: Sequence[str],
+        max_rows: int,
+    ) -> tuple[list[dict[str, Any]], bool]:
+        request: dict[str, Any] = {
+            "KeyConditionExpression": Key("customer_id").eq(customer_id)
+            & Key("transaction_key").between(f"{product_id}#{start}", f"{product_id}#{end}"),
+            "ScanIndexForward": False,
+            "Limit": max_rows,
+            **projection(attributes),
+        }
+        page = self._transactions.query(**request)
+        items = list(page["Items"])
+        while "LastEvaluatedKey" in page and len(items) < max_rows:
+            request["Limit"] = max_rows - len(items)
+            page = self._transactions.query(**request, ExclusiveStartKey=page["LastEvaluatedKey"])
+            items.extend(page["Items"])
+        return [public(item, attributes) for item in items], "LastEvaluatedKey" in page
+
+    def transaction_on_any_card(
+        self, customer_id: str, product_ids: Sequence[str], transaction_id: str, attributes: Sequence[str]
+    ) -> dict[str, Any] | None:
+        if not product_ids:
+            return None
+        table = self._transactions.name
+        keys = [
+            {"customer_id": customer_id, "transaction_key": transaction_key(product_id, transaction_id)}
+            for product_id in product_ids
+        ]
+        request: dict[str, Any] = {table: {"Keys": keys, "ConsistentRead": True, **projection(attributes)}}
+        found: list[dict[str, Any]] = []
+        while request:
+            response = self._transactions.meta.client.batch_get_item(RequestItems=request)
+            found.extend(response["Responses"].get(table, []))
+            request = response.get("UnprocessedKeys") or {}
+        return public(found[0], attributes) if found else None
