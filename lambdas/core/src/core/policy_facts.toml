@@ -2,7 +2,7 @@ synthetic = true
 bank = "LATAM Bank"
 
 [MX]
-version = 1
+version = 2
 language = "es-MX"
 currency = "MXN"
 
@@ -26,6 +26,7 @@ report_window = { type = "count", value = 90, noun = "day", verified = false }
 
 [MX.cards]
 replacement_time = { type = "count", value = 5, noun = "business_day" }
+express_replacement_time = { type = "count", value = 2, noun = "business_day" }
 
 [MX.fees]
 replacement = { type = "money", amount = "150.00", currency = "MXN" }
@@ -63,10 +64,16 @@ app_clara = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones
 handoff_wait = { type = "count", value = 10, noun = "minute" }
 handoff_hours = { type = "channel", kind = "schedule", value = "todos los días, de 8:00 a 22:00" }
 ombudsman = { type = "channel", kind = "email", value = "une.mx@latambank.example" }
+ombudsman_name = { type = "name", value = "Unidad Especializada de Atención a Usuarios de LATAM Bank" }
 ombudsman_response = { type = "count", value = 30, noun = "business_day" }
 
+[MX.authority]
+regulator = { type = "name", value = "Comisión Nacional Bancaria y de Valores" }
+consumer_agency = { type = "name", value = "Comisión Nacional para la Protección y Defensa de los Usuarios de Servicios Financieros" }
+norm_name = { type = "name", value = "Ley para la Transparencia y Ordenamiento de los Servicios Financieros" }
+
 [CO]
-version = 1
+version = 2
 language = "es-CO"
 currency = "COP"
 
@@ -90,6 +97,7 @@ report_window = { type = "count", value = 5, noun = "business_day", verified = f
 
 [CO.cards]
 replacement_time = { type = "count", value = 5, noun = "business_day" }
+express_replacement_time = { type = "count", value = 2, noun = "business_day" }
 
 [CO.fees]
 replacement = { type = "money", amount = "25000", currency = "COP" }
@@ -127,10 +135,16 @@ app_clara = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones
 handoff_wait = { type = "count", value = 10, noun = "minute" }
 handoff_hours = { type = "channel", kind = "schedule", value = "todos los días, de 8:00 a 22:00" }
 ombudsman = { type = "channel", kind = "email", value = "defensor.co@latambank.example" }
+ombudsman_name = { type = "name", value = "Defensor del Consumidor Financiero de LATAM Bank" }
 ombudsman_response = { type = "count", value = 15, noun = "business_day" }
 
+[CO.authority]
+regulator = { type = "name", value = "Superintendencia Financiera de Colombia" }
+consumer_agency = { type = "name", value = "Delegatura para Funciones Jurisdiccionales de la Superintendencia Financiera de Colombia" }
+norm_name = { type = "name", value = "Régimen de Protección al Consumidor Financiero" }
+
 [AR]
-version = 1
+version = 2
 language = "es-AR"
 currency = "ARS"
 
@@ -154,6 +168,7 @@ report_window = { type = "count", value = 30, noun = "day", verified = false }
 
 [AR.cards]
 replacement_time = { type = "count", value = 7, noun = "business_day" }
+express_replacement_time = { type = "count", value = 3, noun = "business_day" }
 
 [AR.fees]
 replacement = { type = "money", amount = "9500.00", currency = "ARS" }
@@ -191,10 +206,16 @@ app_clara = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones
 handoff_wait = { type = "count", value = 10, noun = "minute" }
 handoff_hours = { type = "channel", kind = "schedule", value = "todos los días, de 8:00 a 22:00" }
 ombudsman = { type = "channel", kind = "email", value = "defensor.ar@latambank.example" }
+ombudsman_name = { type = "name", value = "Defensoría del Cliente de LATAM Bank" }
 ombudsman_response = { type = "count", value = 15, noun = "business_day" }
 
+[AR.authority]
+regulator = { type = "name", value = "Banco Central de la República Argentina" }
+consumer_agency = { type = "name", value = "Dirección Nacional de Defensa del Consumidor" }
+norm_name = { type = "name", value = "Ley de Tarjetas de Crédito" }
+
 [PE]
-version = 1
+version = 2
 language = "es-PE"
 currency = "PEN"
 
@@ -218,6 +239,7 @@ report_window = { type = "count", value = 30, noun = "day", verified = false }
 
 [PE.cards]
 replacement_time = { type = "count", value = 7, noun = "business_day" }
+express_replacement_time = { type = "count", value = 3, noun = "business_day" }
 
 [PE.fees]
 replacement = { type = "money", amount = "25.00", currency = "PEN" }
@@ -255,10 +277,16 @@ app_clara = { type = "channel", kind = "app_path", value = "Ayuda y aclaraciones
 handoff_wait = { type = "count", value = 10, noun = "minute" }
 handoff_hours = { type = "channel", kind = "schedule", value = "todos los días, de 8:00 a 22:00" }
 ombudsman = { type = "channel", kind = "email", value = "defensoria.pe@latambank.example" }
+ombudsman_name = { type = "name", value = "Defensoría del Cliente de LATAM Bank" }
 ombudsman_response = { type = "count", value = 15, noun = "business_day" }
 
+[PE.authority]
+regulator = { type = "name", value = "Superintendencia de Banca, Seguros y AFP" }
+consumer_agency = { type = "name", value = "Instituto Nacional de Defensa de la Competencia y de la Protección de la Propiedad Intelectual" }
+norm_name = { type = "name", value = "Reglamento de Tarjetas de Crédito y Débito" }
+
 [BR]
-version = 1
+version = 2
 language = "pt-BR"
 currency = "BRL"
 
@@ -282,6 +310,7 @@ report_window = { type = "count", value = 90, noun = "day", verified = false }
 
 [BR.cards]
 replacement_time = { type = "count", value = 7, noun = "business_day" }
+express_replacement_time = { type = "count", value = 3, noun = "business_day" }
 
 [BR.fees]
 replacement = { type = "money", amount = "30.00", currency = "BRL" }
@@ -319,10 +348,16 @@ app_clara = { type = "channel", kind = "app_path", value = "Ajuda e contestaçõ
 handoff_wait = { type = "count", value = 10, noun = "minute" }
 handoff_hours = { type = "channel", kind = "schedule", value = "todos os dias, das 8h às 22h" }
 ombudsman = { type = "channel", kind = "email", value = "ouvidoria.br@latambank.example" }
+ombudsman_name = { type = "name", value = "Ouvidoria do LATAM Bank" }
 ombudsman_response = { type = "count", value = 10, noun = "business_day" }
 
+[BR.authority]
+regulator = { type = "name", value = "Banco Central do Brasil" }
+consumer_agency = { type = "name", value = "Procon" }
+norm_name = { type = "name", value = "Código de Defesa do Consumidor" }
+
 [US]
-version = 1
+version = 2
 language = "en-US"
 currency = "USD"
 
@@ -346,6 +381,7 @@ report_window = { type = "count", value = 60, noun = "day", verified = false }
 
 [US.cards]
 replacement_time = { type = "count", value = 5, noun = "business_day" }
+express_replacement_time = { type = "count", value = 2, noun = "business_day" }
 
 [US.fees]
 replacement = { type = "money", amount = "10.00", currency = "USD" }
@@ -383,4 +419,10 @@ app_clara = { type = "channel", kind = "app_path", value = "Help and claims > Ta
 handoff_wait = { type = "count", value = 10, noun = "minute" }
 handoff_hours = { type = "channel", kind = "schedule", value = "every day, 8:00 AM to 10:00 PM" }
 ombudsman = { type = "channel", kind = "email", value = "advocate.us@latambank.example" }
+ombudsman_name = { type = "name", value = "LATAM Bank Customer Advocate Office" }
 ombudsman_response = { type = "count", value = 10, noun = "business_day" }
+
+[US.authority]
+regulator = { type = "name", value = "Office of the Comptroller of the Currency" }
+consumer_agency = { type = "name", value = "Consumer Financial Protection Bureau" }
+norm_name = { type = "name", value = "Truth in Lending Act and Electronic Fund Transfer Act" }

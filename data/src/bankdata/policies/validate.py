@@ -1,5 +1,5 @@
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import date
 from functools import cache
 
@@ -15,7 +15,7 @@ from core.facts.check import (
     number_homonyms,
     number_words,
 )
-from core.policies import COUNTRIES, LANGUAGES, PLACEHOLDER, TOPICS, CountryFacts, doc_id
+from core.policies import PLACEHOLDER, SOURCE_LANGUAGES, TOPICS, CountryFacts, base_id
 
 from bankdata.policies.document import SOURCE_KEY, TITLE, Document, Line, Problem, Section
 from bankdata.policies.spec import (
@@ -24,6 +24,9 @@ from bankdata.policies.spec import (
     FIELDS,
     GLOSSARY_LABELS,
     HEADINGS,
+    INFORMAL,
+    LITERAL_ACRONYMS,
+    LITERAL_NAMES,
     Limits,
     locale,
 )
@@ -32,6 +35,16 @@ BRACES = re.compile(r"\{\{[^{}]*\}\}")
 STRAY_BRACE = re.compile(r"[{}]")
 LIST_MARKER = re.compile(r"^\s*\d+\.\s")
 QUESTION = re.compile(r"^### (?P<text>.+?)\s*$")
+SHARED_FIELDS = ("doc_id", "topic", "doc_type", "version", "effective_date")
+
+
+def validate_all(
+    documents: Sequence[Document], facts: dict[str, CountryFacts], limits: Limits
+) -> dict[str, list[Problem]]:
+    problems = {document.key: validate(document, facts, limits) for document in documents}
+    for problem in parity(documents):
+        problems[problem.file].append(problem)
+    return problems
 
 
 def validate(document: Document, facts: dict[str, CountryFacts], limits: Limits) -> list[Problem]:
@@ -40,17 +53,91 @@ def validate(document: Document, facts: dict[str, CountryFacts], limits: Limits)
     problems = _frontmatter(document, limits)
     if problems:
         return problems
-    country = str(document.meta["country"])
     language = locale(str(document.meta["language"]))
+    countries = [facts[country] for country in SOURCE_LANGUAGES[str(document.meta["language"])]]
+    names = _names(_name_values(facts))
     doc_type = str(document.meta["doc_type"])
     problems.extend(_structure(document, doc_type, language, limits))
+    title = Line(document.line_of("title"), str(document.meta["title"]))
+    problems.extend(_words(document.key, title, title.text, language, names))
     lines = [*document.preamble, *(Line(s.line, f"## {s.heading}") for s in document.sections)]
     lines += [line for section in document.sections for line in section.body]
     for line in sorted(lines, key=lambda item: item.number):
-        problems.extend(_scan(document.key, line, language, facts[country]))
+        problems.extend(_scan(document.key, line, language, countries, names))
     for section in document.sections:
         problems.extend(_disclaimer(document.key, section, language))
     return sorted(problems, key=lambda problem: (problem.line, problem.code))
+
+
+def parity(documents: Sequence[Document]) -> list[Problem]:
+    groups: dict[str, dict[str, Document]] = {}
+    for document in documents:
+        path = SOURCE_KEY.match(document.key)
+        if path is not None and path["language"] in SOURCE_LANGUAGES:
+            groups.setdefault(path["doc_id"], {})[path["language"]] = document
+    problems: list[Problem] = []
+    for name, files in sorted(groups.items()):
+        reference_language = next(language for language in SOURCE_LANGUAGES if language in files)
+        reference = files[reference_language]
+        for language in SOURCE_LANGUAGES:
+            if language not in files:
+                problems.append(
+                    Problem(reference.key, 1, "parity", f"document {name} has no {language} file")
+                )
+            elif files[language] is not reference:
+                problems += _pair(name, reference, reference_language, files[language], language)
+    return problems
+
+
+def _pair(name: str, reference: Document, base: str, other: Document, language: str) -> list[Problem]:
+    if reference.problems or other.problems:
+        return []
+    problems = [
+        Problem(other.key, other.line_of(field), "parity", f"document {name}: {field} differs from {base}")
+        for field in SHARED_FIELDS
+        if field in reference.meta and other.meta.get(field) != reference.meta[field]
+    ]
+    for number in range(1, max(len(reference.sections), len(other.sections)) + 1):
+        if number > len(other.sections):
+            heading = reference.sections[number - 1].heading
+            problems.append(
+                Problem(
+                    other.key,
+                    other.last_line,
+                    "parity",
+                    f"document {name}: section {number} '{heading}' of {base} is missing in {language}",
+                )
+            )
+            continue
+        section = other.sections[number - 1]
+        if number > len(reference.sections):
+            problems.append(
+                Problem(
+                    other.key,
+                    section.line,
+                    "parity",
+                    f"document {name}: section {number} of {language} is not in {base}",
+                )
+            )
+            continue
+        expected, found = _placeholders(reference.sections[number - 1]), _placeholders(section)
+        if expected != found:
+            changes = [f"missing {key}" for key in sorted(expected - found)]
+            changes += [f"extra {key}" for key in sorted(found - expected)]
+            problems.append(
+                Problem(
+                    other.key,
+                    section.line,
+                    "parity",
+                    f"document {name}: section {number} of {language} differs from {base}: "
+                    + ", ".join(changes),
+                )
+            )
+    return problems
+
+
+def _placeholders(section: Section) -> set[str]:
+    return {match.group(1) for line in section.body for match in PLACEHOLDER.finditer(line.text)}
 
 
 def _frontmatter(document: Document, limits: Limits) -> list[Problem]:
@@ -68,19 +155,17 @@ def _frontmatter(document: Document, limits: Limits) -> list[Problem]:
     if problems:
         return problems
     path = SOURCE_KEY.match(key)
-    country, topic = meta["country"], meta["topic"]
-    if country not in COUNTRIES:
-        fail("country", f"country must be one of {', '.join(COUNTRIES)}")
-    elif meta["language"] != LANGUAGES[country]:
-        fail("language", f"language must be {LANGUAGES[country]} for {country}")
+    language, topic = meta["language"], meta["topic"]
+    if language not in SOURCE_LANGUAGES:
+        fail("language", f"language must be one of {', '.join(SOURCE_LANGUAGES)}")
     if topic not in TOPICS:
         fail("topic", "topic is not in the taxonomy")
     elif meta["doc_type"] != TOPICS[topic][1]:
         fail("doc_type", f"doc_type must be {TOPICS[topic][1]} for {topic}")
-    elif country in COUNTRIES and meta["doc_id"] != doc_id(country, topic):
-        fail("doc_id", f"doc_id must be {doc_id(country, topic)}")
-    if path is None or (path["country"], path["topic"], path["doc_id"]) != (country, topic, meta["doc_id"]):
-        fail("doc_id", "the path must be <country>/<topic>/<doc_id>.md and match the frontmatter")
+    elif meta["doc_id"] != base_id(topic):
+        fail("doc_id", f"doc_id must be {base_id(topic)}")
+    if path is None or (path["doc_id"], path["language"]) != (meta["doc_id"], language):
+        fail("doc_id", "the path must be <doc_id>/<language>.md and match the frontmatter")
     version = meta["version"]
     if not isinstance(version, int) or isinstance(version, bool) or version < 1:
         fail("version", "version must be an integer from 1")
@@ -117,26 +202,29 @@ def _structure(document: Document, doc_type: str, language: str, limits: Limits)
             Problem(key, section.line, "structure", f"unexpected section '{section.heading}'")
             for section in sections[len(expected) :]
         ]
-        last = document.text.count("\n") + 1
         problems += [
-            Problem(key, last, "structure", f"missing section '{heading}'")
+            Problem(key, document.last_line, "structure", f"missing section '{heading}'")
             for heading in expected[len(sections) :]
         ]
     elif doc_type == "faq":
         problems += _faq(key, sections, language, limits)
     else:
         problems += _glossary(key, sections, language, limits)
+    low, high = limits.section_words
     for section in sections:
         words = section.words()
-        if not limits.min_words <= words <= limits.max_words:
+        if not low <= words <= high:
             problems.append(
-                Problem(
-                    key,
-                    section.line,
-                    "section_length",
-                    f"{words} words; a section has {limits.min_words} to {limits.max_words}",
-                )
+                Problem(key, section.line, "section_length", f"{words} words; a section has {low} to {high}")
             )
+    total = sum(section.words() for section in sections)
+    low, high = limits.document_words
+    if sections and not low <= total <= high:
+        problems.append(
+            Problem(
+                key, sections[0].line, "document_length", f"{total} words; a document has {low} to {high}"
+            )
+        )
     return problems
 
 
@@ -213,7 +301,9 @@ def _disclaimer(key: str, section: Section, language: str) -> list[Problem]:
     return []
 
 
-def _scan(key: str, line: Line, language: str, facts: CountryFacts) -> list[Problem]:
+def _scan(
+    key: str, line: Line, language: str, countries: list[CountryFacts], names: re.Pattern[str]
+) -> list[Problem]:
     outside = list(line.text)
     problems: list[Problem] = []
 
@@ -231,8 +321,10 @@ def _scan(key: str, line: Line, language: str, facts: CountryFacts) -> list[Prob
             report("placeholder_heading", f"{match.group(0)} in a heading; headings carry no figure")
         elif placeholder is None:
             report("placeholder_malformed", f"{match.group(0)} is not {{{{policy.<group>.<key>}}}}")
-        elif placeholder.group(1) not in facts.specs:
-            report("placeholder_unknown", f"{match.group(0)} is not a key of {facts.country}")
+        else:
+            missing = [facts.country for facts in countries if placeholder.group(1) not in facts.specs]
+            if missing:
+                report("placeholder_unknown", f"{match.group(0)} is not a key of {', '.join(missing)}")
         mask(match.span())
     if STRAY_BRACE.search("".join(outside)):
         report("placeholder_malformed", "a brace outside a {{policy.<group>.<key>}} placeholder")
@@ -258,7 +350,64 @@ def _scan(key: str, line: Line, language: str, facts: CountryFacts) -> list[Prob
             report("number_word", f"'{line.text[match.start() : match.end()]}' must be a placeholder")
     for match in _fraud().finditer(folded):
         report("forbidden_word", f"'{line.text[match.start() : match.end()]}' is forbidden")
+    return problems + _words(key, line, "".join(outside), language, names)
+
+
+def _words(key: str, line: Line, text: str, language: str, names: re.Pattern[str]) -> list[Problem]:
+    problems = [
+        Problem(
+            key,
+            line.number,
+            "literal_name",
+            f"'{line.text[match.start() : match.end()]}' names a country or an authority; "
+            "use its placeholder or a generic noun",
+        )
+        for pattern, target in ((names, fold(text)), (_acronyms(), text))
+        for match in pattern.finditer(target)
+    ]
+    if language in INFORMAL:
+        problems += [
+            Problem(
+                key,
+                line.number,
+                "register",
+                f"'{line.text[match.start() : match.end()]}' is informal; "
+                f"write {'usted' if language == 'es' else 'você'}",
+            )
+            for match in _informal(language).finditer(fold(text))
+        ]
     return problems
+
+
+def _name_values(facts: dict[str, CountryFacts]) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {
+                str(spec["value"])
+                for country in facts.values()
+                for spec in country.specs.values()
+                if spec.get("type") == "name"
+            }
+        )
+    )
+
+
+@cache
+def _names(values: tuple[str, ...]) -> re.Pattern[str]:
+    return bounded(
+        r"\s+".join(re.escape(word) for word in fold(name).split()) for name in (*LITERAL_NAMES, *values)
+    )
+
+
+@cache
+def _acronyms() -> re.Pattern[str]:
+    ordered = sorted(LITERAL_ACRONYMS, key=len, reverse=True)
+    return re.compile(r"(?<![A-Za-z0-9])(?:" + "|".join(map(re.escape, ordered)) + r")(?![A-Za-z0-9])")
+
+
+@cache
+def _informal(language: str) -> re.Pattern[str]:
+    return bounded(fold(word) for word in INFORMAL[language])
 
 
 def _spans(pattern: re.Pattern[str], text: str) -> list[tuple[int, int]]:

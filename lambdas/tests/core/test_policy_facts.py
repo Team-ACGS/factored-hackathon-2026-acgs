@@ -8,6 +8,7 @@ import pytest
 
 import core
 from core.facts import Ledger, render_value
+from core.facts.values import Text
 from core.policies import LANGUAGES, decode_figures, encode_figures, figure, policy_facts
 from core.tools.charges import FRESH_HOLD_DAYS
 
@@ -39,6 +40,14 @@ def test_the_bank_resolves_a_claim_within_its_reading_of_the_norm(country: str) 
 
 
 @pytest.mark.parametrize("country", COUNTRIES)
+def test_an_express_replacement_arrives_before_a_regular_one(country: str) -> None:
+    cards = FACTS[country]["cards"]
+
+    assert cards["express_replacement_time"]["noun"] == cards["replacement_time"]["noun"] == "business_day"
+    assert cards["express_replacement_time"]["value"] < cards["replacement_time"]["value"]
+
+
+@pytest.mark.parametrize("country", COUNTRIES)
 def test_the_documented_hold_window_is_the_one_triage_applies(country: str) -> None:
     hold = FACTS[country]["holds"]["fresh_hold"]
 
@@ -55,6 +64,22 @@ def test_every_country_declares_the_same_keys_and_each_renders_in_its_language()
         locale = facts.language if facts.language == "pt-BR" else facts.language[:2]
         for key in keys:
             assert render_value(facts.figure(key), Ledger(country, NOW), locale)
+
+
+NAMES = ("authority.regulator", "authority.consumer_agency", "authority.norm_name", "service.ombudsman_name")
+
+
+@pytest.mark.parametrize("country", COUNTRIES)
+def test_every_country_names_its_authorities_in_plain_words(country: str) -> None:
+    facts = policy_facts()[country]
+    locale = facts.language if facts.language == "pt-BR" else facts.language[:2]
+
+    for key in NAMES:
+        name = facts.figure(key)
+        assert isinstance(name, Text)
+        assert render_value(name, Ledger(country, NOW), locale) == name.value
+        assert not any(character.isdigit() for character in name.value)
+        assert name.value.split()[0].lower() not in {"el", "la", "los", "las", "o", "a", "the"}
 
 
 def test_only_legal_deadlines_are_unverified() -> None:

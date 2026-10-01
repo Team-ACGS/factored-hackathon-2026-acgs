@@ -6,7 +6,7 @@ from typing import Any
 from core.facts import Ledger, render_value
 from core.policies import PLACEHOLDER, TOPICS, CountryFacts
 
-from bankdata.policies.document import Document
+from bankdata.policies.document import Edition
 from bankdata.policies.spec import locale
 
 EPOCH = datetime(2000, 1, 1, tzinfo=UTC)
@@ -22,6 +22,7 @@ class FigureSpan:
 @dataclass(frozen=True)
 class RenderedSection:
     number: int
+    line: int
     heading: str
     text: str
     spans: tuple[FigureSpan, ...]
@@ -71,10 +72,10 @@ class RenderedDocument:
         return "\n".join(head) + "\n\n" + "\n\n".join(body) + "\n"
 
 
-def render(document: Document, facts: CountryFacts) -> RenderedDocument:
-    meta = document.meta
+def render(edition: Edition, facts: CountryFacts) -> RenderedDocument:
+    document, meta = edition.source, edition.source.meta
     ledger = Ledger(facts.country, EPOCH)
-    language = locale(str(meta["language"]))
+    language = locale(edition.language)
     sections = []
     for section in document.sections:
         source = "\n".join(line.text for line in section.body).strip("\n")
@@ -92,14 +93,16 @@ def render(document: Document, facts: CountryFacts) -> RenderedDocument:
             length += len(value)
             cursor = match.end()
         parts.append(source[cursor:])
-        sections.append(RenderedSection(section.number, section.heading, "".join(parts), tuple(spans)))
+        sections.append(
+            RenderedSection(section.number, section.line, section.heading, "".join(parts), tuple(spans))
+        )
     topic = str(meta["topic"])
     return RenderedDocument(
         key=document.key,
-        doc_id=str(meta["doc_id"]),
+        doc_id=edition.doc_id,
         title=str(meta["title"]),
         country=facts.country,
-        language=str(meta["language"]),
+        language=edition.language,
         topic=topic,
         group=TOPICS[topic][0],
         doc_type=str(meta["doc_type"]),

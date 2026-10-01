@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-FIELDS = ("doc_id", "title", "country", "language", "topic", "doc_type", "version", "effective_date")
+FIELDS = ("doc_id", "title", "language", "topic", "doc_type", "version", "effective_date")
 
 HEADINGS: dict[str, dict[str, tuple[str, ...]]] = {
     "policy": {
@@ -130,18 +130,160 @@ DISCLAIMER = {
 EXEMPT_WORDS = (r"terceros", r"terceiros", r"third parties")
 
 
+INFORMAL = {
+    "es": ("tú", "tu", "tus", "ti", "te", "contigo", "vos"),
+    "pt-BR": ("tu", "teu", "teus", "tua", "tuas", "ti", "contigo"),
+}
+
+LITERAL_NAMES = (
+    "México",
+    "Colombia",
+    "Colômbia",
+    "Argentina",
+    "Perú",
+    "Brasil",
+    "Brazil",
+    "Estados Unidos",
+    "United States",
+    "mexicano",
+    "mexicana",
+    "mexicanos",
+    "mexicanas",
+    "Mexican",
+    "Mexicans",
+    "colombiano",
+    "colombiana",
+    "colombianos",
+    "colombianas",
+    "Colombian",
+    "Colombians",
+    "argentino",
+    "argentinos",
+    "argentinas",
+    "Argentine",
+    "Argentines",
+    "Argentinian",
+    "Argentinians",
+    "peruano",
+    "peruana",
+    "peruanos",
+    "peruanas",
+    "Peruvian",
+    "Peruvians",
+    "brasileño",
+    "brasileña",
+    "brasileños",
+    "brasileñas",
+    "brasilero",
+    "brasilera",
+    "brasileros",
+    "brasileras",
+    "brasileiro",
+    "brasileira",
+    "brasileiros",
+    "brasileiras",
+    "Brazilian",
+    "Brazilians",
+    "estadounidense",
+    "estadounidenses",
+    "estadunidense",
+    "estadunidenses",
+    "norteamericano",
+    "norteamericana",
+    "norteamericanos",
+    "norteamericanas",
+    "norte-americano",
+    "norte-americana",
+    "norte-americanos",
+    "norte-americanas",
+    "American",
+    "Americans",
+    "Condusef",
+    "Indecopi",
+    "Bacen",
+    "Procon",
+    "Comisión Nacional Bancaria y de Valores",
+    "Comisión Nacional para la Protección y Defensa de los Usuarios de Servicios Financieros",
+    "Unidad Especializada de Atención a Usuarios",
+    "Superintendencia Financiera",
+    "Superintendencia de Industria y Comercio",
+    "Defensor del Consumidor Financiero",
+    "Banco Central de la República Argentina",
+    "Dirección Nacional de Defensa del Consumidor",
+    "Superintendencia de Banca, Seguros y AFP",
+    "Superintendencia de Banca",
+    "Instituto Nacional de Defensa de la Competencia y de la Protección de la Propiedad Intelectual",
+    "Defensoría del Cliente Financiero",
+    "Banco Central do Brasil",
+    "Programa de Proteção e Defesa do Consumidor",
+    "Consumer Financial Protection Bureau",
+    "Office of the Comptroller of the Currency",
+    "Comptroller of the Currency",
+    "Ley para la Transparencia y Ordenamiento de los Servicios Financieros",
+    "Régimen de Protección al Consumidor Financiero",
+    "Estatuto del Consumidor",
+    "Ley de Tarjetas de Crédito",
+    "Reglamento de Tarjetas de Crédito y Débito",
+    "Código de Protección y Defensa del Consumidor",
+    "Código de Defesa do Consumidor",
+    "Truth in Lending Act",
+    "Electronic Fund Transfer Act",
+    "Fair Credit Billing Act",
+    "Regulation Z",
+    "Regulation E",
+    "Reg Z",
+    "Reg E",
+)
+
+LITERAL_ACRONYMS = (
+    "CNBV",
+    "CONDUSEF",
+    "UNE",
+    "SFC",
+    "SIC",
+    "BCRA",
+    "SBS",
+    "INDECOPI",
+    "BACEN",
+    "CDC",
+    "CFPB",
+    "OCC",
+    "TILA",
+    "EFTA",
+    "FCBA",
+    "EE. UU.",
+    "EE.UU.",
+    "EEUU",
+    "EUA",
+    "USA",
+    "U.S.A.",
+    "U.S.",
+    "US",
+)
+
+
 @dataclass(frozen=True)
 class Limits:
-    min_words: int = 300
-    max_words: int = 1500
-    faq_sections: tuple[int, int] = (6, 10)
-    faq_questions: tuple[int, int] = (40, 60)
-    glossary_sections: tuple[int, int] = (5, 10)
+    section_words: tuple[int, int] = (60, 250)
+    document_words: tuple[int, int] = (600, 1050)
+    faq_sections: tuple[int, int] = (4, 6)
+    faq_questions: tuple[int, int] = (12, 16)
+    glossary_sections: tuple[int, int] = (4, 6)
     max_title: int = 90
 
 
-SAMPLE_LIMITS = Limits(
-    min_words=20, max_words=400, faq_sections=(2, 10), faq_questions=(4, 60), glossary_sections=(2, 10)
+RENDERABLE = frozenset(
+    {
+        "section_length",
+        "document_length",
+        "chunk_length",
+        "number_word",
+        "raw_date",
+        "forbidden_word",
+        "register",
+        "literal_name",
+        "parity",
+    }
 )
 
 
