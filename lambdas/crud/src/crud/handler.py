@@ -118,6 +118,8 @@ def complete_setup() -> Response[str]:
     claim = _claim(principal.subject, claimed.country, claimed.setup_claimed_at)
     account = generate(claim)
     store.write_account(account.cards, account.transactions)
+    if account.claim is not None:
+        store.write_claim(account.claim)
     try:
         customer = store.complete_setup(principal.subject, format_instant(_now()))
     except SetupAlreadyCompleted as error:

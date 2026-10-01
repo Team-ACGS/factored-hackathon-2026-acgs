@@ -1,12 +1,16 @@
 import json
 import os
 from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import boto3
 import pytest
 from moto import mock_aws
 
 from harness import ENVIRONMENT, Aws, LambdaContext
+
+if TYPE_CHECKING:
+    from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table
 
 os.environ.update(ENVIRONMENT)
 
@@ -70,6 +74,8 @@ def aws() -> Iterator[Aws]:
             BillingMode="PAY_PER_REQUEST",
             StreamSpecification={"StreamEnabled": True, "StreamViewType": "NEW_IMAGE"},
         )
+        complaints = _keyed_table(dynamodb, ENVIRONMENT["TABLE_COMPLAINTS"], "complaint_id")
+        memory = _keyed_table(dynamodb, ENVIRONMENT["TABLE_MEMORY"], "memory_key")
 
         sqs = boto3.client("sqs")
         queue_url = sqs.create_queue(QueueName="turn-events")["QueueUrl"]
@@ -95,6 +101,8 @@ def aws() -> Iterator[Aws]:
             transactions=transactions,
             rooms=rooms,
             messages=messages,
+            complaints=complaints,
+            memory=memory,
             turn_events=sqs,
             turn_events_url=queue_url,
         )
@@ -102,6 +110,21 @@ def aws() -> Iterator[Aws]:
     from core import access
 
     access._sessions.clear()
+
+
+def _keyed_table(dynamodb: "DynamoDBServiceResource", name: str, range_key: str) -> "Table":
+    return dynamodb.create_table(
+        TableName=name,
+        KeySchema=[
+            {"AttributeName": "customer_id", "KeyType": "HASH"},
+            {"AttributeName": range_key, "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "customer_id", "AttributeType": "S"},
+            {"AttributeName": range_key, "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
 
 
 @pytest.fixture

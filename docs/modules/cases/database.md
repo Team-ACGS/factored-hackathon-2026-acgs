@@ -1,11 +1,11 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-10-01
+source: 0012_data_tools
 ---
 
 # Cases: database
 
-Status: designed, not built.
+Status: `core.cases` reads the contract below (task 0012); `crud` setup writes the seeded claim; Clara-opened cases come with A1.
 The schema itself lives in `infra/` (Terraform); this file says what cases owns and must keep true, not columns or types.
 
 ## Tables owned
@@ -23,13 +23,23 @@ Cases is the table's single writer, through this module's code in the shared `la
 |---|---|---|
 | `staff` | inbox | Area, shift and language per agent/officer; read to check eligibility and identity, not owned by cases |
 
+## The complaints contract
+
+`core.cases` reads only an allow-list: the dataset's `status`, `creation_date`, `assignment_date`, `first_response_date` (the in-review instant), `resolution_date`, `closing_date`; `area`; the disputed charge's `transaction_id` and `product_id`; and the handoff summary (`summary`, `summary_points`, `summary_language`, `summary_generated_at`, `summary_source` = `compose` or `template`), written later by the rules.
+
+- Type from `area`: `fraud` to fraud, `claims` to claim, `service` to service, any other area to claim.
+- Stage from `status`: Open is opened, or assigned once `assignment_date` is set; In Process and Escalated are in review; Resolved and Rejected are resolved (the outcome is never stated); Closed is closed.
+- Display code: `case_code(complaint_id, opened_at)`, the same FNV-1a hash and `CLR-YYYY-NNNNNN` shape as the app's `claimId`.
+
 ## Invariants kept in code
 
-- A case is only ever written at `Open`; no code path in this module sets any other status (`hackathon/docs/domain/dispute-process.md`).
+- A case is only ever written at `Open`; no code path in this module sets any other status (`hackathon/docs/domain/dispute-process.md`). The one exception is the demo's seeded claim, written by setup already `In Process` with its stage dates.
+- The seeded claim's `complaint_id` is the disputed `transaction_id`, written only if absent, so its code equals the app's `claimId` for the same charge and a resumed setup writes it once.
+- No read returns the agent, `affected_product_id`, `claimed_amount`, compensation, resolution amounts or SLA fields.
 - The `complaints` table has exactly one writer, this module's code in `lambdas/core`; the inbox module writes only ranking and assignment fields on the same row, never the case's own status or content.
 - The handoff package attached to a case is written once, by the assistant module, at handoff time; cases does not mutate its content, only its visibility to an agent [inferido, boundary given for this module].
-- How a single case is looked up (case id as a sort key, or another path) given the table's partition key is `customer_id`, is not designed yet [inferido].
+- A single case is looked up by its sort key `complaint_id` under the customer's partition.
 
 ## Migrations of note
 
-- None yet, nothing is built.
+- None; the seeded claim is a new row, and accounts set up before task 0012 have none.

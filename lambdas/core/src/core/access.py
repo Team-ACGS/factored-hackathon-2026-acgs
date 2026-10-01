@@ -1,3 +1,4 @@
+import json
 import os
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -15,6 +16,15 @@ if TYPE_CHECKING:
 
 MAX_SESSIONS = 128
 REFRESH_MARGIN = timedelta(minutes=2)
+
+READ_ONLY_ACTIONS = ("dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query")
+READ_ONLY_POLICY = json.dumps(
+    {
+        "Version": "2012-10-17",
+        "Statement": [{"Effect": "Allow", "Action": list(READ_ONLY_ACTIONS), "Resource": "*"}],
+    },
+    separators=(",", ":"),
+)
 
 STAFF_ROLE_ENV = {
     "agents": "ROLE_AGENT_ARN",
@@ -63,17 +73,18 @@ class RoleSession:
         )
 
 
-AssumeRequest = tuple[str, str, tuple[tuple[str, str], ...]]
+AssumeRequest = tuple[str, str, tuple[tuple[str, str], ...], str | None]
 
 _sts = boto3.client("sts")
 _sessions: OrderedDict[AssumeRequest, RoleSession] = OrderedDict()
 
 
-def customer_session(customer_id: str, service: str) -> RoleSession:
+def customer_session(customer_id: str, service: str, *, read_only: bool = False) -> RoleSession:
     return _assume(
         os.environ["ROLE_CUSTOMER_ARN"],
         f"{service}-{customer_id}",
         (("customer_id", customer_id),),
+        READ_ONLY_POLICY if read_only else None,
     )
 
 
@@ -86,9 +97,11 @@ def session_for(principal: Principal, service: str) -> RoleSession:
     return _assume(os.environ[roles[0]], f"{service}-{principal.subject}", ())
 
 
-def _assume(role_arn: str, session_name: str, tags: tuple[tuple[str, str], ...]) -> RoleSession:
+def _assume(
+    role_arn: str, session_name: str, tags: tuple[tuple[str, str], ...], policy: str | None = None
+) -> RoleSession:
     name = session_name[:64]
-    key: AssumeRequest = (role_arn, name, tags)
+    key: AssumeRequest = (role_arn, name, tags, policy)
     cached = _sessions.get(key)
     if cached is not None and datetime.now(UTC) + REFRESH_MARGIN < cached.expires_at:
         _sessions.move_to_end(key)
@@ -96,6 +109,8 @@ def _assume(role_arn: str, session_name: str, tags: tuple[tuple[str, str], ...])
     request: dict[str, Any] = {"RoleArn": role_arn, "RoleSessionName": name, "DurationSeconds": 900}
     if tags:
         request["Tags"] = [{"Key": tag, "Value": value} for tag, value in tags]
+    if policy is not None:
+        request["Policy"] = policy
     credentials = _sts.assume_role(**request)["Credentials"]
     fresh = RoleSession(
         ReadOnlyCredentials(

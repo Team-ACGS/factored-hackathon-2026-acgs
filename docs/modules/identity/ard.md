@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0008_chat_latency
+updated: 2026-10-01
+source: 0012_data_tools
 ---
 
 # Identity: architecture and debt
@@ -137,3 +137,12 @@ These are design-time decisions, taken from `docs/tasks/_drafts/architecture_and
 - Debt created: none.
 - Revisit when: a table is reached through something other than the DynamoDB resource.
 - Source: 0008_chat_latency
+
+## 2026-10-01: read-only tool sessions through an inline session policy on role-customer
+
+- Decision: `customer_session(customer_id, service, *, read_only=False)`; with `read_only=True` the AssumeRole call carries a session policy allowing only GetItem, BatchGetItem and Query, and the policy is part of the session cache key. `role-customer` reads the new `memory` table under the same `LeadingKeys` condition.
+- Alternatives rejected: a separate `role-customer-reader` (a second role and trust policy for the same isolation).
+- Reason: no identity change, and the policy lives in code where tests evaluate it.
+- Debt created: moto 5.2.3 ignores session policies, so tests evaluate the policy document and check every tool's AssumeRole request; the denial itself is checked once on prd.
+- Revisit when: moto evaluates session policies, or an AccessDenied appears in a tool's trace.
+- Source: 0012_data_tools

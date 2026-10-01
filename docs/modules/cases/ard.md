@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-10-01
+source: 0012_data_tools
 ---
 
 # Cases: architecture decisions and debt
@@ -87,3 +87,12 @@ Status: designed, not built; entries below record decisions and open risks from 
 - Debt created: any due date a case stores or displays is wrong until that table is verified and turned into `legal_deadlines.yaml` per that document's own day-1 task.
 - Revisit when: before the due date reaches a customer or an agent in any built system.
 - Source: setup
+
+## 2026-10-01: the seeded demo claim is written in review, keyed by its disputed charge
+
+- Decision: setup writes the task 0010 claim with `complaint_id` = the disputed `transaction_id`, status `In Process`, opened one day after the charge, assigned at +2 days and in review at +6, area `claims`, no `priority_score` (outside the queue index).
+- Alternatives rejected: writing it `Open` and advancing it later (no process advances demo cases); a fresh id (its code would not match the app's `claimId`).
+- Reason: Help and Clara must show the same claim with the same code on the same account.
+- Debt created: none
+- Revisit when: Clara-opened cases replace the demo claim, or a staff console reads the queue.
+- Source: 0012_data_tools

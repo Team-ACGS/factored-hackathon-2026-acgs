@@ -25,7 +25,7 @@ def test_unprocessed_items_are_retried_until_every_transaction_is_written(
 
     monkeypatch.setattr(client, "batch_write_item", throttling)
 
-    Store(aws.customers, aws.products, aws.transactions).write_account([], ITEMS)
+    Store(aws.customers, aws.products, aws.transactions, aws.complaints).write_account([], ITEMS)
 
     assert throttled["calls"] > 3
     assert sorted(str(item["transaction_key"]) for item in aws.transactions.scan()["Items"]) == [

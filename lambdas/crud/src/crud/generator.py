@@ -9,18 +9,29 @@ from enum import StrEnum
 from typing import Any
 
 from core.accounts import transaction_date, transaction_key
-from core.ids import uuid7_at
+from core.ids import format_instant, parse_uuid7, uuid7_at, uuid7_time
+from core.months import add_months
 from crud.catalog import SUSPICIOUS_POOL, Archetype, Country, Merchant
 
 CARDS_PER_ACCOUNT = 3
 TRANSACTIONS_PER_CARD = 100
 HISTORY_DAYS = 90
 MIN_PER_MERCHANT = 4
+RECURRING_CHARGES = 3
+LATEST_BILL_DAYS = 20
+LAST_BILLING_DAY = 28
+SEEDED_CLAIM_MIN_AGE = timedelta(days=7)
+SEEDED_CLAIM_OFFSETS = {
+    "opened": timedelta(days=1),
+    "assigned": timedelta(days=3),
+    "review": timedelta(days=7),
+}
 FRESH_HOLD_DAYS = 7
 STATUS_MIX = {"Approved": 92, "Declined": 5, "Pending": 2, "Reversed": 1}
 DECLINE_CODES = ("05", "14", "51", "54")
 BILLING_CYCLE_DAYS = 30
 CENT = Decimal("0.01")
+HIGH_SCORE = Decimal(30)
 
 
 class Origin(StrEnum):
@@ -77,6 +88,7 @@ class Account:
     cards: list[dict[str, Any]]
     transactions: list[dict[str, Any]]
     cases: list[tuple[CaseKind, dict[str, Any]]]
+    claim: dict[str, Any] | None
 
 
 @dataclass
@@ -105,7 +117,42 @@ def generate(claim: Claim) -> Account:
         cases.extend(
             (row.plant, item) for row, item in zip(rows, items, strict=True) if row.plant is not None
         )
-    return Account(cards=cards, transactions=transactions, cases=cases)
+    return Account(
+        cards=cards, transactions=transactions, cases=cases, claim=seeded_claim(claim, cards, transactions)
+    )
+
+
+def seeded_claim(
+    claim: Claim, cards: list[dict[str, Any]], transactions: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    card = next((card for card in cards if card["product_type"] == "Tarjeta Débito"), cards[0])
+    cutoff = uuid7_time(parse_uuid7(card["product_id"])) - SEEDED_CLAIM_MIN_AGE
+    candidates = [
+        item
+        for item in transactions
+        if item["product_id"] == card["product_id"]
+        and item["transaction_status"] == "Approved"
+        and item["channel"] == "POS"
+        and item["transaction_country"] == claim.country.code
+        and Decimal(item.get("fraud_score", 0)) <= HIGH_SCORE
+        and datetime.fromisoformat(item["transaction_date"]) <= cutoff
+    ]
+    if not candidates:
+        return None
+    disputed = max(candidates, key=lambda item: item["transaction_date"])
+    charged_at = datetime.fromisoformat(disputed["transaction_date"])
+    stamps = {stage: format_instant(charged_at + offset) for stage, offset in SEEDED_CLAIM_OFFSETS.items()}
+    return {
+        "customer_id": claim.customer_id,
+        "complaint_id": disputed["transaction_id"],
+        "area": "claims",
+        "status": "In Process",
+        "creation_date": stamps["opened"],
+        "assignment_date": stamps["assigned"],
+        "first_response_date": stamps["review"],
+        "transaction_id": disputed["transaction_id"],
+        "product_id": disputed["product_id"],
+    }
 
 
 def manual_transaction(
@@ -140,31 +187,48 @@ def manual_transaction(
 
 def _rows(rng: random.Random, claim: Claim) -> list[list[_Row]]:
     merchants = list(claim.country.merchants)
-    generic_count = CARDS_PER_ACCOUNT * TRANSACTIONS_PER_CARD - len(PLANTS)
-    picks = [merchant for merchant in merchants for _ in range(MIN_PER_MERCHANT)]
+    today = _local(claim.anchor, claim.country).date()
+    billed = _billed(rng, merchants, today)
+    per_card = TRANSACTIONS_PER_CARD - 1
+    occasional = [merchant for merchant in merchants if not merchant.profile.recurring]
+    picks = [merchant for merchant in occasional for _ in range(MIN_PER_MERCHANT)]
     picks += rng.choices(
-        merchants,
-        weights=[0 if m.profile.recurring else m.profile.weight for m in merchants],
-        k=generic_count - len(picks),
+        occasional,
+        weights=[merchant.profile.weight for merchant in occasional],
+        k=CARDS_PER_ACCOUNT * per_card - sum(map(len, billed)) - len(picks),
     )
     rng.shuffle(picks)
-    today = _local(claim.anchor, claim.country).date()
     cards: list[list[_Row]] = []
-    per_card = TRANSACTIONS_PER_CARD - 1
+    taken = 0
     for index in range(CARDS_PER_ACCOUNT):
+        count = per_card - len(billed[index])
         rows = [
             _Row(merchant, today - timedelta(days=rng.randint(1, HISTORY_DAYS - 1)))
-            for merchant in picks[index * per_card : (index + 1) * per_card]
+            for merchant in picks[taken : taken + count]
         ]
+        taken += count
         plant = next(p for p in PLANTS if p.card == index)
         merchant = next(m for m in merchants if m.archetype is plant.archetype)
         planted = _Row(
             merchant, today - timedelta(days=rng.randint(*plant.days_ago)), plant.status, plant.kind
         )
         _assign_statuses(rng, rows, planted.status, today)
-        rows.append(planted)
-        cards.append(rows)
+        cards.append([*rows, *billed[index], planted])
     return cards
+
+
+def _billed(rng: random.Random, merchants: list[Merchant], today: date) -> list[list[_Row]]:
+    billed: list[list[_Row]] = [[] for _ in range(CARDS_PER_ACCOUNT)]
+    for merchant in merchants:
+        if not merchant.profile.recurring:
+            continue
+        card = rng.randrange(CARDS_PER_ACCOUNT)
+        latest = today - timedelta(days=rng.randint(1, LATEST_BILL_DAYS))
+        latest = latest.replace(day=min(latest.day, LAST_BILLING_DAY))
+        billed[card].extend(
+            _Row(merchant, add_months(latest, -months)) for months in range(RECURRING_CHARGES)
+        )
+    return billed
 
 
 def _assign_statuses(rng: random.Random, rows: list[_Row], planted_status: str, today: date) -> None:
@@ -302,7 +366,7 @@ def _local(instant: datetime, country: Country) -> datetime:
 
 
 def _zone(country: Country) -> timezone:
-    return timezone(timedelta(hours=country.utc_offset_hours))
+    return country.zone
 
 
 def _seed(*parts: str) -> int:

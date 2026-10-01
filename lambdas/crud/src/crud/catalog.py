@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+from datetime import timezone
 from decimal import Decimal
 from enum import StrEnum
+
+from core.countries import zone
 
 
 class Archetype(StrEnum):
@@ -60,9 +63,12 @@ class Country:
     currency: str
     usd_rate: Decimal
     rounding: Decimal
-    utc_offset_hours: int
     cities: tuple[str, ...]
     merchants: tuple[Merchant, ...]
+
+    @property
+    def zone(self) -> timezone:
+        return zone(self.code)
 
 
 def _merchants(names: dict[Archetype, str]) -> tuple[Merchant, ...]:
@@ -77,7 +83,6 @@ COUNTRIES: dict[str, Country] = {
             currency="PEN",
             usd_rate=Decimal("3.75"),
             rounding=Decimal("0.10"),
-            utc_offset_hours=-5,
             cities=("Lima", "Arequipa", "Trujillo", "Cusco"),
             merchants=_merchants(
                 {
@@ -101,7 +106,6 @@ COUNTRIES: dict[str, Country] = {
             currency="MXN",
             usd_rate=Decimal("18.50"),
             rounding=Decimal("0.50"),
-            utc_offset_hours=-6,
             cities=("Ciudad de México", "Guadalajara", "Monterrey", "Puebla"),
             merchants=_merchants(
                 {
@@ -125,7 +129,6 @@ COUNTRIES: dict[str, Country] = {
             currency="COP",
             usd_rate=Decimal("4100"),
             rounding=Decimal("100"),
-            utc_offset_hours=-5,
             cities=("Bogotá", "Medellín", "Cali", "Barranquilla"),
             merchants=_merchants(
                 {
@@ -149,7 +152,6 @@ COUNTRIES: dict[str, Country] = {
             currency="ARS",
             usd_rate=Decimal("1400"),
             rounding=Decimal("10"),
-            utc_offset_hours=-3,
             cities=("Buenos Aires", "Córdoba", "Rosario", "Mendoza"),
             merchants=_merchants(
                 {
@@ -173,7 +175,6 @@ COUNTRIES: dict[str, Country] = {
             currency="USD",
             usd_rate=Decimal("1"),
             rounding=Decimal("0.01"),
-            utc_offset_hours=-5,
             cities=("New York", "Miami", "Houston", "Los Angeles"),
             merchants=_merchants(
                 {
@@ -197,7 +198,6 @@ COUNTRIES: dict[str, Country] = {
             currency="BRL",
             usd_rate=Decimal("5.40"),
             rounding=Decimal("0.01"),
-            utc_offset_hours=-3,
             cities=("São Paulo", "Rio de Janeiro", "Belo Horizonte", "Curitiba"),
             merchants=_merchants(
                 {

@@ -1,7 +1,7 @@
 locals {
   table_arns = { for name, table in module.table : name => table.arn }
 
-  customer_owned_tables = ["customers", "products", "transactions", "complaints", "rooms", "messages"]
+  customer_owned_tables = ["customers", "products", "transactions", "complaints", "rooms", "messages", "memory"]
 
   item_read_actions  = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query", "dynamodb:ConditionCheckItem"]
   item_write_actions = ["dynamodb:PutItem", "dynamodb:UpdateItem"]

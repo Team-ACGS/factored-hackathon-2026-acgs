@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
+from core.cases import Cases
 from core.conditional import put_if_absent
 from core.customers import public_customer
 
@@ -36,10 +37,13 @@ class SetupClaim:
 
 
 class Store:
-    def __init__(self, customers: "Table", products: "Table", transactions: "Table") -> None:
+    def __init__(
+        self, customers: "Table", products: "Table", transactions: "Table", complaints: "Table"
+    ) -> None:
         self._customers = customers
         self._products = products
         self._transactions = transactions
+        self._cases = Cases(complaints)
 
     @classmethod
     def from_dynamodb(cls, dynamodb: "DynamoDBServiceResource") -> "Store":
@@ -47,6 +51,7 @@ class Store:
             dynamodb.Table(os.environ["TABLE_CUSTOMERS"]),
             dynamodb.Table(os.environ["TABLE_PRODUCTS"]),
             dynamodb.Table(os.environ["TABLE_TRANSACTIONS"]),
+            dynamodb.Table(os.environ["TABLE_COMPLAINTS"]),
         )
 
     def claim(self, customer_id: str) -> SetupClaim | None:
@@ -103,6 +108,9 @@ class Store:
         with self._transactions.batch_writer() as batch:
             for item in transactions:
                 batch.put_item(Item=dict(item))
+
+    def write_claim(self, item: Mapping[str, Any]) -> bool:
+        return self._cases.write_if_absent(item)
 
     def reserve_suspicious_suffix(self, customer_id: str, suffix: int) -> bool:
         try:

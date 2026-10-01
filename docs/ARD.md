@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0009_client_data_cache
+updated: 2026-10-01
+source: 0012_data_tools
 ---
 
 # Architecture and Debt Record
@@ -128,3 +128,4 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | evaluation | 2026-09-27 | No custodian, hash mechanism or recorded-response fixtures for the held-out | before the held-out is written |
 | evaluation | 2026-09-27 | Held-out written from scenario cards the team designed; Portuguese entirely team-generated | state it in the presentation |
 | data | 2026-09-27 | Contracts check structure, not content; known semantic defects pass | if curated data feeds a model |
+| identity | 2026-10-01 | The read-only session policy is tested as a document, since moto ignores session policies; the denial is checked once on prd | when moto evaluates session policies, or an AccessDenied appears in a tool trace |

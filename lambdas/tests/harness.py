@@ -29,6 +29,8 @@ ENVIRONMENT = {
     "TABLE_TRANSACTIONS": "clara-test-transactions",
     "TABLE_ROOMS": "clara-test-rooms",
     "TABLE_MESSAGES": "clara-test-messages",
+    "TABLE_COMPLAINTS": "clara-test-complaints",
+    "TABLE_MEMORY": "clara-test-memory",
     "ROLE_CUSTOMER_ARN": f"arn:aws:iam::{ACCOUNT}:role/clara-test-role-customer",
     "ROLE_AGENT_ARN": f"arn:aws:iam::{ACCOUNT}:role/clara-test-role-agent",
     "ROLE_OFFICER_ARN": f"arn:aws:iam::{ACCOUNT}:role/clara-test-role-officer",
@@ -105,6 +107,8 @@ class Aws:
     transactions: "Table"
     rooms: "Table"
     messages: "Table"
+    complaints: "Table"
+    memory: "Table"
     turn_events: "SQSClient"
     turn_events_url: str
     _consumed: int = 0
