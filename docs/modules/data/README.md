@@ -1,11 +1,11 @@
 ---
 updated: 2026-10-02
-source: 0017_policy_publish
+source: 0018_policy_retrieval_quality
 ---
 
 # data
 
-Status: built; the policy corpus build added by task 0013 and first published to prd by task 0017 (120 editions, threshold tuned).
+Status: built; the policy corpus build added by task 0013 and first published to prd by task 0017; embedded with Cohere Embed v4 and tuned per language by task 0018.
 
 Turns the raw LATAM Bank CSV dataset into curated Parquet, guards it with contracts, and runs every query behind a figure in `docs/`.
 Also builds the bank's policy corpus: validates, renders, chunks, embeds and publishes the generated documents that `search_policies` cites.

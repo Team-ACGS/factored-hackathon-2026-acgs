@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-02
-source: 0017_policy_publish
+source: 0018_policy_retrieval_quality
 ---
 
 # Architecture and Debt Record
@@ -141,4 +141,6 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | identity | 2026-10-01 | The read-only session policy is tested as a document, since moto ignores session policies; the denial is checked once on prd | when moto evaluates session policies, or an AccessDenied appears in a tool trace |
 | global | 2026-10-01 | Policy retrieval is vector-only; exact terms can miss | when C's recall shows lexical misses |
 | assistant | 2026-10-01 | `search_policies` timeouts are not measured against the real index | when C measures `unavailable` rates |
-| assistant | 2026-10-02 | Policy section recall@3 is 0.575: sections repeat across documents and one threshold (0.5744) serves languages with different similarity scales | when the retrieval-quality task lands, and after every build that changes the corpus hash |
+| assistant | 2026-10-02 | Spanish policy answer recall@3 is 0.76 (overall 0.85); cross-language questions have no cut of their own | the next corpus build or retrieval change, or when C sees Spanish misses |
+| data | 2026-10-02 | Policy queries and their accepted answers were written by the om-developer; Sebastian's read is the only human check | when Sebastian reviews `queries.toml` |
+| data | 2026-10-02 | A bucket build holding only some sources would prune the rest; the RUNBOOK forbids bucket builds against prd | when sources move to the bucket or the build runs in CI |
