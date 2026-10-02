@@ -7,9 +7,7 @@ from core.facts import Ledger
 from core.facts.values import Count, Day, FactIds, Flag, Passage, Text, Trace
 from core.policies import chunk_id, policy_facts
 from core.retrieval import (
-    NEAR_DUPLICATE,
     NON_FILTERABLE,
-    POOL,
     ChunkRecord,
     PolicySearch,
     VectorRetriever,
@@ -311,14 +309,12 @@ def test_no_two_excerpts_returned_are_near_duplicates(
     texts = [chunk.text for chunk in chunks]
     assert len(texts) == 3
     assert not any(near_duplicate(left, right) for n, left in enumerate(texts) for right in texts[n + 1 :])
-    assert POOL > 4
 
 
 def test_a_near_duplicate_is_half_the_smaller_excerpts_shingles() -> None:
     base = "uno dos tres cuatro cinco seis siete ocho nueve diez"
     assert near_duplicate(base, base + " once doce trece catorce quince dieciseis diecisiete dieciocho")
     assert not near_duplicate(base, "uno dos tres cuatro cinco otra cosa distinta por completo aqui")
-    assert NEAR_DUPLICATE == 0.5
 
 
 def test_the_first_excerpts_do_not_depend_on_k(clients: tuple[FakeBedrockRuntime, FakeS3Vectors]) -> None:

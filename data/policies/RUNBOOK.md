@@ -13,11 +13,11 @@ The spec the documents follow is `SPEC.md`; the build is `uv run build-policies 
 
 ## Every build
 
-1. Upload the sources to the policies bucket at `<doc_id>/<language>.md`, or keep them in a local folder in the same layout, such as the docs root's `docs/policies/`.
-   Check them first, without AWS, with `uv run build-policies validate --sources <folder>`.
-2. Run `uv run build-policies publish` (sources from the bucket) or `uv run build-policies publish --sources <folder>`.
-   A folder build only adds and updates: it never removes a published document missing from the folder unless you pass `--prune`; a bucket build removes the documents no longer in the bucket.
-   A build that finds no source at all fails and removes nothing.
+1. prd's sources are the docs root's `docs/policies/`, in the layout `<doc_id>/<language>.md`; the policies bucket holds no sources.
+   Check them first, without AWS, with `uv run build-policies validate --sources <docs root>/docs/policies`.
+2. Run `uv run build-policies publish --sources <docs root>/docs/policies`.
+   A folder build only adds and updates: it never removes a published document missing from the folder unless you pass `--prune`.
+   Never run `publish` without `--sources` against prd: a bucket build removes every published document missing from the bucket, and a build that finds no source at all fails and removes nothing.
 3. Fix every document the build names, with file and line, regenerating it or editing it, and run again: valid documents that did not change are skipped, so a rerun only builds what changed.
 4. A changed text needs a new `version` in its frontmatter, and a changed value in `policy_facts.toml` needs a new `version` for that country; the build refuses both otherwise, so a citation in an old message keeps opening the text it cited.
 
