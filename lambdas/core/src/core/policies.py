@@ -17,6 +17,7 @@ SOURCE_LANGUAGES: dict[str, tuple[str, ...]] = {
     "pt-BR": ("BR",),
     "en-US": ("US",),
 }
+DOCUMENT_LANGUAGES = ("es", "pt", "en")
 DOC_TYPES = ("policy", "procedure", "guide", "faq", "glossary")
 
 TOPICS: dict[str, tuple[str, str]] = {
@@ -114,6 +115,10 @@ def decode_figures(encoded: str) -> dict[str, Mapping[str, Any]]:
     if not isinstance(decoded, dict):
         raise ValueError("figures is not an object")
     return decoded
+
+
+def document_language(country: str) -> str:
+    return LANGUAGES[country].split("-")[0]
 
 
 def base_id(topic: str) -> str:

@@ -48,7 +48,7 @@ class Config:
             policies_bucket=os.environ["POLICIES_BUCKET"],
             documents_bucket=os.environ["DOCUMENTS_BUCKET"],
             index_arn=os.environ["POLICY_INDEX_ARN"],
-            model_id=os.environ.get("POLICY_EMBEDDING_MODEL_ID", "cohere.embed-multilingual-v3"),
+            model_id=os.environ.get("POLICY_EMBEDDING_MODEL_ID", "cohere.embed-v4:0"),
             docs_domain=os.environ.get("POLICY_DOCS_DOMAIN", "docs.factoredai.sdfles.com"),
             builder_role_arn=os.environ.get("POLICIES_BUILDER_ROLE_ARN") or None,
         )
@@ -98,7 +98,8 @@ def publish(
         typer.echo(str(problem), err=True)
     typer.echo(
         f"built {len(report.built)}, skipped {len(report.skipped)}, removed {len(report.removed)}, "
-        f"failed {len({problem.file for problem in report.problems})}"
+        f"failed {len({problem.file for problem in report.problems})}, "
+        f"existing PDFs kept {len(report.pdfs_kept)}"
     )
     typer.echo(
         f"embedded {report.embedded}, vectors written {report.written}, deleted {report.deleted}, "

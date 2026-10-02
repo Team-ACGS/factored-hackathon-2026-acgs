@@ -6,15 +6,27 @@ from clara_testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, loc
 from core.facts import Ledger
 from core.facts.values import Count, Day, FactIds, Flag, Passage, Text, Trace
 from core.policies import chunk_id, policy_facts
-from core.retrieval import NON_FILTERABLE, ChunkRecord, PolicySearch, VectorRetriever
+from core.retrieval import (
+    NEAR_DUPLICATE,
+    NON_FILTERABLE,
+    POOL,
+    ChunkRecord,
+    PolicySearch,
+    VectorRetriever,
+    near_duplicate,
+    policy_search,
+    thresholds,
+)
 from core.tools import TOOLS, ToolContext, search_policies
 from core.tools.registry import RETRIES
 from core.vectors import (
     SEARCH_CALLS,
     SEARCH_DOCUMENT,
+    SEARCH_QUERY,
     TURN_ATTEMPTS,
     TURN_SECONDS,
     WORST_SEARCH_SECONDS,
+    Embedder,
     Vector,
 )
 
@@ -81,25 +93,38 @@ def record(country: str, slug: str, group: str, doc_type: str, page: int, text: 
     )
 
 
-@pytest.fixture
-def clients() -> tuple[FakeBedrockRuntime, FakeS3Vectors]:
-    bedrock = FakeBedrockRuntime()
-    vectors = FakeS3Vectors(NON_FILTERABLE)
-    records = [record(*passage) for passage in PASSAGES]
+def put(
+    clients: tuple[FakeBedrockRuntime, FakeS3Vectors], passages: list[tuple[str, str, str, str, int, str]]
+) -> None:
+    bedrock, vectors = clients
+    records = [record(*passage) for passage in passages]
     embeddings = local_embedder(bedrock).embed([item.text for item in records], SEARCH_DOCUMENT)
     local_index(vectors).put(
         Vector(item.chunk_id, embedding, item.metadata())
         for item, embedding in zip(records, embeddings, strict=True)
     )
     bedrock.calls.clear()
-    return bedrock, vectors
+
+
+@pytest.fixture
+def clients() -> tuple[FakeBedrockRuntime, FakeS3Vectors]:
+    pair = (FakeBedrockRuntime(), FakeS3Vectors(NON_FILTERABLE))
+    put(pair, PASSAGES)
+    return pair
+
+
+def cuts(es: float = 0.1, pt: float = 0.1, en: float = 0.1) -> dict[str, float]:
+    return {"es": es, "pt": pt, "en": en}
 
 
 def context(
-    clients: tuple[FakeBedrockRuntime, FakeS3Vectors], country: str = "PE", minimum: float = 0.1
+    clients: tuple[FakeBedrockRuntime, FakeS3Vectors],
+    country: str = "PE",
+    minimum: dict[str, float] | None = None,
 ) -> ToolContext:
     bedrock, vectors = clients
-    search = PolicySearch(VectorRetriever(local_embedder(bedrock), local_index(vectors)), minimum, DOMAIN)
+    retriever = VectorRetriever(local_embedder(bedrock), local_index(vectors))
+    search = PolicySearch(retriever, minimum or cuts(), DOMAIN)
     return ToolContext("customer-1", country, "es", NOW, policies=search)
 
 
@@ -157,7 +182,9 @@ def test_filters_by_group_and_doc_type(clients: tuple[FakeBedrockRuntime, FakeS3
 def test_no_match_under_the_minimum_similarity(clients: tuple[FakeBedrockRuntime, FakeS3Vectors]) -> None:
     ledger = Ledger("PE", NOW)
 
-    result = search_policies(context(clients, minimum=0.95), ledger, query="¿Cuánto tarda la revisión?")
+    result = search_policies(
+        context(clients, minimum=cuts(es=0.95)), ledger, query="¿Cuánto tarda la revisión?"
+    )
 
     [aggregate] = [ledger.facts[fact_id] for fact_id in result.ids]
     assert aggregate.fields["outcome"] == Trace("no_match")
@@ -226,3 +253,91 @@ def test_an_unreadable_answer_is_unavailable_never_a_crash(
 
     [error] = [ledger.facts[fact_id] for fact_id in result.ids]
     assert error.fields["error"] == Trace("unavailable")
+
+
+def test_the_cut_is_the_one_of_the_countrys_document_language(
+    clients: tuple[FakeBedrockRuntime, FakeS3Vectors],
+) -> None:
+    strict_spanish = cuts(es=0.95)
+    peru, brazil = Ledger("PE", NOW), Ledger("BR", NOW)
+
+    search_policies(context(clients, "PE", strict_spanish), peru, query="revisión de mi aclaración")
+    search_policies(context(clients, "BR", strict_spanish), brazil, query="análise da minha contestação")
+
+    assert peru.chunks() == {}
+    assert brazil.chunks()
+
+
+def test_thresholds_need_exactly_one_cut_per_document_language() -> None:
+    assert thresholds('{"es": 0.36, "pt": 0.35, "en": 0.38}') == {"es": 0.36, "pt": 0.35, "en": 0.38}
+    for encoded in ['{"es": 0.36, "pt": 0.35}', '{"es": 0.3, "pt": 0.3, "en": 0.3, "fr": 0.3}', "0.5744"]:
+        with pytest.raises(ValueError, match="one cut for each"):
+            thresholds(encoded)
+
+
+def test_policy_search_fails_on_a_missing_language(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("POLICY_EMBEDDING_MODEL_ID", "cohere.embed-v4:0")
+    monkeypatch.setenv("POLICY_INDEX_ARN", "arn:aws:s3vectors:us-east-1:000000000000:bucket/b/index/i")
+    monkeypatch.setenv("POLICY_DOCS_DOMAIN", DOMAIN)
+    monkeypatch.setenv("POLICY_MIN_SIMILARITY", '{"es": 0.36, "pt": 0.35}')
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    policy_search.cache_clear()
+
+    with pytest.raises(ValueError, match="one cut for each"):
+        policy_search()
+    policy_search.cache_clear()
+
+
+def test_no_two_excerpts_returned_are_near_duplicates(
+    clients: tuple[FakeBedrockRuntime, FakeS3Vectors],
+) -> None:
+    bedrock, vectors = clients
+    copies = [
+        (
+            "PE",
+            f"copy-{n}",
+            "disputes",
+            "policy",
+            5,
+            f"La revisión de tu aclaración toma hasta 10 días hábiles, copia {n}.",
+        )
+        for n in range(10)
+    ]
+    put(clients, copies)
+    retriever = VectorRetriever(local_embedder(bedrock), local_index(vectors))
+
+    chunks = retriever.search("revisión de mi aclaración", "PE", 4, {})
+
+    texts = [chunk.text for chunk in chunks]
+    assert len(texts) == 3
+    assert not any(near_duplicate(left, right) for n, left in enumerate(texts) for right in texts[n + 1 :])
+    assert POOL > 4
+
+
+def test_a_near_duplicate_is_half_the_smaller_excerpts_shingles() -> None:
+    base = "uno dos tres cuatro cinco seis siete ocho nueve diez"
+    assert near_duplicate(base, base + " once doce trece catorce quince dieciseis diecisiete dieciocho")
+    assert not near_duplicate(base, "uno dos tres cuatro cinco otra cosa distinta por completo aqui")
+    assert NEAR_DUPLICATE == 0.5
+
+
+def test_the_first_excerpts_do_not_depend_on_k(clients: tuple[FakeBedrockRuntime, FakeS3Vectors]) -> None:
+    bedrock, vectors = clients
+    retriever = VectorRetriever(local_embedder(bedrock), local_index(vectors))
+
+    three = retriever.search("revisión de mi aclaración", "PE", 3, {})
+    four = retriever.search("revisión de mi aclaración", "PE", 4, {})
+
+    assert [chunk.chunk_id for chunk in three] == [chunk.chunk_id for chunk in four][:3]
+
+
+@pytest.mark.parametrize(
+    ("model", "sized"), [("cohere.embed-v4:0", True), ("cohere.embed-multilingual-v3", False)]
+)
+def test_the_embedder_asks_each_model_for_1024_floats(model: str, sized: bool) -> None:
+    bedrock = FakeBedrockRuntime()
+
+    [vector] = Embedder(local_embedder(bedrock).client, model).embed(["hola"], SEARCH_QUERY)
+
+    assert len(vector) == 1024
+    assert ("output_dimension" in bedrock.calls[0]) is sized

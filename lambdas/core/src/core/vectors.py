@@ -16,6 +16,8 @@ EMBED_BATCH = 96
 WRITE_BATCH = 500
 LIST_PAGE = 1000
 
+SIZED_MODELS = ("cohere.embed-v4",)
+
 SEARCH_DOCUMENT = "search_document"
 SEARCH_QUERY = "search_query"
 
@@ -64,10 +66,10 @@ class Embedder:
                 modelId=self.model_id,
                 contentType="application/json",
                 accept="application/json",
-                body=json.dumps({"texts": list(batch), "input_type": input_type, "truncate": "NONE"}),
+                body=json.dumps(self.request(list(batch), input_type)),
             )
             try:
-                embeddings = json.loads(response["body"].read())["embeddings"]
+                embeddings = json.loads(response["body"].read())["embeddings"]["float"]
                 parsed = [[float(x) for x in embedding] for embedding in embeddings]
             except (ValueError, KeyError, TypeError) as error:
                 raise VectorStoreError(f"unreadable embeddings: {error}") from error
@@ -75,6 +77,17 @@ class Embedder:
                 raise VectorStoreError(f"expected {len(batch)} embeddings of {EMBEDDING_DIMENSION}")
             vectors.extend(parsed)
         return vectors
+
+    def request(self, texts: list[str], input_type: str) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "texts": texts,
+            "input_type": input_type,
+            "embedding_types": ["float"],
+            "truncate": "NONE",
+        }
+        if self.model_id.startswith(SIZED_MODELS):
+            body["output_dimension"] = EMBEDDING_DIMENSION
+        return body
 
 
 @dataclass(frozen=True)

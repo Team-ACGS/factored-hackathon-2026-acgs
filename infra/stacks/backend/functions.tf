@@ -140,7 +140,7 @@ locals {
         POLICY_INDEX_ARN          = aws_s3vectors_index.policies.index_arn
         POLICY_EMBEDDING_MODEL_ID = var.policy_embedding_model_id
         POLICY_DOCS_DOMAIN        = local.docs_domain
-        POLICY_MIN_SIMILARITY     = tostring(var.policy_min_similarity)
+        POLICY_MIN_SIMILARITY     = jsonencode(var.policy_min_similarity)
       })
     }
   }

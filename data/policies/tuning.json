@@ -1,113 +1,276 @@
 {
-  "corpus_hash": "25b849e1d3c88e1857904ce386f7d9bbe87afa934ddb1fdfdb18939b8858abd8",
-  "embedding_model": "cohere.embed-multilingual-v3",
+  "corpus_hash": "1bfff1353f19cc9f445fce664cdb3ac556b14104a472c2b3aeb40f8bd2e2d0d4",
+  "cross_language": {
+    "outcomes": [
+      {
+        "country": "MX",
+        "language": "en",
+        "query": "How long does the bank take to resolve my claim?",
+        "rank": 1,
+        "top": 0.5286
+      },
+      {
+        "country": "CO",
+        "language": "en",
+        "query": "Can the chatbot unblock my card?",
+        "rank": 1,
+        "top": 0.5065
+      },
+      {
+        "country": "AR",
+        "language": "pt",
+        "query": "Quanto tempo demora para liberar o valor retido no hotel?",
+        "rank": 1,
+        "top": 0.5088
+      },
+      {
+        "country": "PE",
+        "language": "en",
+        "query": "I lost my card while traveling abroad, what number do I call?",
+        "rank": 1,
+        "top": 0.6078
+      },
+      {
+        "country": "BR",
+        "language": "en",
+        "query": "How much does express delivery of a new card cost?",
+        "rank": 1,
+        "top": 0.5303
+      },
+      {
+        "country": "BR",
+        "language": "es",
+        "query": "¿Cuántos días tengo para mandar los documentos que me pidieron?",
+        "rank": 1,
+        "top": 0.4188
+      },
+      {
+        "country": "US",
+        "language": "es",
+        "query": "¿Qué pasa con mis suscripciones si bloqueo la tarjeta?",
+        "rank": 1,
+        "top": 0.5856
+      },
+      {
+        "country": "US",
+        "language": "pt",
+        "query": "O banco pode bloquear meu cartão sem eu pedir?",
+        "rank": 1,
+        "top": 0.5476
+      },
+      {
+        "country": "MX",
+        "language": "en",
+        "query": "Is the foreign transaction fee something I can dispute?",
+        "rank": 1,
+        "top": 0.44
+      },
+      {
+        "country": "CO",
+        "language": "pt",
+        "query": "Quem eu procuro se o banco não responder no prazo?",
+        "rank": 1,
+        "top": 0.5472
+      }
+    ],
+    "queries": 10,
+    "recall_at_3": 1.0
+  },
+  "embedding_model": "cohere.embed-v4:0",
   "k": 3,
+  "languages": {
+    "en": {
+      "answered": 31,
+      "hits_passing": 27,
+      "negatives": 10,
+      "positives": 34,
+      "recall_at_3": 0.9118,
+      "recall_at_4": 0.9706,
+      "unrelated_passing": 1
+    },
+    "es": {
+      "answered": 30,
+      "hits_passing": 24,
+      "negatives": 10,
+      "positives": 33,
+      "recall_at_3": 0.7576,
+      "recall_at_4": 0.8485,
+      "unrelated_passing": 0
+    },
+    "pt": {
+      "answered": 33,
+      "hits_passing": 29,
+      "negatives": 10,
+      "positives": 33,
+      "recall_at_3": 0.8788,
+      "recall_at_4": 0.9091,
+      "unrelated_passing": 0
+    }
+  },
+  "max_unrelated_rate": 0.1,
   "misses": [
     {
-      "country": "BR",
-      "doc_id": "br-assistant-handoff",
-      "query": "Quando um atendente assumir a conversa, vou ter que contar tudo de novo?",
-      "section": 4
-    },
-    {
       "country": "CO",
-      "doc_id": "co-assistant-scope",
       "query": "¿El asistente virtual me puede devolver la plata o decirme si fue fraude?",
-      "section": 7
-    },
-    {
-      "country": "US",
-      "doc_id": "us-assistant-scope",
-      "query": "If I ask the chatbot something it doesn't know, what does it do?",
-      "section": 5
+      "returned": [
+        "co-reversals-and-duplicates-v1-f2-s4-c1",
+        "co-dispute-deadlines-v1-f2-s2-c1",
+        "co-reversals-and-duplicates-v1-f2-s1-c1",
+        "co-transaction-alerts-v1-f2-s1-c1"
+      ]
     },
     {
       "country": "MX",
-      "doc_id": "mx-card-replacement",
       "query": "Si me clonaron la tarjeta y pido que la nueva me llegue rápido, ¿eso sí lo pago?",
-      "section": 8
+      "returned": [
+        "mx-card-replacement-v1-f2-s5-c1",
+        "mx-lost-or-stolen-card-v1-f2-s4-c1",
+        "mx-lost-or-stolen-card-v1-f2-s3-c1",
+        "mx-card-replacement-v1-f2-s7-c1"
+      ]
     },
     {
       "country": "CO",
-      "doc_id": "co-deadlines-calendar",
       "query": "¿Hay algún lugar donde vea juntos todos los tiempos: el reclamo, la tarjeta nueva, lo retenido en el hotel?",
-      "section": 1
+      "returned": [
+        "co-deadlines-calendar-v1-f2-s5-c1",
+        "co-deadlines-calendar-v1-f2-s8-c1",
+        "co-blocked-card-effects-v1-f2-s5-c1",
+        "co-deadlines-calendar-v1-f2-s9-c1"
+      ]
     },
     {
-      "country": "AR",
-      "doc_id": "ar-deadlines-calendar",
-      "query": "¿Desde cuándo se empieza a contar cada tiempo, desde que reclamo o desde que me llega el resumen?",
-      "section": 5
+      "country": "BR",
+      "query": "Comprei num site de fora e não reconheço a cobrança, o que eu preciso juntar para reclamar?",
+      "returned": [
+        "br-special-purchase-disputes-v1-f2-s2-c1",
+        "br-special-purchase-disputes-v1-f2-s3-c1",
+        "br-special-purchase-disputes-v1-f2-s1-c1",
+        "br-special-purchase-disputes-v1-f2-s6-c1"
+      ]
     },
     {
       "country": "PE",
-      "doc_id": "pe-dispute-deadlines",
-      "query": "Si me piden un comprobante, ¿cuánto tiempo tengo para mandarlo y qué pasa si no lo mando?",
-      "section": 5
-    },
-    {
-      "country": "US",
-      "doc_id": "us-dispute-deadlines",
-      "query": "My dispute is taking forever because the store hasn't answered, is that allowed?",
-      "section": 8
-    },
-    {
-      "country": "MX",
-      "doc_id": "mx-dispute-lifecycle",
-      "query": "Si al final resulta que la compra sí era mía, ¿qué pasa con mi reclamo?",
-      "section": 5
-    },
-    {
-      "country": "CO",
-      "doc_id": "co-disputes-glossary",
-      "query": "¿Qué significa cada estado que le van poniendo a mi caso en la app?",
-      "section": 2
-    },
-    {
-      "country": "MX",
-      "doc_id": "mx-transaction-statuses",
-      "query": "Me aparece una compra rechazada que yo no intenté hacer, ¿qué quiere decir?",
-      "section": 3
-    },
-    {
-      "country": "BR",
-      "doc_id": "br-transaction-statuses",
-      "query": "Aparece a mesma loja duas vezes, uma ainda em processamento, fui cobrado em dobro?",
-      "section": 7
-    },
-    {
-      "country": "US",
-      "doc_id": "us-unauthorized-use-liability",
-      "query": "Do I have to pay for the purchases a thief made with my card?",
-      "section": 5
+      "query": "Me llegó un mensaje preguntando si hice una compra y no contesté, ¿me van a bloquear la tarjeta?",
+      "returned": [
+        "pe-blocked-card-effects-v1-f2-s7-c1",
+        "pe-transaction-alerts-v1-f2-s3-c1",
+        "pe-transaction-statuses-v1-f2-s7-c1",
+        "pe-transaction-alerts-v1-f2-s2-c1"
+      ]
     },
     {
       "country": "AR",
-      "doc_id": "ar-unrecognized-charge-guide",
       "query": "Veo un gasto que no me suena en el resumen, ¿qué reviso antes de reclamar?",
-      "section": 3
+      "returned": [
+        "ar-pending-charges-v1-f2-s3-c1",
+        "ar-special-purchase-disputes-v1-f2-s7-c1",
+        "ar-unrecognized-charge-guide-v1-f2-s7-c1",
+        "ar-unrecognized-charges-faq-v1-f2-s1-c1"
+      ]
+    },
+    {
+      "country": "CO",
+      "query": "Me están pidiendo un recibo para mi reclamo, ¿por dónde lo mando?",
+      "returned": [
+        "co-special-purchase-disputes-v1-f2-s6-c1",
+        "co-transaction-alerts-v1-f2-s7-c1",
+        "co-unrecognized-charges-faq-v1-f2-s2-c1",
+        "co-transaction-alerts-v1-f2-s6-c1"
+      ]
+    },
+    {
+      "country": "PE",
+      "query": "¿La asistente virtual me puede prometer que me devuelven el dinero?",
+      "returned": [
+        "pe-reversals-and-duplicates-v1-f2-s1-c1",
+        "pe-reversals-and-duplicates-v1-f2-s4-c1",
+        "pe-reversals-and-duplicates-v1-f2-s7-c1",
+        "pe-assistant-scope-v1-f2-s1-c1"
+      ]
+    },
+    {
+      "country": "PE",
+      "query": "¿Me van a avisar cuando mi reclamo pase a otra etapa?",
+      "returned": [
+        "pe-transaction-alerts-v1-f2-s4-c1",
+        "pe-assistant-handoff-v1-f2-s4-c1",
+        "pe-assistant-handoff-v1-f2-s3-c1",
+        "pe-assistant-handoff-v1-f2-s8-c1"
+      ]
     },
     {
       "country": "BR",
-      "doc_id": "br-unrecognized-charge-guide",
-      "query": "O nome da loja na fatura é diferente do que eu conheço, pode ser golpe?",
-      "section": 7
+      "query": "A Clara consegue me dizer se a compra foi golpe ou não?",
+      "returned": [
+        "br-transaction-alerts-v1-f2-s3-c1",
+        "br-transaction-statuses-v1-f2-s3-c1",
+        "br-special-purchase-disputes-v1-f2-s3-c1",
+        "br-transaction-alerts-v1-f2-s7-c1"
+      ]
     },
     {
       "country": "BR",
-      "doc_id": "br-unrecognized-charge-rights",
-      "query": "Se a minha reclamação for demorar mais, o banco me avisa uma nova data?",
-      "section": 8
+      "query": "Me cobraram duas vezes a mesma compra, o que eu faço?",
+      "returned": [
+        "br-reversals-and-duplicates-v1-f2-s8-c1",
+        "br-special-purchase-disputes-v1-f2-s3-c1",
+        "br-transaction-alerts-v1-f2-s3-c1",
+        "br-special-purchase-disputes-v1-f2-s7-c1"
+      ]
     },
     {
-      "country": "MX",
-      "doc_id": "mx-unrecognized-charges-faq",
-      "query": "En mi estado de cuenta sale un cobro extra por una compra que hice en el extranjero, ¿lo puedo reclamar?",
-      "section": 1
+      "country": "BR",
+      "query": "O banco garante que não vou pagar nada se clonaram meu cartão?",
+      "returned": [
+        "br-lost-or-stolen-card-v1-f2-s3-c1",
+        "br-unauthorized-use-liability-v1-f2-s7-c1",
+        "br-lost-or-stolen-card-v1-f2-s4-c1",
+        "br-transaction-alerts-v1-f2-s4-c1"
+      ]
+    },
+    {
+      "country": "US",
+      "query": "Will you put the money back on my card while you look into it?",
+      "returned": [
+        "us-reversals-and-duplicates-v1-f2-s5-c1",
+        "us-dispute-lifecycle-v1-f2-s7-c1",
+        "us-reversals-and-duplicates-v1-f2-s4-c1",
+        "us-special-purchase-disputes-v1-f2-s4-c1"
+      ]
+    },
+    {
+      "country": "US",
+      "query": "If you decide against me, does the charge stay on my account?",
+      "returned": [
+        "us-unrecognized-charge-guide-v1-f2-s4-c1",
+        "us-pending-charges-v1-f2-s4-c1",
+        "us-transaction-alerts-v1-f2-s4-c1",
+        "us-recurring-payments-v1-f2-s4-c1"
+      ]
+    },
+    {
+      "country": "US",
+      "query": "Where do I send a formal complaint if I'm unhappy with how my case was handled?",
+      "returned": [
+        "us-assistant-handoff-v1-f2-s8-c1",
+        "us-unrecognized-charge-rights-v1-f2-s6-c1",
+        "us-dispute-deadlines-v1-f2-s6-c1",
+        "us-assistant-handoff-v1-f2-s9-c1"
+      ]
     }
   ],
-  "negatives": 15,
-  "positives": 40,
-  "recall_at_3": 0.575,
-  "threshold": 0.5744
+  "near_duplicates": 0,
+  "overall": {
+    "negatives": 30,
+    "positives": 100,
+    "recall_at_3": 0.85,
+    "recall_at_4": 0.91
+  },
+  "thresholds": {
+    "en": 0.3789,
+    "es": 0.3638,
+    "pt": 0.3464
+  },
+  "tool_k": 4
 }

@@ -20,6 +20,7 @@ BUILD_VERSION = 2
 MANIFEST_KEY = "manifest.json"
 FACTS_FILE = "lambdas/core/src/core/policy_facts.toml"
 PDF_CACHE = "public, max-age=31536000, immutable"
+SOURCES = "<sources>"
 
 Entry = dict[str, Any]
 
@@ -40,6 +41,7 @@ class Report:
     built: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     removed: list[str] = field(default_factory=list)
+    pdfs_kept: list[str] = field(default_factory=list)
     embedded: int = 0
     written: int = 0
     deleted: int = 0
@@ -129,6 +131,9 @@ def build(
         report.built.append(document.doc_id)
         _write_manifest(target, chunking, facts_state, entries, report)
 
+    if prune and before and not loaded.present:
+        report.problems.append(Problem(SOURCES, 1, "no_sources", "no source found; nothing is removed"))
+        prune = False
     for doc_id in sorted(set(before) - loaded.present) if prune else []:
         report.deleted += target.index.delete(before[doc_id]["vectors"])
         report.removed.append(doc_id)
@@ -227,7 +232,8 @@ def _publish(
         )
         for chunk in chunks
     ]
-    target.documents.write(key, pdf.data, "application/pdf", PDF_CACHE)
+    if not target.documents.create(key, pdf.data, "application/pdf", PDF_CACHE):
+        report.pdfs_kept.append(key)
     edition_name = edition(document.doc_id, document.version, document.facts.version)
     target.policies.write(
         f"rendered/{document.country}/{edition_name}.md",

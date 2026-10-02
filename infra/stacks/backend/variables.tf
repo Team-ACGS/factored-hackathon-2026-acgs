@@ -58,8 +58,18 @@ variable "policy_embedding_model_id" {
 }
 
 variable "policy_min_similarity" {
-  description = "Cosine similarity a policy chunk must reach to be returned; below it search_policies answers no_match"
-  type        = number
+  description = "Cosine similarity a policy chunk must reach to be returned, per document language (es, pt, en); below it search_policies answers no_match"
+  type        = map(number)
+
+  validation {
+    condition     = length(var.policy_min_similarity) == 3 && alltrue([for language in ["es", "pt", "en"] : contains(keys(var.policy_min_similarity), language)])
+    error_message = "policy_min_similarity must hold exactly one cut for each of es, pt and en."
+  }
+
+  validation {
+    condition     = alltrue([for cut in values(var.policy_min_similarity) : cut > 0 && cut <= 1])
+    error_message = "Each policy_min_similarity cut must be in (0, 1]."
+  }
 }
 
 variable "bedrock_inference_profile_id" {
