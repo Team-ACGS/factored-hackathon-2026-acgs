@@ -378,4 +378,3 @@ source: 0018_policy_retrieval_quality
 - Debt created: Spanish answer recall@3 is 0.76, below 0.8; cross-language questions (10, all hit at rank 1) have no cut of their own.
 - Revisit when: the next corpus build or retrieval change, or when C sees Spanish misses or cross-language questions passing wrongly.
 - Source: 0018_policy_retrieval_quality
-- Amends: `docs/ARD.md` 2026-10-01, "The policy corpus lives in S3 Vectors, embedded with Cohere Embed Multilingual v3" (the model only).

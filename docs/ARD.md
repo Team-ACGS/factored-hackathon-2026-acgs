@@ -112,6 +112,7 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 - Revisit when: C's recall on human-written questions shows lexical misses (add a lexical retriever behind the same interface), or recall disappoints (measure a newer Cohere version on Bedrock first).
 - Source: 0013_policy_search
 - Amended by: 0015_policy_base_layout, 2026-10-01: sources are base files at `<doc_id>/<language>.md`, kept in the docs root's `docs/policies/` (local git, no remote) and built with `--sources`, or in the policies bucket in the same layout; rendered editions and PDFs stay in S3.
+- Amended by: 0018_policy_retrieval_quality, 2026-10-02: queries and documents are embedded with cohere.embed-v4:0 at 1024 dimensions (assistant ard.md, entry of that date).
 
 ## Debt index
 
