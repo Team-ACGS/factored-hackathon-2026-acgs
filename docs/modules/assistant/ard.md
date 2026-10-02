@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-01
-source: 0015_policy_base_layout
+updated: 2026-10-02
+source: 0017_policy_publish
 ---
 
 # assistant: architecture and debt
@@ -322,6 +322,7 @@ source: 0015_policy_base_layout
 - Debt created: the timeouts and the default similarity threshold (0.35) are not measured against the real index.
 - Revisit when: after the first real build and `tune-policies`, and when C measures `unavailable` rates.
 - Source: 0013_policy_search
+- Resolved by: 0017_policy_publish, 2026-10-02 (the threshold only; the timeouts stay unmeasured)
 
 ## 2026-10-01: test doubles of Bedrock and S3 Vectors live in a dev-only package
 
@@ -349,3 +350,12 @@ source: 0015_policy_base_layout
 - Debt created: none
 - Revisit when: a country's authority or norm changes name, or Sebastian reviews the real names.
 - Source: 0015_policy_base_layout
+
+## 2026-10-02: the similarity threshold is the measured 0.5744, applied though recall@3 is 0.575
+
+- Decision: `policy_min_similarity` in prd is 0.5744, the cut `tune-policies` measured on the first build (corpus `25b849e1`) with 40 labeled questions and 15 unrelated ones in `data/policies/queries.toml`. At that cut 31 of 40 answerable questions still get an excerpt and 1 of 15 unrelated ones passes. Section recall@3 is 0.575 and document recall@3 is 0.8, below the 0.7 floor set for the task.
+- Alternatives rejected: keeping 0.35 (13 of 15 unrelated questions pass); holding the publish until retrieval improves (recall@3 does not depend on the cut).
+- Reason: a measured cut is better than an unmeasured one, and the low recall comes from the corpus and the index, not from the threshold (Sebastian, 2026-10-02).
+- Debt created: section recall@3 is 0.575. Sections repeat almost word for word across documents (claim deadlines, the evidence window, the ombudsman), and one threshold serves languages whose similarity scales differ (en unrelated questions top out at 0.44, es and pt at 0.59).
+- Revisit when: the retrieval-quality task (repeated sections, a per-language threshold) lands, and after every build that changes the corpus hash.
+- Source: 0017_policy_publish

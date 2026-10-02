@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-01
-source: 0015_policy_base_layout
+updated: 2026-10-02
+source: 0017_policy_publish
 ---
 
 # Architecture and Debt Record
@@ -140,4 +140,5 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | data | 2026-09-27 | Contracts check structure, not content; known semantic defects pass | if curated data feeds a model |
 | identity | 2026-10-01 | The read-only session policy is tested as a document, since moto ignores session policies; the denial is checked once on prd | when moto evaluates session policies, or an AccessDenied appears in a tool trace |
 | global | 2026-10-01 | Policy retrieval is vector-only; exact terms can miss | when C's recall shows lexical misses |
-| assistant | 2026-10-01 | `search_policies` timeouts and the default similarity threshold (0.35) are not measured against the real index | after the first real build and `tune-policies`, and when C measures `unavailable` rates |
+| assistant | 2026-10-01 | `search_policies` timeouts are not measured against the real index | when C measures `unavailable` rates |
+| assistant | 2026-10-02 | Policy section recall@3 is 0.575: sections repeat across documents and one threshold (0.5744) serves languages with different similarity scales | when the retrieval-quality task lands, and after every build that changes the corpus hash |
