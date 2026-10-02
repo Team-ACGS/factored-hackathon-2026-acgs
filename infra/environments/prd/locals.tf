@@ -19,7 +19,7 @@ locals {
   ### Assistant ################################################################
   bedrock_inference_profile_id = "us.anthropic.claude-sonnet-5"
   policy_embedding_model_id    = "cohere.embed-multilingual-v3"
-  policy_min_similarity        = 0.35
+  policy_min_similarity        = 0.5744
 
   ### GitHub ###################################################################
   github_owner               = "Team-ACGS"

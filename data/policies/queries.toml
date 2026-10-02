@@ -1,0 +1,299 @@
+[[query]]
+country = "MX"
+query = "Ya escribí varias veces por lo mismo, ¿me van a pasar con alguien de verdad aunque no lo pida?"
+doc_id = "mx-assistant-handoff"
+section = 3
+
+[[query]]
+country = "BR"
+query = "Quando um atendente assumir a conversa, vou ter que contar tudo de novo?"
+doc_id = "br-assistant-handoff"
+section = 4
+
+[[query]]
+country = "CO"
+query = "¿El asistente virtual me puede devolver la plata o decirme si fue fraude?"
+doc_id = "co-assistant-scope"
+section = 7
+
+[[query]]
+country = "US"
+query = "If I ask the chatbot something it doesn't know, what does it do?"
+doc_id = "us-assistant-scope"
+section = 5
+
+[[query]]
+country = "AR"
+query = "Bloqueé la tarjeta, ¿qué pasa con Netflix y las otras suscripciones que pagaba con ella?"
+doc_id = "ar-blocked-card-effects"
+section = 4
+
+[[query]]
+country = "US"
+query = "I'm paying off a TV in monthly installments, does locking my card cancel that?"
+doc_id = "us-blocked-card-effects"
+section = 7
+
+[[query]]
+country = "PE"
+query = "¿El banco puede congelar mi tarjeta por su cuenta si ve algo raro?"
+doc_id = "pe-card-blocking"
+section = 8
+
+[[query]]
+country = "BR"
+query = "Por que para reativar o cartão eles pedem mais verificação do que para travar?"
+doc_id = "br-card-blocking"
+section = 4
+
+[[query]]
+country = "MX"
+query = "Si me clonaron la tarjeta y pido que la nueva me llegue rápido, ¿eso sí lo pago?"
+doc_id = "mx-card-replacement"
+section = 8
+
+[[query]]
+country = "US"
+query = "How much does it cost to get my new card mailed faster?"
+doc_id = "us-card-replacement"
+section = 5
+
+[[query]]
+country = "CO"
+query = "¿Hay algún lugar donde vea juntos todos los tiempos: el reclamo, la tarjeta nueva, lo retenido en el hotel?"
+doc_id = "co-deadlines-calendar"
+section = 1
+
+[[query]]
+country = "AR"
+query = "¿Desde cuándo se empieza a contar cada tiempo, desde que reclamo o desde que me llega el resumen?"
+doc_id = "ar-deadlines-calendar"
+section = 5
+
+[[query]]
+country = "PE"
+query = "Si me piden un comprobante, ¿cuánto tiempo tengo para mandarlo y qué pasa si no lo mando?"
+doc_id = "pe-dispute-deadlines"
+section = 5
+
+[[query]]
+country = "US"
+query = "My dispute is taking forever because the store hasn't answered, is that allowed?"
+doc_id = "us-dispute-deadlines"
+section = 8
+
+[[query]]
+country = "BR"
+query = "Depois que eu abro a reclamação, quem olha o caso e em que ordem as coisas acontecem?"
+doc_id = "br-dispute-lifecycle"
+section = 4
+
+[[query]]
+country = "MX"
+query = "Si al final resulta que la compra sí era mía, ¿qué pasa con mi reclamo?"
+doc_id = "mx-dispute-lifecycle"
+section = 5
+
+[[query]]
+country = "CO"
+query = "¿Qué significa cada estado que le van poniendo a mi caso en la app?"
+doc_id = "co-disputes-glossary"
+section = 2
+
+[[query]]
+country = "US"
+query = "What's the difference between the bank's complaints office and the government consumer agency?"
+doc_id = "us-disputes-glossary"
+section = 5
+
+[[query]]
+country = "AR"
+query = "Estoy de viaje afuera del país y perdí la billetera con la tarjeta, ¿qué hago?"
+doc_id = "ar-lost-or-stolen-card"
+section = 7
+
+[[query]]
+country = "BR"
+query = "O caixa eletrônico engoliu meu cartão, o que eu faço?"
+doc_id = "br-lost-or-stolen-card"
+section = 2
+
+[[query]]
+country = "PE"
+query = "Cargué gasolina y en la app me sale retenido un monto mayor al que pagué"
+doc_id = "pe-pending-charges"
+section = 7
+
+[[query]]
+country = "US"
+query = "Why is there money held on my card that I haven't actually been charged for yet?"
+doc_id = "us-pending-charges"
+section = 1
+
+[[query]]
+country = "MX"
+query = "¿Cómo dejo de pagar un gimnasio que se cobra solo cada mes? No encuentro la opción en la app"
+doc_id = "mx-recurring-payments"
+section = 3
+
+[[query]]
+country = "BR"
+query = "Pedi para parar a assinatura, mas a empresa ainda pode tentar me cobrar?"
+doc_id = "br-recurring-payments"
+section = 4
+
+[[query]]
+country = "CO"
+query = "En la tienda me dijeron que ya me devolvieron la plata de una compra en el local, ¿en cuánto tiempo la veo?"
+doc_id = "co-reversals-and-duplicates"
+section = 5
+
+[[query]]
+country = "US"
+query = "The store refuses to take my item back, can the bank make them?"
+doc_id = "us-reversals-and-duplicates"
+section = 8
+
+[[query]]
+country = "AR"
+query = "Compré algo en dólares por internet y me cobraron más de lo que decía la página, ¿por qué?"
+doc_id = "ar-special-purchase-disputes"
+section = 7
+
+[[query]]
+country = "BR"
+query = "Comprei num site de fora e não reconheço a cobrança, o que eu preciso juntar para reclamar?"
+doc_id = "br-special-purchase-disputes"
+section = 6
+
+[[query]]
+country = "PE"
+query = "Me llegó un mensaje preguntando si hice una compra y no contesté, ¿me van a bloquear la tarjeta?"
+doc_id = "pe-transaction-alerts"
+section = 2
+
+[[query]]
+country = "US"
+query = "I got a text about a purchase with a link to verify my card number, is that real?"
+doc_id = "us-transaction-alerts"
+section = 6
+
+[[query]]
+country = "MX"
+query = "Me aparece una compra rechazada que yo no intenté hacer, ¿qué quiere decir?"
+doc_id = "mx-transaction-statuses"
+section = 3
+
+[[query]]
+country = "BR"
+query = "Aparece a mesma loja duas vezes, uma ainda em processamento, fui cobrado em dobro?"
+doc_id = "br-transaction-statuses"
+section = 7
+
+[[query]]
+country = "CO"
+query = "Avisé varios días después de que me usaron la tarjeta, ¿igual me revisan el caso?"
+doc_id = "co-unauthorized-use-liability"
+section = 8
+
+[[query]]
+country = "US"
+query = "Do I have to pay for the purchases a thief made with my card?"
+doc_id = "us-unauthorized-use-liability"
+section = 5
+
+[[query]]
+country = "AR"
+query = "Veo un gasto que no me suena en el resumen, ¿qué reviso antes de reclamar?"
+doc_id = "ar-unrecognized-charge-guide"
+section = 3
+
+[[query]]
+country = "BR"
+query = "O nome da loja na fatura é diferente do que eu conheço, pode ser golpe?"
+doc_id = "br-unrecognized-charge-guide"
+section = 7
+
+[[query]]
+country = "PE"
+query = "Si el banco no me responde en el tiempo que dijo, ¿se cierra mi reclamo?"
+doc_id = "pe-unrecognized-charge-rights"
+section = 9
+
+[[query]]
+country = "BR"
+query = "Se a minha reclamação for demorar mais, o banco me avisa uma nova data?"
+doc_id = "br-unrecognized-charge-rights"
+section = 8
+
+[[query]]
+country = "MX"
+query = "En mi estado de cuenta sale un cobro extra por una compra que hice en el extranjero, ¿lo puedo reclamar?"
+doc_id = "mx-unrecognized-charges-faq"
+section = 1
+
+[[query]]
+country = "CO"
+query = "¿Qué datos de mi tarjeta nunca me va a pedir el banco?"
+doc_id = "co-unrecognized-charges-faq"
+section = 5
+
+[[query]]
+country = "MX"
+query = "¿Cuánto me prestan para comprar un coche?"
+
+[[query]]
+country = "MX"
+query = "¿Qué tasa de interés me cobran si solo pago el mínimo de la tarjeta?"
+
+[[query]]
+country = "CO"
+query = "¿Cómo abro una cuenta de ahorros para mi hijo?"
+
+[[query]]
+country = "CO"
+query = "¿Puedo subir el cupo de mi tarjeta de crédito?"
+
+[[query]]
+country = "AR"
+query = "¿Conviene comprar dólares o hacer un plazo fijo este mes?"
+
+[[query]]
+country = "AR"
+query = "¿Cómo canjeo los puntos de la tarjeta por pasajes de avión?"
+
+[[query]]
+country = "PE"
+query = "¿Qué seguro de vida me ofrece el banco?"
+
+[[query]]
+country = "PE"
+query = "¿Va a llover en Lima este fin de semana?"
+
+[[query]]
+country = "BR"
+query = "Como faço um empréstimo consignado?"
+
+[[query]]
+country = "BR"
+query = "Qual o rendimento da poupança este mês?"
+
+[[query]]
+country = "BR"
+query = "Posso aumentar o limite do meu cartão de crédito?"
+
+[[query]]
+country = "US"
+query = "What's the best way to build my credit score?"
+
+[[query]]
+country = "US"
+query = "How do I set up direct deposit for my paycheck?"
+
+[[query]]
+country = "US"
+query = "Can you recommend a good restaurant near me?"
+
+[[query]]
+country = "US"
+query = "How do I add my spouse as an authorized user on my account?"

@@ -1,11 +1,11 @@
 ---
-updated: 2026-10-01
-source: 0013_policy_search
+updated: 2026-10-02
+source: 0017_policy_publish
 ---
 
 # data
 
-Status: built; the policy corpus build added by task 0013.
+Status: built; the policy corpus build added by task 0013 and first published to prd by task 0017 (120 editions, threshold tuned).
 
 Turns the raw LATAM Bank CSV dataset into curated Parquet, guards it with contracts, and runs every query behind a figure in `docs/`.
 Also builds the bank's policy corpus: validates, renders, chunks, embeds and publishes the generated documents that `search_policies` cites.

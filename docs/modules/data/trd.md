@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-01
-source: 0015_policy_base_layout
+updated: 2026-10-02
+source: 0017_policy_publish
 ---
 
 # data: technical
@@ -26,7 +26,7 @@ DuckDB is the engine at every step; Parquet is the storage format, local or S3, 
 | `hackathon/data/sql/scratch/` | Work-in-progress queries, git-ignored output |
 | `hackathon/data/figures/` | Committed CSV output, always rewritten from `sql/figures/` |
 | `hackathon/data/src/bankdata/policies/` | The policy corpus build: `document` (parse), `validate`, `sources` (expand each base file into its country editions), `render` (placeholders with `core.facts`' renderers, figure spans), `chunk` (one chunk per section), `dedupe`, `pdf` (Markdown to HTML, WeasyPrint with `template/`, page location with PyMuPDF), `build` (manifest, skip unchanged, vectors, uploads), `tune`, `store` (local folder or S3), `cli` |
-| `hackathon/data/policies/` | `SPEC.md` (the document contract), `RUNBOOK.md`, and `sample/` (two documents in the three languages, valid under the production limits, and labeled queries), used by tests and as the worked example of the spec |
+| `hackathon/data/policies/` | `SPEC.md` (the document contract), `RUNBOOK.md`, `queries.toml` and `tuning.json` (the labeled questions and the measured threshold of the published corpus), and `sample/` (two documents in the three languages, valid under the production limits, and labeled queries), used by tests and as the worked example of the spec |
 | `hackathon/data/tests/` | Unit tests on synthetic fixtures under `tests/fixtures/raw/` and the policy sample, never touch the real dataset |
 
 ## CLI commands (no HTTP endpoints; this module is a pipeline, not a service)

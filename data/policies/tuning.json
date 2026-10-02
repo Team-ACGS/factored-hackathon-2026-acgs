@@ -1,0 +1,113 @@
+{
+  "corpus_hash": "25b849e1d3c88e1857904ce386f7d9bbe87afa934ddb1fdfdb18939b8858abd8",
+  "embedding_model": "cohere.embed-multilingual-v3",
+  "k": 3,
+  "misses": [
+    {
+      "country": "BR",
+      "doc_id": "br-assistant-handoff",
+      "query": "Quando um atendente assumir a conversa, vou ter que contar tudo de novo?",
+      "section": 4
+    },
+    {
+      "country": "CO",
+      "doc_id": "co-assistant-scope",
+      "query": "¿El asistente virtual me puede devolver la plata o decirme si fue fraude?",
+      "section": 7
+    },
+    {
+      "country": "US",
+      "doc_id": "us-assistant-scope",
+      "query": "If I ask the chatbot something it doesn't know, what does it do?",
+      "section": 5
+    },
+    {
+      "country": "MX",
+      "doc_id": "mx-card-replacement",
+      "query": "Si me clonaron la tarjeta y pido que la nueva me llegue rápido, ¿eso sí lo pago?",
+      "section": 8
+    },
+    {
+      "country": "CO",
+      "doc_id": "co-deadlines-calendar",
+      "query": "¿Hay algún lugar donde vea juntos todos los tiempos: el reclamo, la tarjeta nueva, lo retenido en el hotel?",
+      "section": 1
+    },
+    {
+      "country": "AR",
+      "doc_id": "ar-deadlines-calendar",
+      "query": "¿Desde cuándo se empieza a contar cada tiempo, desde que reclamo o desde que me llega el resumen?",
+      "section": 5
+    },
+    {
+      "country": "PE",
+      "doc_id": "pe-dispute-deadlines",
+      "query": "Si me piden un comprobante, ¿cuánto tiempo tengo para mandarlo y qué pasa si no lo mando?",
+      "section": 5
+    },
+    {
+      "country": "US",
+      "doc_id": "us-dispute-deadlines",
+      "query": "My dispute is taking forever because the store hasn't answered, is that allowed?",
+      "section": 8
+    },
+    {
+      "country": "MX",
+      "doc_id": "mx-dispute-lifecycle",
+      "query": "Si al final resulta que la compra sí era mía, ¿qué pasa con mi reclamo?",
+      "section": 5
+    },
+    {
+      "country": "CO",
+      "doc_id": "co-disputes-glossary",
+      "query": "¿Qué significa cada estado que le van poniendo a mi caso en la app?",
+      "section": 2
+    },
+    {
+      "country": "MX",
+      "doc_id": "mx-transaction-statuses",
+      "query": "Me aparece una compra rechazada que yo no intenté hacer, ¿qué quiere decir?",
+      "section": 3
+    },
+    {
+      "country": "BR",
+      "doc_id": "br-transaction-statuses",
+      "query": "Aparece a mesma loja duas vezes, uma ainda em processamento, fui cobrado em dobro?",
+      "section": 7
+    },
+    {
+      "country": "US",
+      "doc_id": "us-unauthorized-use-liability",
+      "query": "Do I have to pay for the purchases a thief made with my card?",
+      "section": 5
+    },
+    {
+      "country": "AR",
+      "doc_id": "ar-unrecognized-charge-guide",
+      "query": "Veo un gasto que no me suena en el resumen, ¿qué reviso antes de reclamar?",
+      "section": 3
+    },
+    {
+      "country": "BR",
+      "doc_id": "br-unrecognized-charge-guide",
+      "query": "O nome da loja na fatura é diferente do que eu conheço, pode ser golpe?",
+      "section": 7
+    },
+    {
+      "country": "BR",
+      "doc_id": "br-unrecognized-charge-rights",
+      "query": "Se a minha reclamação for demorar mais, o banco me avisa uma nova data?",
+      "section": 8
+    },
+    {
+      "country": "MX",
+      "doc_id": "mx-unrecognized-charges-faq",
+      "query": "En mi estado de cuenta sale un cobro extra por una compra que hice en el extranjero, ¿lo puedo reclamar?",
+      "section": 1
+    }
+  ],
+  "negatives": 15,
+  "positives": 40,
+  "recall_at_3": 0.575,
+  "threshold": 0.5744
+}
