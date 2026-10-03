@@ -22,6 +22,7 @@ from core.tools import ToolContext, call
 
 SERVICE = "chatbot"
 EXCHANGES = 3
+CONTEXT_MESSAGES = 2 * EXCHANGES
 DEFAULT_LOCALE = "es"
 SENDERS = {"customer": "customer", "assistant": "clara", "agent": "agent"}
 
@@ -101,7 +102,7 @@ def run_turn(
 
 def exchanges(history: Sequence[Message], message: Message) -> list[dict[str, str]]:
     earlier = [item for item in history if item.message_key < message.message_key]
-    return [{"from": SENDERS[item.sender_type], "text": item.text} for item in earlier[-2 * EXCHANGES :]]
+    return [{"from": SENDERS[item.sender_type], "text": item.text} for item in earlier[-CONTEXT_MESSAGES:]]
 
 
 def _check_result(reply: Reply, metrics: Metrics) -> str:

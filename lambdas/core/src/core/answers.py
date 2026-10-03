@@ -54,9 +54,12 @@ REFUSALS: dict[str, dict[str, str]] = {
         "or in a period.",
     },
     "no_statements": {
-        "es": "No tengo tus estados de cuenta; los encuentras en la app del banco o llamando al {c.phone}.",
-        "pt-BR": "Não tenho as suas faturas; você as encontra no app do banco ou ligando para {c.phone}.",
-        "en": "I do not have your statements; you find them in the bank's app or by calling {c.phone}.",
+        "es": "No tengo tus estados de cuenta; puedes pedirlos llamando al banco al {c.phone} "
+        "({c.phone_schedule}).",
+        "pt-BR": "Não tenho as suas faturas; você pode pedi-las ligando para o banco no {c.phone} "
+        "({c.phone_schedule}).",
+        "en": "I do not have your statements; you can ask for them by calling the bank at {c.phone} "
+        "({c.phone_schedule}).",
     },
     "no_payments": {
         "es": "No veo pagos ni vencimientos de tu tarjeta; para eso llama al banco al {c.phone} "

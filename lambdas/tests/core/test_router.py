@@ -12,6 +12,13 @@ PHRASES = [
     ("perdí mi tarjeta", "lost_stolen"),
     ("me roubaram ontem", "lost_stolen"),
     ("my card was stolen", "lost_stolen"),
+    ("perdí la tarjeta ayer", "lost_stolen"),
+    ("Se me perdió la tarjeta", "lost_stolen"),
+    ("perdi o cartão no ônibus", "lost_stolen"),
+    ("roubaram o cartão", "lost_stolen"),
+    ("roubaram o meu cartão", "lost_stolen"),
+    ("fui roubado", "lost_stolen"),
+    ("fui roubada no centro", "lost_stolen"),
 ]
 
 

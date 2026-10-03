@@ -241,6 +241,16 @@ class Messaging:
             messages.extend(Message.from_item(item) for item in page["Items"])
         return messages
 
+    def before(self, message: Message, limit: int) -> list[Message]:
+        condition = Key("customer_id").eq(message.customer_id) & Key("message_key").between(
+            f"{message.room_id}#", message.message_key
+        )
+        items = self._messages.query(
+            KeyConditionExpression=condition, ScanIndexForward=False, Limit=limit + 1, ConsistentRead=True
+        )["Items"]
+        earlier = [Message.from_item(item) for item in items if item["message_key"] != message.message_key]
+        return list(reversed(earlier[:limit]))
+
     def stored(self, customer_id: str, message_key: str) -> Message | None:
         item = self._messages.get_item(
             Key={"customer_id": customer_id, "message_key": message_key}, ConsistentRead=True

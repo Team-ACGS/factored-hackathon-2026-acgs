@@ -13,7 +13,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from core.access import customer_session
 from core.messaging import Message, Messaging, reply_key, reply_to
 from core.observability import annotate_origin, logger, metrics, trace_id, tracer
-from core.turn import run_turn
+from core.turn import CONTEXT_MESSAGES, run_turn
 
 if TYPE_CHECKING:
     from mypy_boto3_events import EventBridgeClient
@@ -64,7 +64,7 @@ def answer(record: DynamoDBRecord) -> None:
 
     messaging.take_turn(message, datetime.now(UTC))
     try:
-        history = messaging.history(message.customer_id, message.room_id)
+        history = messaging.before(message, CONTEXT_MESSAGES)
         turn = run_turn(message, history, datetime.now(UTC))
         answer = turn.reply
         reply, created = messaging.write(

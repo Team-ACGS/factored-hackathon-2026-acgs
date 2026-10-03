@@ -1,8 +1,11 @@
+import re
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from clara_testing.converse import FakeConverse
+from core.answers import REFUSALS
+from core.facts.fallback import TEMPLATES
 from core.messaging import customer_message
 from core.turn import run_turn
 from harness import Aws, demo_account, uuid7
@@ -70,3 +73,11 @@ def test_a_customer_without_a_finished_setup_gets_the_unavailable_answer(aws: Aw
 
     assert result.reply.source == "fallback"
     assert model.requests == []
+
+
+def test_no_fallback_or_refusal_offers_a_person_clara_cannot_hand_over_to() -> None:
+    texts = [text for template in TEMPLATES.values() for text in template.values()]
+    texts += [text for template in REFUSALS.values() for text in template.values()]
+
+    assert not [text for text in texts if re.search(r"persona|pessoa|person\b", text)]
+    assert not [text for text in texts if re.search(r"\bapp\b", text)]

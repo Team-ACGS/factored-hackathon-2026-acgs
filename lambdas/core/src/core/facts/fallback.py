@@ -7,9 +7,9 @@ FALLBACK_KEYS = ("answer", "unavailable")
 
 TEMPLATES: dict[str, dict[str, str]] = {
     "unavailable": {
-        "es": "No pude revisar eso ahora. ¿Quieres intentarlo de nuevo o hablar con una persona?",
-        "pt-BR": "Não consegui verificar isso agora. Quer tentar de novo ou falar com uma pessoa?",
-        "en": "I could not check that right now. Do you want to try again or talk to a person?",
+        "es": "No pude revisar eso ahora. Intenta de nuevo en un momento.",
+        "pt-BR": "Não consegui verificar isso agora. Tente de novo em um momento.",
+        "en": "I could not check that right now. Try again in a moment.",
     },
     "error": {
         "es": "No pude revisar una parte de tu información ahora.",
@@ -93,9 +93,9 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "en": "I have a note from you about your charges.",
     },
     "policies_empty": {
-        "es": "No tengo información del banco sobre eso. ¿Quieres hablar con una persona?",
-        "pt-BR": "Não tenho informações do banco sobre isso. Quer falar com uma pessoa?",
-        "en": "I do not have the bank's information on that. Do you want to talk to a person?",
+        "es": "No tengo información del banco sobre eso.",
+        "pt-BR": "Não tenho informações do banco sobre isso.",
+        "en": "I do not have the bank's information on that.",
     },
     "memories_empty": {
         "es": "Todavía no me has contado nada sobre tus cargos.",

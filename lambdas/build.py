@@ -1,3 +1,5 @@
+import compileall
+import py_compile
 import shutil
 import subprocess
 import sys
@@ -7,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent
 DIST = ROOT / "dist"
+LAMBDA_TASK_ROOT = "/var/task"
 
 
 DEFAULT_PLATFORM = "x86_64-manylinux2014"
@@ -19,6 +22,7 @@ class Function:
     packages: tuple[str, ...]
     entries: dict[str, str]
     platform: str = DEFAULT_PLATFORM
+    bytecode: bool = False
 
 
 FUNCTIONS = {
@@ -28,7 +32,11 @@ FUNCTIONS = {
         "clara-chat-notifier", ("core", "chat_notifier"), {"handler.py": "chat_notifier.handler"}
     ),
     "chatbot": Function(
-        "clara-chatbot", ("core", "chatbot"), {"handler.py": "chatbot.handler"}, AMAZON_LINUX_2023
+        "clara-chatbot",
+        ("core", "chatbot"),
+        {"handler.py": "chatbot.handler"},
+        AMAZON_LINUX_2023,
+        bytecode=True,
     ),
     "auth-post-confirmation": Function(
         "clara-auth", ("core", "auth"), {"post_confirmation.py": "auth.post_confirmation"}
@@ -92,6 +100,22 @@ def build(name: str, function: Function) -> None:
         shutil.copytree(SOURCES[package], target / package, ignore=shutil.ignore_patterns("__pycache__"))
     for filename, module in function.entries.items():
         (target / filename).write_text(entry(module))
+    if function.bytecode:
+        compile_bytecode(target)
+
+
+def compile_bytecode(target: Path) -> None:
+    if sys.version_info[:2] != (3, 12):
+        raise RuntimeError("bytecode must be compiled by the runtime's Python 3.12")
+    compiled = compileall.compile_dir(
+        target,
+        quiet=1,
+        stripdir=str(target),
+        prependdir=LAMBDA_TASK_ROOT,
+        invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH,
+    )
+    if not compiled:
+        raise RuntimeError(f"bytecode compilation failed in {target}")
 
 
 def run(*command: str) -> None:

@@ -6,6 +6,7 @@ from functools import cache
 from operator import add
 from typing import TYPE_CHECKING, Annotated, Any, Literal, TypedDict
 
+from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import BotoCoreError, ClientError
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.messages.tool import ToolCall
@@ -20,6 +21,7 @@ from core.facts import Part, Say, check, fallback
 from core.facts.values import Ledger
 from core.graphs.model import Clients, bedrock_clients, chat_model
 from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, SYSTEM, Context, tool_result, tool_specs
+from core.observability import logger, metrics
 from core.replies import Reply, Source, compose
 from core.tools import TOOLS, ToolContext, call
 
@@ -43,7 +45,7 @@ RETRYABLE = frozenset(
 )
 CACHE_POINT = {"cachePoint": {"type": "default"}}
 
-Exhausted = Literal["steps", "time", "input_tokens", "model_unavailable", "no_reply"]
+Exhausted = Literal["steps", "time", "input_tokens", "model_unavailable", "no_reply", "crashed"]
 Next = Literal["tools", "facts_check", "supervisor", "fallback", "finalize"]
 
 
@@ -173,12 +175,12 @@ def facts_check(state: State, runtime: Runtime[OpenModeRun]) -> State:
 
 
 def fallback_answer(state: State, runtime: Runtime[OpenModeRun]) -> State:
-    run = runtime.context
+    return {"parts": _from_what_was_read(runtime.context), "source": "fallback", "next": "finalize"}
+
+
+def _from_what_was_read(run: OpenModeRun) -> list[Part]:
     read = Ledger(run.ledger.country, run.ledger.now, {i: run.ledger.facts[i] for i in run.tool_facts})
-    parts: list[Part] = [
-        part for part in fallback("answer", read, run.context.locale) if isinstance(part, Say)
-    ]
-    return {"parts": parts, "source": "fallback", "next": "finalize"}
+    return [part for part in fallback("answer", read, run.context.locale) if isinstance(part, Say)]
 
 
 def finalize(state: State, runtime: Runtime[OpenModeRun]) -> State:
@@ -210,11 +212,17 @@ def graph() -> Any:
 
 def run_open_mode(run: OpenModeRun) -> Reply:
     run.started = run.clock()
-    graph().invoke(
-        {"messages": [HumanMessage(content=run.text)]},
-        context=run,
-        config={"recursion_limit": RECURSION_LIMIT},
-    )
+    try:
+        graph().invoke(
+            {"messages": [HumanMessage(content=run.text)]},
+            context=run,
+            config={"recursion_limit": RECURSION_LIMIT},
+        )
+    except Exception:
+        logger.exception("open_mode crashed, answering from what was read")
+        metrics.add_metric(name="TurnsCrashed", unit=MetricUnit.Count, value=1)
+        run.metrics.exhausted = "crashed"
+        run.reply = compose(_from_what_was_read(run), run.ledger, run.context.locale, "fallback")
     assert run.reply is not None
     return run.reply
 

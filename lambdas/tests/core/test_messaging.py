@@ -187,3 +187,17 @@ def test_a_message_without_parts_publishes_its_text_only(messaging: Messaging) -
 
     assert stored is not None
     assert "parts" not in stored.public()
+
+
+def test_before_reads_only_the_last_messages_of_the_room_before_the_one_answered(
+    messaging: Messaging,
+) -> None:
+    room, other_room = uuid7(), uuid7()
+    start = 1_790_000_000_000
+    sent = [message(room, uuid7(start + index * 1000), f"m{index}") for index in range(10)]
+    for item in [*sent, message(other_room, uuid7(start + 4500), "other")]:
+        messaging.send(item)
+
+    earlier = messaging.before(sent[8], 6)
+
+    assert [item.text for item in earlier] == ["m2", "m3", "m4", "m5", "m6", "m7"]

@@ -170,18 +170,37 @@ def test_a_turn_mark_older_than_five_minutes_is_taken_over_and_cleared(
     assert "turn_started_at" not in room
 
 
-def test_the_turn_mark_is_cleared_when_the_turn_fails(
+def test_the_turn_mark_is_cleared_when_the_reply_cannot_be_written(
+    aws: Aws, context: LambdaContext, model: FakeConverse, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refused(self: Messaging, message: Message) -> tuple[Message, bool]:
+        raise RuntimeError("write refused")
+
+    customer_says("hola")
+    event = aws.stream()
+    monkeypatch.setattr(Messaging, "write", refused)
+
+    with pytest.raises(BatchProcessingError, match="write refused"):
+        handler(event, context)
+
+    [room] = aws.room_items()
+    assert "turn_message_id" not in room
+
+
+def test_a_graph_that_crashes_still_replies_from_what_was_read(
     aws: Aws, context: LambdaContext, model: FakeConverse
 ) -> None:
     model.responses[:] = [RuntimeError("boom")]
     customer_says("hola")
 
-    with pytest.raises(BatchProcessingError, match="boom"):
-        handler(aws.stream(), context)
+    result = handler(aws.stream(), context)
 
-    assert replies(aws) == []
-    [room] = aws.room_items()
-    assert "turn_message_id" not in room
+    assert result == {"batchItemFailures": []}
+    [answer] = replies(aws)
+    assert answer.source == "fallback"
+    assert answer.text == "No pude revisar eso ahora. Intenta de nuevo en un momento."
+    [event] = aws.events()
+    assert event["detail"]["exhausted"] == "crashed"
 
 
 def test_a_record_that_fails_is_reported_alone(aws: Aws, context: LambdaContext, model: FakeConverse) -> None:

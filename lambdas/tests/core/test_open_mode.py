@@ -8,10 +8,11 @@ from moto.iam.access_control import IAMPolicy, PermissionResult
 
 from clara_testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
 from clara_testing.converse import FakeConverse, ManualClock, reply, response, throttled, tool_use
-from core import access
+from core import access, observability
 from core.access import READ_ONLY_POLICY
 from core.countries import zone
 from core.facts.render import format_money
+from core.graphs import open_mode
 from core.graphs.open_mode import INPUT_TOKEN_CAP, MAX_STEPS, MAX_TOOL_CALLS, TURN_SECONDS
 from core.graphs.prompt import CONTEXT_FIELDS, SYSTEM
 from core.messaging import Message, customer_message
@@ -268,10 +269,7 @@ def test_a_throttled_call_is_retried_once_then_the_turn_says_it_could_not_check(
     assert turn(retried, "hola").reply.source == "composed"
     result = turn(down, "hola")
     assert result.summary()["exhausted"] == "model_unavailable"
-    assert (
-        result.reply.text
-        == "No pude revisar eso ahora. ¿Quieres intentarlo de nuevo o hablar con una persona?"
-    )
+    assert result.reply.text == "No pude revisar eso ahora. Intenta de nuevo en un momento."
 
 
 def test_the_graph_reads_only_with_the_read_only_session_policy(
@@ -466,3 +464,24 @@ def test_a_case_answer_cites_the_bank_s_process_with_the_document_and_its_page(a
     ]
     assert f"[p:{CHUNK}]" not in process["text"]
     assert {fact["id"] for fact in result.reply.facts} == {"f6", "p1"}
+
+
+def test_a_crash_inside_the_graph_answers_from_what_was_read_and_is_counted(
+    account: DemoAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    counted: list[str] = []
+    monkeypatch.setattr(observability.metrics, "add_metric", lambda name, **_: counted.append(name))
+
+    def broken(*_: object) -> list[object]:
+        raise KeyError("boom")
+
+    monkeypatch.setattr(open_mode, "check", broken)
+    model = FakeConverse([response(tool_use("spend_summary", PRIMAX)), reply(spend_answer())])
+
+    result = turn(model)
+
+    current = spent(account, "2026-09-01", "2026-09-20")
+    assert result.reply.source == "fallback"
+    assert result.reply.text.startswith(f"Gastaste {format_money(current, 'PEN', 'es')}")
+    assert result.summary()["exhausted"] == "crashed"
+    assert counted == ["TurnsCrashed"]
