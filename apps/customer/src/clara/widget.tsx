@@ -1,15 +1,16 @@
 import { ClaraEntity } from "@clara/ui/components/clara-entity";
 import { cn } from "@clara/ui/lib/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
 
+import { isOpen } from "../bank/cases";
 import { LedgersOf } from "../bank/ledgers-of";
 import { bankQueries } from "../bank/services";
 import { useI18n } from "../i18n";
 import { useOpenClara } from "./entry";
 import { Launcher } from "./launcher";
-import { flaggedCharges, openClaims } from "./overlay";
-import { launcher, useClaraSession, useLauncherOpen } from "./store";
+import { flaggedCharges } from "./overlay";
+import { launcher, useLauncherOpen } from "./store";
 
 export function ClaraWidget() {
   return (
@@ -21,7 +22,7 @@ export function ClaraWidget() {
 
 function Widget() {
   const { data: cards } = useSuspenseQuery(bankQueries.cards());
-  const session = useClaraSession();
+  const claim = useQuery(bankQueries.cases()).data?.find((item) => item.type === "claim" && isOpen(item));
   const open = useLauncherOpen();
   const openClara = useOpenClara();
 
@@ -35,7 +36,7 @@ function Widget() {
             {open && (
               <Launcher
                 note={flagged[0]}
-                claim={openClaims(session)[0]}
+                claim={claim}
                 onClosed={launcher.close}
                 onTopic={openClara}
               />

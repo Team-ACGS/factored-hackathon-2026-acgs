@@ -16,7 +16,7 @@ from core.graphs import open_mode
 from core.graphs.open_mode import INPUT_TOKEN_CAP, MAX_STEPS, MAX_TOOL_CALLS, TURN_SECONDS
 from core.graphs.profiles import profiles
 from core.graphs.prompt import CONTEXT_FIELDS
-from core.messaging import Message, customer_message
+from core.messaging import Message, customer_message, reply_to
 from core.policies import chunk_id, policy_facts
 from core.retrieval import NON_FILTERABLE, ChunkRecord, PolicySearch, VectorRetriever
 from core.turn import Turn, run_turn
@@ -487,3 +487,269 @@ def test_a_crash_inside_the_graph_answers_from_what_was_read_and_is_counted(
     assert result.reply.text.startswith(f"Gastaste {format_money(current, 'PEN', 'es')}")
     assert result.summary()["exhausted"] == "crashed"
     assert counted == ["TurnsCrashed"]
+
+
+SEARCH: dict[str, Any] = {
+    "merchant": "Primax",
+    "date_from": "2026-08-01",
+    "date_to": "2026-09-20",
+    "limit": 2,
+}
+SIMILAR: dict[str, Any] = {"merchant": "Primax", "date_from": "2026-09-11", "date_to": "2026-09-12"}
+
+
+def reply_with(say: str, **extra: Any) -> dict[str, Any]:
+    return response(tool_use("reply", {"say": [say], **extra}))
+
+
+def primax_rows(account: DemoAccount, search: dict[str, Any] = SEARCH) -> list[dict[str, Any]]:
+    first, last = date.fromisoformat(search["date_from"]), date.fromisoformat(search["date_to"])
+    rows = [
+        item
+        for item in account.transactions
+        if item["merchant_name"] == "Primax"
+        and first <= datetime.fromisoformat(item["transaction_date"]).astimezone(zone("PE")).date() <= last
+    ]
+    return sorted(rows, key=lambda item: (item["transaction_date"], item["transaction_id"]), reverse=True)
+
+
+def test_a_movements_answer_carries_the_view_of_the_rows_read_with_their_cards(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [
+            response(tool_use("search_movements", SEARCH)),
+            reply_with("Encontré {f8.count}.", view={"type": "movements", "facts": ["f8"]}),
+        ]
+    )
+
+    result = turn(model, "¿Qué compras hice en Primax?")
+
+    [view] = [part for part in result.reply.parts if part["type"] == "view"]
+    rows = primax_rows(account)
+    assert view["items"] == [
+        {"product_id": row["product_id"], "transaction_id": row["transaction_id"]} for row in rows[:2]
+    ]
+    assert view["readings"]["count"] == f"{len(rows)} movimientos"
+    assert {"type": "view", "view": "movements", "facts": ["f8"]} in result.reply.draft
+    assert "f8" in [fact["id"] for fact in result.reply.facts]
+
+
+def test_a_view_of_a_fact_not_read_this_turn_is_sent_back_and_never_reaches_the_client(
+    account: DemoAccount,
+) -> None:
+    model = FakeConverse(
+        [
+            response(tool_use("search_movements", SEARCH)),
+            reply_with("Encontré {f8.count}.", view={"type": "movements", "facts": ["f42"]}),
+            reply_with("Encontré {f8.count}.", view={"type": "charge", "facts": ["f6"]}),
+        ]
+    )
+
+    result = turn(model, "¿Qué compras hice en Primax?")
+
+    repair = json.loads(last_tool_result(model.requests[2])["content"][0]["text"])
+    assert [error["code"] for error in repair["errors"]] == ["view_fact_unknown"]
+    assert result.reply.source == "fallback"
+    assert result.summary()["check"]["errors"] == ["view_fact_unknown", "view_fact_unfit"]
+    assert all(part.get("view") != "charge" for part in result.reply.parts)
+
+
+def test_an_ask_outside_allowed_asks_never_reaches_the_client(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [
+            response(tool_use("search_movements", SEARCH)),
+            reply_with("Encontré {f8.count}.", ask={"type": "show", "facts": ["f6"]}),
+            reply_with("Encontré {f8.count}.", ask={"type": "which_one", "facts": ["f6"]}),
+        ]
+    )
+
+    result = turn(model, "¿Qué compras hice en Primax?")
+
+    assert result.summary()["check"]["errors"] == ["ask_fact_unfit", "ask_options_count"]
+    assert result.reply.source == "fallback"
+    assert not [part for part in result.reply.parts if part["type"] == "ask"]
+
+
+def test_two_matching_charges_yield_which_one_and_the_tap_resolves_it_without_a_second_search(
+    account: DemoAccount,
+) -> None:
+    rows = primax_rows(account, SIMILAR)
+    asking = FakeConverse(
+        [
+            response(tool_use("search_movements", SIMILAR)),
+            reply_with(
+                "Veo estos cargos en {f6.merchant}, ¿cuál es?",
+                ask={"type": "which_one", "facts": ["f6", "f7"]},
+            ),
+        ]
+    )
+    question = says("¿Qué es este cargo de Primax?")
+    first = run_turn(question, [], NOW, profile=DEFAULT, clients=asking.client)
+
+    [ask] = [part for part in first.reply.parts if part["type"] == "ask"]
+    assert ask["prompt"] == "¿Cuál es?"
+    assert [option["id"] for option in ask["options"]] == [row["transaction_id"] for row in rows[:2]]
+    assert ask["options"][0]["label"].startswith(
+        f"Primax · {format_money(Decimal(rows[0]['amount']), 'PEN', 'es')} · "
+    )
+    asked = reply_to(
+        question, "assistant", first.reply.text, NOW, first.reply.parts, first.reply.facts, first.reply.draft
+    )
+    tapped_at = NOW - timedelta(milliseconds=500)
+    tap = customer_message(
+        CUSTOMER,
+        question.room_id,
+        uuid7(int(tapped_at.timestamp() * 1000)),
+        ask["options"][1]["label"],
+        tapped_at,
+        input={"ask_id": asked.message_id, "option": rows[1]["transaction_id"]},
+    )
+    answering = FakeConverse([reply_with("Es tu compra en {f6.charge.merchant} por {f6.charge.amount}.")])
+
+    second = run_turn(tap, [question, asked], NOW, profile=DEFAULT, clients=answering.client)
+
+    context = json.loads(answering.requests[0]["system"][2]["text"].split("\n", 2)[2])
+    assert context["choice"]["ask"] == "which_one"
+    assert context["choice"]["option"] == rows[1]["transaction_id"]
+    assert context["choice"]["facts"][0]["kind"] == "charge"
+    assert second.route == "choice"
+    assert second.summary()["tool_calls"] == []
+    assert second.reply.text == (
+        f"Es tu compra en Primax por {format_money(Decimal(rows[1]['amount']), 'PEN', 'es')}."
+    )
+
+
+def test_a_stale_or_unknown_tap_is_free_text(account: DemoAccount) -> None:
+    question = says("¿Qué es este cargo de Primax?")
+    asking = FakeConverse(
+        [
+            response(tool_use("search_movements", SIMILAR)),
+            reply_with("¿Cuál?", ask={"type": "which_one", "facts": ["f6", "f7"]}),
+        ]
+    )
+    first = run_turn(question, [], NOW, profile=DEFAULT, clients=asking.client)
+    asked = reply_to(
+        question, "assistant", first.reply.text, NOW, first.reply.parts, first.reply.facts, first.reply.draft
+    )
+    tapped_at = NOW - timedelta(milliseconds=500)
+
+    for chosen in (
+        {"ask_id": uuid7(), "option": primax_rows(account, SIMILAR)[0]["transaction_id"]},
+        {"ask_id": asked.message_id, "option": "tx-9"},
+    ):
+        tap = customer_message(
+            CUSTOMER,
+            question.room_id,
+            uuid7(int(tapped_at.timestamp() * 1000)),
+            "esa",
+            tapped_at,
+            input=chosen,
+        )
+        model = FakeConverse([reply("Listo.")])
+        result = run_turn(tap, [question, asked], NOW, profile=DEFAULT, clients=model.client)
+        assert result.route == "open_mode"
+        context = json.loads(model.requests[0]["system"][2]["text"].split("\n", 2)[2])
+        assert context["choice"] is None
+
+
+def test_each_tool_round_announces_one_status_from_its_tool_family(account: DemoAccount) -> None:
+    announced: list[tuple[str, int]] = []
+    model = FakeConverse(
+        [
+            response(tool_use("search_movements", SEARCH), tool_use("spend_summary", PRIMAX)),
+            response(tool_use("search_policies", {"query": "¿cuánto demora una aclaración?"})),
+            reply("Listo."),
+        ]
+    )
+
+    result = turn(model, on_status=lambda status, round_: announced.append((status, round_)))
+
+    assert announced == [("movements", 1), ("policies", 2)]
+    assert [step["node"] for step in result.summary()["timings"]].count("status") == 2
+
+
+def test_a_failing_status_never_fails_the_turn(account: DemoAccount) -> None:
+    def broken(status: str, round_: int) -> None:
+        raise TimeoutError("realtime is slow")
+
+    model = FakeConverse([response(tool_use("spend_summary", PRIMAX)), reply(spend_answer())])
+
+    result = turn(model, on_status=broken)
+
+    assert result.reply.source == "composed"
+
+
+def test_the_model_sees_five_rows_of_a_search_and_is_told_how_many_it_does_not(account: DemoAccount) -> None:
+    model = FakeConverse([response(tool_use("search_movements", {**SEARCH, "limit": 25})), reply("Listo.")])
+
+    turn(model, "¿Qué compras hice en Primax?")
+
+    result = json.loads(last_tool_result(model.requests[1])["content"][0]["text"])
+    rows = primax_rows(account)
+    assert [fact["kind"] for fact in result["facts"]].count("movement") == 5
+    assert (result["rows_shown"], result["rows_not_shown"]) == (5, len(rows) - 5)
+
+
+def test_a_search_the_model_limited_is_told_how_many_matches_it_did_not_read(account: DemoAccount) -> None:
+    model = FakeConverse([response(tool_use("search_movements", SEARCH)), reply("Listo.")])
+
+    turn(model, "¿Qué compras hice en Primax?")
+
+    result = json.loads(last_tool_result(model.requests[1])["content"][0]["text"])
+    assert (result["rows_shown"], result["rows_not_shown"]) == (2, len(primax_rows(account)) - 2)
+
+
+def test_a_show_tap_gives_the_model_the_same_five_rows_and_the_rest_by_count(account: DemoAccount) -> None:
+    question = says("¿Cuánto gasté en Primax?")
+    asking = FakeConverse(
+        [
+            response(tool_use("spend_summary", PRIMAX)),
+            reply_with(spend_answer(), ask={"type": "show", "facts": [SPEND]}),
+        ]
+    )
+    first = run_turn(question, [], NOW, profile=DEFAULT, clients=asking.client)
+    asked = reply_to(
+        question, "assistant", first.reply.text, NOW, first.reply.parts, first.reply.facts, first.reply.draft
+    )
+    tapped_at = NOW - timedelta(milliseconds=500)
+    tap = customer_message(
+        CUSTOMER,
+        question.room_id,
+        uuid7(int(tapped_at.timestamp() * 1000)),
+        "Ver esos movimientos",
+        tapped_at,
+        input={"ask_id": asked.message_id, "option": "movements"},
+    )
+    model = FakeConverse([reply("Listo.")])
+
+    run_turn(tap, [question, asked], NOW, profile=DEFAULT, clients=model.client)
+
+    choice = json.loads(model.requests[0]["system"][2]["text"].split("\n", 2)[2])["choice"]
+    assert [fact["kind"] for fact in choice["facts"]].count("movement") == 5
+    assert choice["rows_shown"] == 5
+    assert choice["rows_not_shown"] > 0
+
+
+def test_the_turn_summary_counts_what_code_tidied_before_the_check(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [response(tool_use("spend_summary", PRIMAX)), reply(f"Hiciste {{{SPEND}.count}} compras — en total.")]
+    )
+
+    summary = turn(model).summary()
+
+    assert summary["check"]["tidied"] == {"doubled_noun": 1, "dash": 1}
+    assert summary["source"] == "composed"
+
+
+def test_which_one_over_some_of_more_matching_charges_is_sent_back(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [
+            response(tool_use("search_movements", SEARCH)),
+            reply_with("¿Cuál es?", ask={"type": "which_one", "facts": ["f6", "f7"]}),
+            reply_with("Encontré {f8.count}; dime la fecha o el monto del cargo."),
+        ]
+    )
+
+    result = turn(model, "¿Qué es este cargo de Primax?")
+
+    assert result.summary()["check"]["errors"] == ["ask_options_partial"]
+    assert result.reply.source == "repaired"

@@ -1,8 +1,10 @@
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 
+from core.ids import format_instant
 from core.observability import tracer
 from harness import STAFF_POOL_ID, Aws, LambdaContext, api_event, claims, uuid7
 from messages.handler import handler
@@ -95,7 +97,7 @@ def test_another_customers_room_is_never_returned(aws: Aws, context: LambdaConte
     status, payload, _ = call(api_event("GET", "/messages/rooms/latest", claims(sub="customer-2")), context)
 
     assert status == 200
-    assert payload == {"room": None, "messages": [], "server_time": payload["server_time"]}
+    assert payload == {"room": None, "messages": [], "turn": None, "server_time": payload["server_time"]}
 
 
 def test_responses_carry_cors_headers(aws: Aws, context: LambdaContext) -> None:
@@ -133,3 +135,41 @@ def test_a_message_without_a_trace_stores_no_origin(
 
     [item] = aws.message_items()
     assert "origin_trace_id" not in item
+
+
+def test_a_tap_is_stored_with_its_input_and_a_malformed_one_is_rejected(
+    aws: Aws, context: LambdaContext
+) -> None:
+    tap = {"ask_id": uuid7(), "option": "tx-1"}
+    body = {"room_id": uuid7(), "message_id": uuid7(), "text": "Primax", "input": tap}
+
+    status, payload = send(claims(), body, context)
+    bad, _ = send(
+        claims(), {**body, "message_id": uuid7(), "input": {"ask_id": "x", "option": "tx-1"}}, context
+    )
+
+    assert (status, bad) == (201, 400)
+    assert "input" not in payload["message"]
+    [item] = aws.message_items()
+    assert item["input"] == tap
+
+
+def test_the_latest_room_returns_the_turn_in_progress_with_its_status(
+    aws: Aws, context: LambdaContext
+) -> None:
+    token = claims(sub="customer-1")
+    room_id, message_id = uuid7(), uuid7()
+    send(token, {"room_id": room_id, "message_id": message_id, "text": "hola"}, context)
+    aws.rooms.update_item(
+        Key={"customer_id": "customer-1", "room_id": room_id},
+        UpdateExpression="SET turn_message_id = :message, turn_started_at = :at, turn_status = :status",
+        ExpressionAttributeValues={
+            ":message": message_id,
+            ":at": format_instant(datetime.now(UTC)),
+            ":status": "movements",
+        },
+    )
+
+    _, payload, _ = call(api_event("GET", "/messages/rooms/latest", token), context)
+
+    assert payload["turn"] == {"message_id": message_id, "status": "movements"}

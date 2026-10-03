@@ -274,14 +274,10 @@ version = "0.1.0"
 source = { editable = "chat_notifier" }
 dependencies = [
     { name = "clara-core" },
-    { name = "urllib3" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "clara-core", editable = "core" },
-    { name = "urllib3", specifier = ">=2.5" },
-]
+requires-dist = [{ name = "clara-core", editable = "core" }]
 
 [[package]]
 name = "clara-chatbot"
@@ -302,6 +298,7 @@ dependencies = [
     { name = "aws-lambda-powertools", extra = ["tracer"] },
     { name = "boto3" },
     { name = "pydantic" },
+    { name = "urllib3" },
 ]
 
 [package.optional-dependencies]
@@ -317,6 +314,7 @@ requires-dist = [
     { name = "langchain-aws", marker = "extra == 'graph'", specifier = ">=1.0" },
     { name = "langgraph", marker = "extra == 'graph'", specifier = ">=1.0" },
     { name = "pydantic", specifier = ">=2.11" },
+    { name = "urllib3", specifier = ">=2.5" },
 ]
 provides-extras = ["graph"]
 

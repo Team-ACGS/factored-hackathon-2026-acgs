@@ -117,6 +117,8 @@ def charge_facts(context: ToolContext, ledger: Ledger, args: ChargeFactsInput) -
         if context.decide
         else None
     )
+    for row in (charge, *similar):
+        ledger.locate(row.transaction_id, row.product_id)
     similar_facts = [ledger.add("similar", _similar_fields(row)) for row in similar]
     same_currency = [row.amount for row in prior if row.currency == charge.currency]
     typical = median(same_currency) if same_currency else None

@@ -60,6 +60,7 @@ def send_message() -> Response[str]:
             str(fields["text"]),
             datetime.now(UTC),
             trace_id(),
+            body.get("input"),
         )
     except InvalidMessage as error:
         raise BadRequestError(str(error)) from error
@@ -81,10 +82,12 @@ def latest_room() -> dict[str, Any]:
     messaging = _messaging(principal)
     room = messaging.latest_room(principal.subject)
     history = messaging.history(principal.subject, room.room_id) if room else []
+    now = datetime.now(UTC)
     return {
         "room": room.public() if room else None,
         "messages": [message.public() for message in history],
-        "server_time": format_instant(datetime.now(UTC)),
+        "turn": room.turn(now) if room else None,
+        "server_time": format_instant(now),
     }
 
 

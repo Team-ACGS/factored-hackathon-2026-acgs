@@ -126,6 +126,7 @@ locals {
         "turn_events_put",
         "policy_search",
         "policy_embed",
+        "realtime_publish",
       ]
       namespace   = "Clara/Assistant"
       memory_size = 2048
@@ -136,6 +137,9 @@ locals {
         BEDROCK_MODEL_ID  = data.aws_bedrock_inference_profile.assistant.inference_profile_id
         EVENT_BUS_NAME    = module.event_bus.name
         EVENT_SOURCE      = local.turn_event_source
+
+        REALTIME_HTTP_URL  = module.realtime.http_url
+        REALTIME_NAMESPACE = module.realtime.namespace
 
         POLICY_INDEX_ARN          = aws_s3vectors_index.policies.index_arn
         POLICY_EMBEDDING_MODEL_ID = var.policy_embedding_model_id

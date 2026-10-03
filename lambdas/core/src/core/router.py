@@ -48,7 +48,7 @@ _PATTERNS = {kind: bounded(re.escape(phrase) for phrase in phrases) for kind, ph
 
 @dataclass(frozen=True)
 class Route:
-    mode: Literal["safety", "open_mode"]
+    mode: Literal["safety", "open_mode", "choice"]
     floor: FloorClass | None = None
 
 

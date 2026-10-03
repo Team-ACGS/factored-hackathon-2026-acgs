@@ -1,11 +1,11 @@
 ---
 updated: 2026-10-03
-source: 0019_open_mode_graph
+source: 0020_rich_parts
 ---
 
 # assistant: product
 
-Status: the customer app is a bank app with Clara as its agent (task 0010); her chat talks to the live turn (task 0019), which answers free questions about the customer's own money and sends "not me" or "lost or stolen" to the bank's phone; the flagged-charge story with asks, claims, blocks and handoff (B4) is designed, not built.
+Status: the customer app is a bank app with Clara as its agent (task 0010); her chat talks to the live turn (task 0019), which answers free questions about the customer's own money with the bank's own screens of what she read and read-only choices (task 0020), and sends "not me" or "lost or stolen" to the bank's phone; the flagged-charge story with asks, claims, blocks and handoff (B4) is designed, not built.
 
 ## Purpose
 
@@ -22,7 +22,10 @@ The module also protects the customer within one turn when the words say fraud, 
 3. A one-time guide shows the three charges planted for Clara to explain (a recent hold, a refunded charge, an old pending charge) and what Clara should do with each; it is never shown again.
 4. From the demo links in the footer, the customer adds a normal purchase or a suspicious one (an online merchant they never used, with the bank's score chosen from three options), which shows at once while the bank fills it in; an approved purchase moves the card's balance, and one the card cannot take is refused.
 5. Clara appears in the bank only as her button and the bank's own entry points ("Talk to Clara" on a movement, "Ask Clara" on a claim, the Clara card in Help); each opens the chat with that topic already started.
-6. The chat shows the conversation in one column: the customer's messages, Clara's answer in short paragraphs with one source chip per bank document she cites (title and page, opening the PDF at that page), and a "checking your information" line while she works, for at most 30 seconds, also after a reload.
+6. The chat has two columns: the conversation on the left and Clara's panel on the right, where the bank's own screens of what she read appear (movements, cards, one card, one movement, a charge with her reading, a merchant history, a case) and where her choices are tapped. Her figure docks small when content appears and shrinks to a dot while she reads, with what she is checking ("Revisando tus movimientos") in the panel head and in the conversation, also after a reload. On a phone the panel is a drawer opened by the "Ver ..." link under an answer.
+7. Inside a screen the customer moves without a new turn: a card to its movements, a movement to its detail, and back. A "Ver ..." link under an older answer reopens its screen.
+8. Under an answer that used the bank's documents, "Cómo lo sé" opens, collapsed by default, with one chip per document and page (title and page, opening the PDF there); answers about the customer's own data show none.
+9. Help lists the customer's open cases from the bank and the country's own phone.
 
 Errors and empty states: setup runs once; a second attempt is refused and a half-done one finishes with the same data.
 
@@ -31,8 +34,10 @@ Errors and empty states: setup runs once; a second attempt is refused and a half
 1. The customer writes anything, in their language: how much they spent at a merchant this month against last month, when their claim is resolved, what Clara knows about them.
 2. If the text says the charge was not theirs or the card was lost or stolen ("no fui yo", "me robaron", "não fui eu", "perdi o cartão"), Clara answers at once, without the model, that the card is protected by calling the bank, with the country's phone, its hours and the number from abroad; she promises no callback.
 3. Otherwise Clara reads what the question needs from the customer's own records and the bank's documents, and answers with the totals, dates, case codes and timeframes she read, each rendered by the bank's code in the customer's format; a sentence about the bank's process cites the document it comes from.
-4. Rankings, spending by category, statements and payments or due dates get a fixed answer that points to what Clara can do or to the bank's phone.
-5. If Clara cannot check something (the model is down, slow or wrote a value it did not read), she answers from what she did read, or says she could not check it now; she never estimates.
+4. When she names movements, cards, a charge or a case, the panel shows them as the bank shows them; she says how many and names one or two, and the list is the screen's.
+5. When the question matches a few charges or cards she cannot tell apart, she asks which one with buttons; a tap answers without a new search. When more match than she can show, she asks for the date or the amount. She may offer, with one button, to show the rows behind a total.
+6. Rankings, spending by category, statements and payments or due dates get a fixed answer that points to what Clara can do or to the bank's phone.
+7. If Clara cannot check something (the model is down, slow or wrote a value it did not read), she answers from what she did read, or says she could not check it now; she never estimates.
 
 ### Unrecognized charge, explained
 
@@ -82,7 +87,9 @@ Source: `docs/product/01-flows.md` flow 2; `hackathon/docs/kickoff-compliance.md
 - A stale pending charge (older than 7 days) is never explained to the customer as "temporary" (`hackathon/docs/domain/triage.md`).
 - Clara never answers her own messages, and says nothing in a room delegated to a human.
 - Every value Clara says (an amount, a date, a count, a merchant, a card's last digits, a case code, a policy figure) is one she read this turn and the bank's code rendered; a reply with any other value is repaired once, then replaced by a template.
-- Clara never promises a person will call or take over, and never says "fraud", that a charge is safe, or that money will come back.
+- Clara never promises a person will call or take over, and never says "fraud", that a charge is safe, or that money will come back, nor anything about what she can or cannot promise.
+- Clara only offers to look things up and show them; until B4 her buttons never change the account.
+- Clara never says anything about rows she was not shown, and never names a card brand: the bank's data has none, so cards are named by type and last digits.
 - The customer app speaks English, Spanish or Brazilian Portuguese: before sign-in the customer picks it (browser language by default), sign-up stores it as the Cognito `locale`, the setup confirms it into the profile, and the profile drives the app from then on; there is no other switcher.
 - Nothing the customer sees or Clara reads reveals which charges were planted or added as suspicious.
 

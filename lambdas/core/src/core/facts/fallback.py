@@ -1,7 +1,10 @@
 import re
+from collections.abc import Iterable
 
+from core.facts.catalog import LIST_JOIN
 from core.facts.parts import Part, Say, View
-from core.facts.values import Count, Fact, FactIds, Ledger, Ref
+from core.facts.targets import Unfit, view_items
+from core.facts.values import Count, Fact, FactIds, Ledger, Value
 
 FALLBACK_KEYS = ("answer", "unavailable")
 
@@ -27,6 +30,11 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Seu cartão {type} {last4} está {status}.",
         "en": "Your {type} card {last4} is {status}.",
     },
+    "movements_card": {
+        "es": "Encontré {count} en tu tarjeta {last4}, {period}.",
+        "pt-BR": "Encontrei {count} no seu cartão {last4}, {period}.",
+        "en": "I found {count} on your card {last4}, {period}.",
+    },
     "movements": {
         "es": "Encontré {count}, {period}.",
         "pt-BR": "Encontrei {count}, {period}.",
@@ -46,6 +54,11 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "es": "No veo compras en {merchant} en tu historial reciente.",
         "pt-BR": "Não vejo compras em {merchant} no seu histórico recente.",
         "en": "I see no purchases at {merchant} in your recent history.",
+    },
+    "spend_card": {
+        "es": "Gastaste {total} en {count} con tu tarjeta {last4}, {period}.",
+        "pt-BR": "Você gastou {total} em {count} no seu cartão {last4}, {period}.",
+        "en": "You spent {total} across {count} on your card {last4}, {period}.",
     },
     "spend": {
         "es": "Gastaste {total} en {count}, {period}.",
@@ -104,22 +117,55 @@ TEMPLATES: dict[str, dict[str, str]] = {
     },
 }
 
+LEADS = {
+    "movements": {"es": "Encontré ", "pt-BR": "Encontrei ", "en": "I found "},
+    "spend": {"es": "Gastaste ", "pt-BR": "Você gastou ", "en": "You spent "},
+}
+
 _FIELD = re.compile(r"\{([a-z_][a-z0-9_.]*)\}")
-_VIEWS = {"movements": "movements", "cards": "cards"}
+_VIEWS = ("movements", "case", "charge")
 
 
 def fallback(step_key: str, ledger: Ledger, locale: str) -> list[Part]:
     if step_key != "answer":
         return [Say(TEMPLATES["unavailable"][locale])]
-    parts: list[Part] = []
-    for fact in ledger.facts.values():
-        template = _fitting(_template_key(fact), fact, locale)
-        if template is not None:
-            parts.append(Say(_bind(template, fact)))
-        view = _view(fact, ledger)
-        if view is not None:
-            parts.append(view)
+    groups: dict[str, list[tuple[str, Fact]]] = {}
+    for fact in _distinct(ledger.facts.values()):
+        key = _template_key(fact)
+        template = _fitting(key, fact, locale)
+        if key is None or template is None:
+            continue
+        group = groups.setdefault(key.removesuffix("_empty"), [])
+        if _FIELD.search(template) or all(existing != template for existing, _ in group):
+            group.append((template, fact))
+    parts: list[Part] = [Say(_sentence(group, key, locale)) for key, group in groups.items()]
+    view = _view(ledger)
+    if parts and view is not None:
+        parts.append(view)
     return parts or [Say(TEMPLATES["unavailable"][locale])]
+
+
+def _sentence(group: list[tuple[str, Fact]], key: str, locale: str) -> str:
+    bound = [_bind(template, fact) for template, fact in group]
+    lead = LEADS.get(key, {}).get(locale)
+    if len(bound) == 1 or lead is None or not all(text.startswith(lead) for text in bound):
+        return " ".join(bound)
+    clauses = [text.removeprefix(lead).removesuffix(".") for text in bound]
+    return lead + ", ".join(clauses[:-1]) + LIST_JOIN[locale] + clauses[-1] + "."
+
+
+def _distinct(facts: Iterable[Fact]) -> list[Fact]:
+    kept: list[Fact] = []
+    seen: list[tuple[str, dict[str, Value]]] = []
+    for fact in facts:
+        shape: tuple[str, dict[str, Value]] = (
+            fact.kind,
+            {name: value for name, value in fact.fields.items() if not isinstance(value, FactIds)},
+        )
+        if shape not in seen:
+            seen.append(shape)
+            kept.append(fact)
+    return kept
 
 
 def _template_key(fact: Fact) -> str | None:
@@ -142,7 +188,7 @@ def _template_key(fact: Fact) -> str | None:
 
 
 def _fitting(key: str | None, fact: Fact, locale: str) -> str | None:
-    for candidate in (key, f"{key}_bare"):
+    for candidate in (f"{key}_card", key, f"{key}_bare"):
         template = TEMPLATES.get(candidate or "", {}).get(locale)
         if template is not None and all(name in fact.fields for name in _FIELD.findall(template)):
             return template
@@ -153,15 +199,15 @@ def _bind(template: str, fact: Fact) -> str:
     return _FIELD.sub(lambda match: f"{{{fact.id}.{match.group(1)}}}", template)
 
 
-def _view(fact: Fact, ledger: Ledger) -> View | None:
-    view = _VIEWS.get(fact.kind)
-    ids = fact.fields.get("ids")
-    if view is None or not isinstance(ids, FactIds):
-        return None
-    refs = []
-    for fact_id in ids.values:
-        row = ledger.get(fact_id)
-        ref = None if row is None else row.fields.get("transaction_ref", row.fields.get("card_ref"))
-        if isinstance(ref, Ref):
-            refs.append(ref.value)
-    return View(view, tuple(refs)) if refs else None
+def _view(ledger: Ledger) -> View | None:
+    for view in _VIEWS:
+        for fact in reversed(ledger.facts.values()):
+            if fact.kind != view:
+                continue
+            candidate = View(view, (fact.id,))
+            try:
+                view_items(candidate, ledger)
+            except Unfit:
+                continue
+            return candidate
+    return None

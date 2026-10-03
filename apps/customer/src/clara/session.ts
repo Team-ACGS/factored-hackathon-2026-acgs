@@ -1,8 +1,6 @@
-import type { Claim } from "./claims";
 import type { Topic } from "./topics";
 
 export interface ClaraSessionState {
-  seeded: Claim | null | undefined;
   topic: Topic | null;
 }
 
@@ -30,7 +28,6 @@ export function memoryStorage(): SessionStorage {
 }
 
 export const emptySession: ClaraSessionState = {
-  seeded: undefined,
   topic: null,
 };
 
@@ -46,7 +43,7 @@ function parse(raw: string | null): ClaraSessionState {
   if (!raw) return emptySession;
   try {
     const stored = JSON.parse(raw) as Partial<ClaraSessionState>;
-    return { seeded: stored.seeded, topic: stored.topic ?? null };
+    return { topic: stored.topic ?? null };
   } catch {
     return emptySession;
   }
@@ -85,9 +82,6 @@ export function createClaraSession(storage: SessionStorage) {
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
-    },
-    resolveSeeded(claim: Claim | null) {
-      update((current) => ({ ...current, seeded: claim }));
     },
     startTopic(topic: Topic) {
       update((current) => ({ ...current, topic }));

@@ -14,12 +14,13 @@ from core.facts.values import Country, Ledger, Text
 from core.graphs.model import Clients, bedrock_clients
 from core.graphs.open_mode import Metrics, OpenModeRun, run_open_mode
 from core.graphs.profiles import ModelProfile
-from core.graphs.prompt import Context
+from core.graphs.prompt import Context, shown_rows
 from core.messaging import Message
 from core.policies import COUNTRIES
 from core.replies import Reply, compose
 from core.retrieval import PolicySearch
-from core.router import route
+from core.router import Route, route
+from core.rules import TurnState, resolve_choice
 from core.tools import ToolContext, call
 
 SERVICE = "chatbot"
@@ -54,7 +55,11 @@ class Turn:
             "timings": metrics.steps,
             "tool_calls": metrics.tools,
             "tokens": metrics.tokens(),
-            "check": {"result": _check_result(self.reply, metrics), "errors": metrics.check_errors},
+            "check": {
+                "result": _check_result(self.reply, metrics),
+                "errors": metrics.check_errors,
+                "tidied": metrics.tidied,
+            },
             "exhausted": metrics.exhausted,
         }
 
@@ -68,6 +73,7 @@ def run_turn(
     clients: Clients | None = None,
     clock: Callable[[], float] = time.monotonic,
     policies: PolicySearch | None = None,
+    on_status: Callable[[str, int], None] | None = None,
 ) -> Turn:
     started = clock()
     dynamodb = customer_session(message.customer_id, SERVICE, read_only=True).dynamodb
@@ -75,7 +81,8 @@ def run_turn(
     language = str(customer.get("language"))
     locale = language if language in LOCALES else DEFAULT_LOCALE
     country = str(customer.get("country"))
-    decided = route(message.text)
+    choice = resolve_choice(message, history)
+    decided = Route("choice") if choice else route(message.text)
 
     def done(reply: Reply, metrics: Metrics | None = None) -> Turn:
         elapsed = round((clock() - started) * 1000)
@@ -95,14 +102,34 @@ def run_turn(
 
     tools = ToolContext(message.customer_id, country, locale, now, SERVICE, None, policies)
     cards = call("list_cards", {}, tools, ledger)
+    picked = (
+        call(str(choice.read.get("tool")), choice.read.get("args") or {}, tools, ledger) if choice else None
+    )
     context = Context(
         given_name=given_name,
         locale=locale,
         today=tools.today.isoformat(),
         cards=ledger.payload(cards.ids),
         exchanges=exchanges(history, message),
+        choice=(
+            {"ask": choice.ask, "option": choice.option, **shown_rows(ledger, picked.ids)}
+            if choice and picked
+            else None
+        ),
     )
-    run = OpenModeRun(message.text, context, ledger, tools, profile, clients or bedrock_clients, clock)
+    run = OpenModeRun(
+        message.text,
+        context,
+        ledger,
+        tools,
+        profile,
+        clients or bedrock_clients,
+        clock,
+        state=TurnState(choice.ask if choice else None),
+        on_status=on_status,
+    )
+    if picked:
+        run.tool_facts.extend(picked.ids)
     return done(run_open_mode(run), run.metrics)
 
 

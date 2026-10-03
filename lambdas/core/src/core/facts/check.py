@@ -6,19 +6,26 @@ from functools import cache
 
 from core.facts.catalog import (
     CARDINALS,
+    COUNT_NOUNS,
     DATE_HOMONYMS,
+    DATE_PREPOSITIONS,
     DATE_WORDS,
     FORBIDDEN,
     INSTRUCTIONS,
     MONTHS,
+    NOUNS,
     NUMBER_HOMONYMS,
+    NUMBER_VALUES,
     ORDINALS,
+    PERIOD_PREPOSITIONS,
+    UNSEEN_CLAIMS,
     WEEKDAYS,
 )
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.parts import Ask, Part, Say, View
 from core.facts.render import CITATION, REFERENCE, is_renderable, render_value, resolve
-from core.facts.values import Channel, Count, Json, Ledger, Money, Percent, Url
+from core.facts.targets import SHOWN_ROWS, Unfit, ask_options, view_items
+from core.facts.values import Channel, Count, Day, Instant, Json, Ledger, Money, Percent, Period, Url
 
 POLICY_FIGURES = (Count, Money, Percent, Channel, Url)
 SENTENCE_END = re.compile(r"[.!?]+(?=\s|$)")
@@ -30,6 +37,18 @@ URL = re.compile(
 )
 PHONE = re.compile(r"\+?\d[\d\s().-]{6,}\d")
 DIGITS = re.compile(r"\d+")
+NOUN_LINKS = frozenset({"de", "do", "da", "of"})
+WORD_BEFORE = re.compile(r"(?<!\w)(\w+)\s+$")
+CONTEXT_CHARS = 30
+CITATION_AFTER_END = re.compile(r"\s*([.!?])\s*(\[p:[^\[\]\s]+\])")
+NOTHING = re.compile(r"(?!)")
+MISSING_PREPOSITION = {
+    "pt-BR": re.compile(
+        r"(?<!sobre )(?<!Sobre )\b[Qq]ua(?:l|is) (?:delas|deles|dessas|desses) (?:você|voce) "
+        r"(?:quer|gostaria de) saber\b"
+    ),
+}
+DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
 
 
@@ -40,6 +59,7 @@ class CheckError:
     span: tuple[int, int]
     text: str
     instruction: str
+    context: str = ""
 
     def to_dict(self) -> Json:
         return {
@@ -50,19 +70,123 @@ class CheckError:
             "instruction": self.instruction,
         }
 
+    def to_repair(self) -> Json:
+        repair = {"code": self.code, "text": self.text, "instruction": self.instruction}
+        return {**repair, "in": self.context} if self.context else repair
 
-def check(parts: Sequence[Part], ledger: Ledger, locale: str) -> list[CheckError]:
-    refs = ledger.refs()
+
+def check(
+    parts: Sequence[Part], ledger: Ledger, locale: str, allowed_asks: frozenset[str] = frozenset()
+) -> list[CheckError]:
     errors: list[CheckError] = []
     for index, part in enumerate(parts):
         match part:
             case Say(text):
                 errors.extend(_SayCheck(index, text, ledger, locale).run())
-            case View(_, ids):
-                errors.extend(_error("view_id_unknown", index, (0, 0), id_) for id_ in ids if id_ not in refs)
-            case Ask(_, target) if target is not None and target not in refs:
-                errors.append(_error("ask_target_unknown", index, (0, 0), target))
+            case View():
+                try:
+                    view_items(part, ledger)
+                except Unfit as unfit:
+                    errors.append(_error(unfit.code, index, (0, 0), unfit.fact_id))
+            case Ask(ask) if ask not in allowed_asks:
+                errors.append(_error("ask_not_allowed", index, (0, 0), ask))
+            case Ask("show") if any(isinstance(other, View) for other in parts):
+                errors.append(_error("show_with_view", index, (0, 0), "show"))
+            case Ask():
+                try:
+                    ask_options(part, ledger)
+                except Unfit as unfit:
+                    errors.append(_error(unfit.code, index, (0, 0), unfit.fact_id))
     return sorted(errors, key=lambda error: (error.part, error.span))
+
+
+def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
+    text, citations = CITATION_AFTER_END.subn(r" \2\1", text)
+    text, numbers = _counts_as_references(text, ledger, locale)
+    text, nouns = _drop_doubled_nouns(text, ledger, locale)
+    text, periods = _drop_prepositions(text, ledger, (Period,), PERIOD_PREPOSITIONS[locale])
+    text, dates = _drop_prepositions(text, ledger, (Day, Instant), DATE_PREPOSITIONS[locale])
+    text, dashes = DASH.subn(", ", text)
+    text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
+    edits = {
+        "number_word": numbers,
+        "doubled_noun": nouns,
+        "period_preposition": periods,
+        "date_preposition": dates,
+        "dash": dashes,
+        "grammar": grammar,
+        "citation_placement": citations,
+    }
+    return text, {kind: count for kind, count in edits.items() if count}
+
+
+def _with_preposition(match: re.Match[str]) -> str:
+    asked = match.group(0)
+    return ("Sobre q" if asked[0] == "Q" else "sobre q") + asked[1:]
+
+
+def _counts_as_references(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    by_noun: dict[str, list[tuple[str, Count]]] = {}
+    for fact in ledger.facts.values():
+        for name, value in fact.fields.items():
+            if isinstance(value, Count):
+                by_noun.setdefault(value.noun, []).append((f"{{{fact.id}.{name}}}", value))
+    only = {noun: found[0] for noun, found in by_noun.items() if len(found) == 1}
+    folded = fold(text)
+    swaps = []
+    for match in number_words(locale).finditer(folded):
+        number = NUMBER_VALUES[locale].get(match.group(0))
+        for noun, (reference, count) in only.items():
+            plural = fold(NOUNS.get(noun, {}).get(locale, ("", ""))[1])
+            following = re.compile(r"\s+" + r"\s+".join(map(re.escape, plural.split())) + r"(?!\w)")
+            after = following.match(folded, match.end()) if plural else None
+            if after and count.value == number:
+                swaps.append((match.start(), after.end(), reference))
+                break
+    for start, end, reference in reversed(swaps):
+        text = text[:start] + reference + text[end:]
+    return text, len(swaps)
+
+
+def _drop_prepositions(
+    text: str, ledger: Ledger, kinds: tuple[type, ...], prepositions: frozenset[str]
+) -> tuple[str, int]:
+    cuts = []
+    for match in REFERENCE.finditer(text):
+        before = WORD_BEFORE.search(text, 0, match.start())
+        typed = isinstance(resolve(ledger, match.group(1), match.group(2)), kinds)
+        if typed and before and fold(before.group(1)) in prepositions:
+            cuts.append(before.span())
+    for start, end in reversed(cuts):
+        text = text[:start] + text[end:]
+    return text, len(cuts)
+
+
+def _drop_doubled_nouns(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    cuts = []
+    for match in REFERENCE.finditer(text):
+        value = resolve(ledger, match.group(1), match.group(2))
+        doubled = doubled_noun(text, match.end(), value, locale) if isinstance(value, Count) else None
+        if doubled:
+            cuts.append((match.end(), doubled[1]))
+    for start, end in reversed(cuts):
+        text = text[:start] + text[end:]
+    return text, len(cuts)
+
+
+def doubled_noun(text: str, end: int, count: Count, locale: str) -> tuple[int, int] | None:
+    match = _noun_phrases(count.noun, locale).match(fold(text), end)
+    return match.span(1) if match else None
+
+
+@cache
+def _noun_phrases(noun: str, locale: str) -> re.Pattern[str]:
+    phrases: set[tuple[str, ...]] = {(word,) for word in _count_nouns(locale)}
+    for form in NOUNS.get(noun, {}).get(locale, ()):
+        words = fold(form).split()
+        phrases.update(tuple(words[start:]) for start in range(len(words)) if set(words[start:]) - NOUN_LINKS)
+    alternatives = sorted((r"\s+".join(map(re.escape, phrase)) for phrase in phrases), key=len, reverse=True)
+    return re.compile(r"\s+(" + "|".join(alternatives) + r")(?!\w)")
 
 
 def fold(text: str) -> str:
@@ -107,6 +231,25 @@ def number_homonyms(locale: str) -> tuple[re.Pattern[str], ...]:
 
 
 @cache
+def _unseen_claims() -> re.Pattern[str]:
+    return bounded(UNSEEN_CLAIMS)
+
+
+def _unseen_rows(ledger: Ledger) -> bool:
+    return any(
+        fact.kind == "movements"
+        and isinstance(count := fact.fields.get("count"), Count)
+        and count.value > SHOWN_ROWS
+        for fact in ledger.facts.values()
+    )
+
+
+@cache
+def _count_nouns(locale: str) -> frozenset[str]:
+    return frozenset(fold(word) for word in COUNT_NOUNS[locale].split())
+
+
+@cache
 def _forbidden() -> tuple[tuple[str, re.Pattern[str]], ...]:
     return tuple((code, bounded(patterns)) for code, patterns in FORBIDDEN.items())
 
@@ -139,6 +282,8 @@ class _SayCheck:
         self._scan_raw(CURRENCY, "currency_outside_reference")
         self._scan_folded(_date_words(self.locale), "date_outside_reference")
         self._scan_number_words()
+        if _unseen_rows(self.ledger):
+            self._scan_folded(_unseen_claims(), "unseen_rows_claim")
         for code, pattern in _forbidden():
             self._scan_folded(pattern, code)
         return self.errors
@@ -150,11 +295,18 @@ class _SayCheck:
                 self._report("unresolved_reference", match.span())
             elif not is_renderable(value):
                 self._report("trace_only_reference", match.span())
+            elif isinstance(value, Count):
+                self._noun_after(match.end(), value)
             self._mask(match.span())
         for match in CITATION.finditer(self.original):
             if match.group(1) not in self.chunks:
                 self._report("unknown_citation", match.span())
             self._mask(match.span())
+
+    def _noun_after(self, end: int, count: Count) -> None:
+        doubled = doubled_noun(self.original, end, count, self.locale)
+        if doubled:
+            self._report("noun_after_count", doubled)
 
     def _citations_per_sentence(self) -> None:
         chunk_of = {fact.id: chunk_id for chunk_id, fact in self.chunks.items()}
@@ -214,7 +366,11 @@ class _SayCheck:
                 self._mask(match.span())
 
     def _report(self, code: str, span: tuple[int, int]) -> None:
-        self.errors.append(_error(code, self.part, span, self.original[span[0] : span[1]]))
+        start, end = span
+        around = self.original[max(0, start - CONTEXT_CHARS) : end + CONTEXT_CHARS]
+        self.errors.append(
+            CheckError(code, self.part, span, self.original[start:end], INSTRUCTIONS[code], around)
+        )
 
     def _mask(self, span: tuple[int, int]) -> None:
         for position in range(*span):

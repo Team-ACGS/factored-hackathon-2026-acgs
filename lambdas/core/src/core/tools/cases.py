@@ -52,6 +52,9 @@ def case_status(context: ToolContext, ledger: Ledger, args: CaseStatusInput) -> 
     selected.sort(key=lambda item: str(item.get("creation_date") or ""), reverse=True)
     accounts = Accounts.from_dynamodb(dynamodb)
     rows = [_case_fields(context, accounts, item) for item in selected[:MAX_CASES]]
+    for item in selected[:MAX_CASES]:
+        if item.get("transaction_id") and item.get("product_id"):
+            ledger.locate(str(item["transaction_id"]), str(item["product_id"]))
     facts = [ledger.add("case", fields) for fields in rows]
     aggregate = ledger.add(
         "cases",

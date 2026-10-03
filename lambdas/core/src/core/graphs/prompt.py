@@ -4,9 +4,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.answers import SAY_KEYS
+from core.facts.parts import ASK_TYPES, VIEW_TYPES
+from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS, SHOWN_ROWS
+from core.facts.values import Count, Fact, Ledger
 from core.tools import TOOLS
 
 REPLY = "reply"
+UNSEEN_NOTE = (
+    "You see {shown} of {matched} matching rows. Say nothing about all of them (no 'todas', 'all'), and "
+    "do not offer them in which_one: to find one, ask the customer for its date or amount."
+)
 MAX_SAYS = 3
 MAX_SAY_CHARS = 800
 
@@ -24,12 +31,14 @@ TOOL_ORDER = (
 )
 
 DESCRIPTIONS = {
-    "list_cards": "The customer's cards: type, last digits, status. Already read into the context as facts.",
+    "list_cards": "The customer's cards: type, last digits, status, and the `cards` fact with how many there "
+    "are in all (`count`) and by type (`credit`, `debit`). Already read into the context as facts.",
     "card_status": "One card in detail: status, and when known the balance, credit limit and available "
     "credit with the date they were read.",
     "search_movements": "The customer's movements filtered by card, dates (ISO, local), merchant, status, "
-    "channel, country, category or amount, newest first by default; returns one fact per row plus a "
-    "`movements` fact with the full match count. Covers the last 92 days.",
+    "channel, country, category or amount, newest first by default; returns one fact per row (at most "
+    "`limit`, up to 25) plus a `movements` fact with the full match count, which the movements view lists. "
+    "Covers a window of recent months; name it only by the result's `period`.",
     "merchant_history": "How the customer usually buys at one merchant over the last 1 to 3 months: count, "
     "first and last date, typical amount.",
     "spend_summary": "Total spent (approved and pending purchases) in a period, optionally at one merchant "
@@ -38,7 +47,10 @@ DESCRIPTIONS = {
     "Use it for any 'how much did I spend' question; never add amounts "
     "yourself. Periods are ISO dates in the customer's timezone; 'this month' runs from the first day of "
     "the month to today, 'last month' is the whole previous month.",
-    "recurring_charges": "Charges that repeat monthly or weekly (subscriptions) on the customer's cards.",
+    "recurring_charges": "Charges that repeat monthly or weekly (subscriptions) on the customer's cards. A "
+    "series is at least two charges at the same merchant on the same card, about a month (26 to 35 days) or "
+    "a week (6 to 8 days) apart, with amounts within 15% of each other; charges on different cards or at "
+    "other intervals are not a series yet, so say you do not see a repeating charge yet.",
     "charge_facts": "One charge in detail: the row, its status explanation, the customer's habit at that "
     "merchant and similar charges.",
     "case_status": "The customer's cases (disputes and security cases): with no argument the open ones, "
@@ -52,7 +64,21 @@ DESCRIPTIONS = {
 REPLY_DESCRIPTION = (
     "Your answer to the customer, always the last call of the turn. Either `say` (one to three short "
     "paragraphs of prose in the customer's language where every value is a reference) or `say_key` "
-    "(a fixed answer rendered by the bank's code), never both."
+    "(a fixed answer rendered by the bank's code), never both; optionally one `view` and one `ask`."
+)
+
+VIEW_DESCRIPTION = (
+    "The bank's screen of the data your answer is about, by fact ids of this turn. movements: the "
+    "`movements` fact of a search, movement rows, a `recurring_list`, `recurring` or `merchant_history` "
+    "fact, or a `charge`. cards: the `cards` fact or card facts. card: facts of one card. movement: one "
+    "movement row, `similar` or `charge`. charge: the `charge` fact. history: one `merchant_history` fact "
+    "with purchases. case: `case` facts or the `cases` fact."
+)
+
+ASK_DESCRIPTION = (
+    "Buttons under your answer, read only. which_one: two to five candidate facts, all charges (movement "
+    "rows, `similar`, `charge`) or all cards, when the question matches several. show: one `spend`, `case` "
+    "with a disputed charge, or card fact whose rows the customer may want to see, never with a view."
 )
 
 SAY_KEY_DESCRIPTION = (
@@ -92,7 +118,22 @@ def reply_schema() -> dict[str, Any]:
                 "description": "Paragraphs of prose; every value is a reference {fN.field}.",
             },
             "say_key": {"type": "string", "enum": list(SAY_KEYS), "description": SAY_KEY_DESCRIPTION},
+            "view": _choice_schema(VIEW_TYPES, MAX_VIEW_ITEMS, VIEW_DESCRIPTION),
+            "ask": _choice_schema(ASK_TYPES, MAX_OPTIONS, ASK_DESCRIPTION),
         },
+    }
+
+
+def _choice_schema(types: tuple[str, ...], most: int, description: str) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["type", "facts"],
+        "properties": {
+            "type": {"type": "string", "enum": list(types)},
+            "facts": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": most},
+        },
+        "description": description,
     }
 
 
@@ -104,7 +145,7 @@ def tool_specs() -> list[dict[str, Any]]:
     return [*specs, {"name": REPLY, "description": REPLY_DESCRIPTION, "input_schema": reply_schema()}]
 
 
-CONTEXT_FIELDS = ("given_name", "locale", "today", "cards", "exchanges")
+CONTEXT_FIELDS = ("given_name", "locale", "today", "cards", "exchanges", "choice")
 
 
 @dataclass(frozen=True)
@@ -114,6 +155,7 @@ class Context:
     today: str
     cards: Sequence[Mapping[str, Any]]
     exchanges: Sequence[Mapping[str, str]]
+    choice: Mapping[str, Any] | None = None
 
     def block(self) -> str:
         fields = {name: getattr(self, name) for name in CONTEXT_FIELDS}
@@ -124,5 +166,32 @@ class Context:
         )
 
 
-def tool_result(facts: Sequence[Mapping[str, Any]]) -> str:
-    return json.dumps({"untrusted": True, "facts": list(facts)}, ensure_ascii=False, separators=(",", ":"))
+def visible(ledger: Ledger, ids: Sequence[str]) -> tuple[list[str], int]:
+    rows = [fact_id for fact_id in ids if ledger.facts[fact_id].kind == "movement"]
+    hidden = set(rows[SHOWN_ROWS:])
+    return [fact_id for fact_id in ids if fact_id not in hidden], len(hidden)
+
+
+def shown_rows(ledger: Ledger, ids: Sequence[str]) -> dict[str, Any]:
+    shown, _ = visible(ledger, ids)
+    body: dict[str, Any] = {"facts": ledger.payload(shown)}
+    rows = sum(1 for fact_id in shown if ledger.facts[fact_id].kind == "movement")
+    matched = max((_matched(ledger.facts[fact_id]) for fact_id in ids), default=0)
+    if matched > rows:
+        body.update(
+            {
+                "rows_shown": rows,
+                "rows_not_shown": matched - rows,
+                "note": UNSEEN_NOTE.format(shown=rows, matched=matched),
+            }
+        )
+    return body
+
+
+def _matched(fact: Fact) -> int:
+    count = fact.fields.get("count")
+    return count.value if fact.kind == "movements" and isinstance(count, Count) else 0
+
+
+def tool_result(body: Mapping[str, Any]) -> str:
+    return json.dumps({"untrusted": True, **body}, ensure_ascii=False, separators=(",", ":"))

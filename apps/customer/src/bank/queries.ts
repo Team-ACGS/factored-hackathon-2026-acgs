@@ -13,6 +13,7 @@ import type { Locale } from "../i18n/locale";
 import type { BankApi } from "./api";
 import {
   entriesOf,
+  findTransaction,
   withAdded,
   withoutPlaceholder,
   withPlaceholder,
@@ -25,6 +26,7 @@ import type { Country, NewTransaction, PlantedCase, Profile, Transaction } from 
 export const bankKeys = {
   profile: () => ["bank", "profile"] as const,
   cards: () => ["bank", "cards"] as const,
+  cases: () => ["bank", "cases"] as const,
   ledger: (productId: string) => ["bank", "ledger", productId] as const,
   transaction: (productId: string, transactionId: string) => ["bank", "transaction", productId, transactionId] as const,
   adds: () => ["bank", "add"] as const,
@@ -63,11 +65,22 @@ export function createBankQueries(bank: BankApi, clock: Clock) {
         staleTime: seconds(30),
       }),
 
+    cases: () => queryOptions({ queryKey: bankKeys.cases(), queryFn: () => bank.cases(), staleTime: seconds(30) }),
+
     transaction: (productId: string, transactionId: string) =>
       queryOptions({
         queryKey: bankKeys.transaction(productId, transactionId),
         queryFn: () => bank.transaction(productId, transactionId),
         staleTime: seconds(30),
+      }),
+
+    row: (queryClient: QueryClient, productId: string, transactionId: string) =>
+      queryOptions({
+        queryKey: bankKeys.transaction(productId, transactionId),
+        queryFn: () => bank.transaction(productId, transactionId),
+        staleTime: seconds(30),
+        initialData: () => findTransaction(entriesOf(queryClient.getQueryData<Ledger>(bankKeys.ledger(productId))), transactionId),
+        initialDataUpdatedAt: () => queryClient.getQueryState(bankKeys.ledger(productId))?.dataUpdatedAt,
       }),
 
     setup: (queryClient: QueryClient): MutationOptions<SetupOutcome, Error, { country: Country; language: Locale }> => ({
@@ -82,6 +95,7 @@ export function createBankQueries(bank: BankApi, clock: Clock) {
       onSuccess: (outcome) => {
         queryClient.setQueryData(bankKeys.profile(), outcome.profile);
         void queryClient.invalidateQueries({ queryKey: bankKeys.cards() });
+        void queryClient.invalidateQueries({ queryKey: bankKeys.cases() });
       },
     }),
 

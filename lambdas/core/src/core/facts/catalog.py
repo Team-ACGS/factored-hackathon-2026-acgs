@@ -82,6 +82,34 @@ RELATIVE_DAYS = {
     "en": ("today", "yesterday"),
 }
 
+DATE_ARTICLE = {"es": "el ", "pt-BR": "em ", "en": ""}
+
+ARTICLE_DROPPED_AFTER = {
+    "es": frozenset({"el", "del", "al"}),
+    "pt-BR": frozenset({"desde", "até", "de", "em", "no", "na", "para", "após", "antes", "depois"}),
+    "en": frozenset(),
+}
+
+DATE_PREPOSITIONS = {
+    "es": frozenset({"en", "el"}),
+    "pt-BR": frozenset({"em", "no", "na"}),
+    "en": frozenset(),
+}
+
+PERIOD_PREPOSITIONS = {
+    "es": frozenset({"en", "de", "desde", "durante", "entre"}),
+    "pt-BR": frozenset({"em", "no", "de", "desde", "durante", "entre"}),
+    "en": frozenset({"in", "during", "between"}),
+}
+
+UNSEEN_CLAIMS = (
+    r"tod[oa]s (ell[oa]s|el[ae]s|hech[oa]s|feit[oa]s|realizad[oa]s|fueron|foram|son|sao|estan|estao"
+    r"|en|em|na|no|con|com|por|pela|pelo)",
+    r"all (of them|were|are|in|at|made|from|on)",
+)
+
+CLOCK_AT = {"es": ("a la", "a las"), "pt-BR": ("à", "às"), "en": ("at", "at")}
+
 LAST4 = {"es": "terminada en {}", "pt-BR": "final {}", "en": "ending in {}"}
 
 NOUNS: dict[str, dict[str, tuple[str, str]]] = {
@@ -96,6 +124,16 @@ NOUNS: dict[str, dict[str, tuple[str, str]]] = {
         "en": ("transaction", "transactions"),
     },
     "card": {"es": ("tarjeta", "tarjetas"), "pt-BR": ("cartão", "cartões"), "en": ("card", "cards")},
+    "credit_card": {
+        "es": ("tarjeta de crédito", "tarjetas de crédito"),
+        "pt-BR": ("cartão de crédito", "cartões de crédito"),
+        "en": ("credit card", "credit cards"),
+    },
+    "debit_card": {
+        "es": ("tarjeta de débito", "tarjetas de débito"),
+        "pt-BR": ("cartão de débito", "cartões de débito"),
+        "en": ("debit card", "debit cards"),
+    },
     "case": {"es": ("caso", "casos"), "pt-BR": ("caso", "casos"), "en": ("case", "cases")},
     "memory": {"es": ("nota", "notas"), "pt-BR": ("nota", "notas"), "en": ("note", "notes")},
     "day": {"es": ("día", "días"), "pt-BR": ("dia", "dias"), "en": ("day", "days")},
@@ -115,6 +153,23 @@ NOUNS: dict[str, dict[str, tuple[str, str]]] = {
         "pt-BR": ("cobrança recorrente", "cobranças recorrentes"),
         "en": ("recurring charge", "recurring charges"),
     },
+}
+
+COUNT_SYNONYMS = {
+    "es": "transacción transacciones cargo cargos pago pagos suscripción suscripciones",
+    "pt-BR": (
+        "transação transações cobrança cobranças pagamento pagamentos assinatura assinaturas "
+        "movimento movimentos"
+    ),
+    "en": "charge charges payment payments subscription subscriptions",
+}
+
+COUNT_NOUNS = {
+    locale: " ".join(
+        [form.split()[0] for forms in NOUNS.values() for form in forms[locale]]
+        + COUNT_SYNONYMS[locale].split()
+    )
+    for locale in LOCALES
 }
 
 STATUS_LABELS: dict[str, dict[str, dict[str, str]]] = {
@@ -161,7 +216,7 @@ LABELS: dict[str, dict[str, dict[str, str]]] = {
     },
     "channel": {
         "POS": {"es": "en tienda", "pt-BR": "na loja", "en": "in store"},
-        "Web": {"es": "en línea", "pt-BR": "online", "en": "online"},
+        "Web": {"es": "por internet", "pt-BR": "pela internet", "en": "online"},
         "App": {"es": "en la app", "pt-BR": "no app", "en": "in the app"},
     },
     "category": {
@@ -178,8 +233,8 @@ LABELS: dict[str, dict[str, dict[str, str]]] = {
         "weekly": {"es": "semanal", "pt-BR": "semanal", "en": "weekly"},
     },
     "direction": {
-        "more": {"es": "más", "pt-BR": "mais", "en": "more"},
-        "less": {"es": "menos", "pt-BR": "menos", "en": "less"},
+        "more": {"es": "más", "pt-BR": "a mais", "en": "more"},
+        "less": {"es": "menos", "pt-BR": "a menos", "en": "less"},
         "same": {"es": "lo mismo", "pt-BR": "o mesmo", "en": "the same"},
     },
     "counted": {
@@ -346,6 +401,18 @@ CARDINALS = {
     ),
 }
 
+NUMBER_VALUES = {
+    "es": {word: value for value, word in enumerate(CARDINALS["es"].split(), start=2)},
+    "en": {word: value for value, word in enumerate(CARDINALS["en"].split(), start=2)},
+    "pt-BR": dict(
+        zip(
+            CARDINALS["pt-BR"].split(),
+            (2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 15, 16, 17, 18, 19, 20),
+            strict=True,
+        )
+    ),
+}
+
 ORDINALS = {
     "es": (
         "segundo segunda segundos segundas tercer tercero tercera terceros terceras cuarto cuarta cuartos "
@@ -397,6 +464,15 @@ FORBIDDEN = {
     "money_promise": (
         r"reembols\w*",
         r"reintegr\w*",
+        r"desembols\w*",
+        r"(llegar|llega|llegue|ocurr|pase|pasar|sucede|suceda|recib)\w* (con )?(el|tu|su) dinero",
+        r"(el|tu|su) dinero (va a |vaya a )?(lleg|vuelv|volver|regres)\w*",
+        r"(cheg|acontec|receb)\w* (com )?o (seu )?dinheiro",
+        r"o (seu )?dinheiro (vai |va )?(cheg|volt|retorn)\w*",
+        r"(happens?|arrives?|get) (to |with )?(the|your) money",
+        r"(the|your) money (will )?(arriv|return|come)\w*",
+        r"devoluci\w*",
+        r"devoluc\w*",
         r"devolver(a|an|e|emos)",
         r"devolveremos",
         r"(te|le|lo|la|los) (vamos a |van a |va a )?(devolver|reintegrar|reembolsar|estornar)",
@@ -409,6 +485,14 @@ FORBIDDEN = {
         r"money back",
         r"(get|receive|recover) your money",
         r"guarante\w*",
+    ),
+    "promise_talk": (
+        r"promet\w*",
+        r"promes\w*",
+        r"promis\w*",
+        r"no (puedo|podria|sabria) (decir|adelantar|anticipar|asegurar|confirmar|indicar)\w*",
+        r"nao (posso|consigo|saberia) (dizer|antecipar|informar|confirmar|assegurar|indicar)\w*",
+        r"(cannot|can't|can not) (tell you|say when|confirm when)",
     ),
     "legal_term": (
         r"abogad\w*",
@@ -448,6 +532,19 @@ INSTRUCTIONS = {
     "safety_claim": "Never say a charge is safe or legitimate.",
     "money_promise": "Never promise money back; describe the next step of the process instead.",
     "legal_term": "Avoid legal terms; describe the bank's process in plain words.",
-    "view_id_unknown": "A view may show only ids a tool returned this turn.",
-    "ask_target_unknown": "An ask may target only an id a tool returned this turn.",
+    "promise_talk": "Never say what you can or cannot promise; state the bank's process with its citation.",
+    "noun_after_count": "A count renders with its noun; remove the noun you wrote after the reference.",
+    "view_unknown": "Use one of the view types of the reply tool.",
+    "view_fact_unknown": "A view may show only facts a tool returned this turn.",
+    "view_fact_unfit": "That fact does not fit this view; see the reply tool for the facts each view takes.",
+    "view_empty": "The facts of this view have no rows to show; send the reply without the view.",
+    "ask_not_allowed": "That ask is not allowed now; send the reply without the ask.",
+    "ask_fact_unknown": "An ask may use only facts a tool returned this turn.",
+    "ask_fact_unfit": "That fact cannot be an option of this ask; see the reply tool for each ask.",
+    "ask_options_count": "which_one takes two to five candidate facts; show takes exactly one fact.",
+    "ask_options_partial": "More charges match than your options; ask for the date or the amount instead.",
+    "unseen_rows_claim": "You saw only some of these rows; say nothing about all of them.",
+    "show_with_view": "The view already shows the rows; send the reply without the show ask.",
+    "ask_options_repeated": "Each option of which_one must be a different charge or card.",
+    "ask_options_mixed": "The options of which_one must all be charges or all be cards.",
 }

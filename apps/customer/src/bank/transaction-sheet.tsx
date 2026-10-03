@@ -2,14 +2,13 @@ import { cn } from "@clara/ui/lib/cn";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
-import { claimForTransaction } from "../clara/overlay";
 import { chargeTopic } from "../clara/topics";
 import { useOpenClara } from "../clara/entry";
-import { useClaraSession } from "../clara/store";
 import { useI18n } from "../i18n";
 import { BankSheet, Facts, SheetBody, SheetFoot, SheetHead } from "./bank-sheet";
 import { pillButton, primaryPillButton } from "./buttons";
 import { useCardName } from "./card-display";
+import { caseOfTransaction } from "./cases";
 import { formatMoney } from "./format";
 import { countryName, labelOf } from "./labels";
 import { MovementPill } from "./movement-pill";
@@ -34,7 +33,7 @@ export function TransactionSheet({ card, transactionId, listed, onClose }: Trans
 
 function Details({ card, transactionId, listed }: { card: Card; transactionId: string; listed: Transaction | undefined }) {
   const { locale, t } = useI18n();
-  const session = useClaraSession();
+  const cases = useQuery(bankQueries.cases()).data ?? [];
   const openClara = useOpenClara();
   const cardName = useCardName();
   const detail = useQuery(bankQueries.transaction(card.product_id, transactionId));
@@ -49,7 +48,7 @@ function Details({ card, transactionId, listed }: { card: Card; transactionId: s
     );
   }
 
-  const claim = claimForTransaction(transaction.transaction_id, session);
+  const claim = caseOfTransaction(cases, transaction.transaction_id);
   const struck = transaction.transaction_status === "Declined" || transaction.transaction_status === "Reversed";
   const place = [transaction.transaction_city, countryName(transaction.transaction_country, locale)]
     .filter(Boolean)
@@ -87,13 +86,13 @@ function Details({ card, transactionId, listed }: { card: Card; transactionId: s
         />
         {claim && (
           <p className="text-[13px] text-ink-3">
-            {t("transaction.inClaim")} <span className="font-mono">{claim.claim_id}</span>
+            {t("transaction.inClaim")} <span className="font-mono">{claim.case_id}</span>
           </p>
         )}
       </SheetBody>
       <SheetFoot>
         {claim ? (
-          <Link to="/help" search={{ claim: claim.claim_id }} className={cn(pillButton, "w-full")}>
+          <Link to="/help" search={{ claim: claim.case_id }} className={cn(pillButton, "w-full")}>
             {t("transaction.viewClaim")}
           </Link>
         ) : (

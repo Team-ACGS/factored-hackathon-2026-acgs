@@ -19,6 +19,7 @@ SenderType = Literal["customer", "assistant", "agent"]
 
 MAX_CLOCK_SKEW = timedelta(minutes=2)
 MAX_TEXT_LENGTH = 2000
+MAX_OPTION_LENGTH = 80
 TURN_MARK_TTL = timedelta(minutes=5)
 
 Json = dict[str, Any]
@@ -46,6 +47,7 @@ class Message:
     facts: tuple[Json, ...] = ()
     draft: tuple[Json, ...] = ()
     source: str | None = None
+    input: Json | None = None
 
     @property
     def message_key(self) -> str:
@@ -69,6 +71,8 @@ class Message:
                 item[name] = list(getattr(self, name))
         if self.source:
             item["source"] = self.source
+        if self.input:
+            item["input"] = dict(self.input)
         return item
 
     @classmethod
@@ -89,6 +93,7 @@ class Message:
             facts=tuple(plain(item.get("facts") or [])),
             draft=tuple(plain(item.get("draft") or [])),
             source=str(item["source"]) if item.get("source") else None,
+            input=plain(item["input"]) if isinstance(item.get("input"), Mapping) else None,
         )
 
     def public(self) -> dict[str, Any]:
@@ -111,6 +116,9 @@ class Room:
     room_id: str
     created_at: str
     delegated_to_human: bool
+    turn_message_id: str | None = None
+    turn_started_at: str | None = None
+    turn_status: str | None = None
 
     @classmethod
     def from_item(cls, item: Mapping[str, Any]) -> "Room":
@@ -119,10 +127,24 @@ class Room:
             room_id=str(item["room_id"]),
             created_at=str(item["created_at"]),
             delegated_to_human=bool(item.get("delegated_to_human", False)),
+            turn_message_id=_optional(item.get("turn_message_id")),
+            turn_started_at=_optional(item.get("turn_started_at")),
+            turn_status=_optional(item.get("turn_status")),
         )
 
     def public(self) -> dict[str, str]:
         return {"room_id": self.room_id, "created_at": self.created_at}
+
+    def turn(self, now: datetime) -> dict[str, str | None] | None:
+        if self.turn_message_id is None or self.turn_started_at is None:
+            return None
+        if datetime.fromisoformat(self.turn_started_at) < now - TURN_MARK_TTL:
+            return None
+        return {"message_id": self.turn_message_id, "status": self.turn_status}
+
+
+def _optional(value: object) -> str | None:
+    return str(value) if value else None
 
 
 def customer_message(
@@ -132,12 +154,14 @@ def customer_message(
     text: str,
     now: datetime,
     origin_trace_id: str | None = None,
+    input: object = None,
 ) -> Message:
     try:
         parse_uuid7(room_id)
         sent_at = uuid7_time(parse_uuid7(message_id))
     except InvalidId as error:
         raise InvalidMessage(str(error)) from error
+    choice = None if input is None else tapped(input)
     if abs(now - sent_at) > MAX_CLOCK_SKEW:
         raise InvalidMessage("message_id is too far from server time")
     body = text.strip()
@@ -154,7 +178,23 @@ def customer_message(
         sent_at=format_instant(sent_at),
         created_at=format_instant(now),
         origin_trace_id=origin_trace_id,
+        input=choice,
     )
+
+
+def tapped(value: object) -> Json:
+    if not isinstance(value, Mapping) or set(value) != {"ask_id", "option"}:
+        raise InvalidMessage("input must be an object with exactly ask_id and option")
+    ask_id, option = value["ask_id"], value["option"]
+    if not isinstance(ask_id, str) or not isinstance(option, str):
+        raise InvalidMessage("input ask_id and option must be strings")
+    try:
+        parse_uuid7(ask_id)
+    except InvalidId as error:
+        raise InvalidMessage(f"input ask_id: {error}") from error
+    if not option.strip() or len(option) > MAX_OPTION_LENGTH:
+        raise InvalidMessage(f"input option must be 1 to {MAX_OPTION_LENGTH} characters")
+    return {"ask_id": ask_id, "option": option}
 
 
 def plain(value: Any) -> Any:
@@ -261,7 +301,7 @@ class Messaging:
         try:
             self._rooms.update_item(
                 Key={"customer_id": message.customer_id, "room_id": message.room_id},
-                UpdateExpression="SET turn_message_id = :message, turn_started_at = :now",
+                UpdateExpression="SET turn_message_id = :message, turn_started_at = :now REMOVE turn_status",
                 ConditionExpression="attribute_exists(room_id) AND (attribute_not_exists(turn_message_id) "
                 "OR turn_message_id = :message OR turn_started_at < :expired)",
                 ExpressionAttributeValues={
@@ -279,9 +319,21 @@ class Messaging:
         try:
             self._rooms.update_item(
                 Key={"customer_id": message.customer_id, "room_id": message.room_id},
-                UpdateExpression="REMOVE turn_message_id, turn_started_at",
+                UpdateExpression="REMOVE turn_message_id, turn_started_at, turn_status",
                 ConditionExpression="turn_message_id = :message",
                 ExpressionAttributeValues={":message": message.message_id},
+            )
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") != "ConditionalCheckFailedException":
+                raise
+
+    def mark_status(self, message: Message, status: str) -> None:
+        try:
+            self._rooms.update_item(
+                Key={"customer_id": message.customer_id, "room_id": message.room_id},
+                UpdateExpression="SET turn_status = :status",
+                ConditionExpression="turn_message_id = :message",
+                ExpressionAttributeValues={":message": message.message_id, ":status": status},
             )
         except ClientError as error:
             if error.response.get("Error", {}).get("Code") != "ConditionalCheckFailedException":

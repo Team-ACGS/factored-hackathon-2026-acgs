@@ -1,14 +1,14 @@
 ---
 updated: 2026-10-03
-source: 0019_open_mode_graph
+source: 0020_rich_parts
 ---
 
 # assistant: flows
 
-Status: the open-mode turn is built (task 0019); writing an action is the B4 design.
+Status: the open-mode turn is built (task 0019) with views, read-only asks and status events (task 0020); writing an action is the B4 design.
 The full design is `docs/tasks/_drafts/chat_architecture.md` at the docs root.
 
-## One turn (B1)
+## One turn (B1, B2)
 
 ```mermaid
 flowchart TD
@@ -16,14 +16,17 @@ flowchart TD
     R -- yes --> E[Re-emit turn.completed]
     R -- no --> TM{Turn mark free, own, or older than 5 min?}
     TM -- no --> RETRY[Record fails and retries]
-    TM -- yes --> FL{Safety floor on raw text}
+    TM -- yes --> TAP{Tap of Clara's latest ask?}
+    TAP -- yes --> READ[Run the option's stored read] --> CTX
+    TAP -- no --> FL{Safety floor on raw text}
     FL -- not_me or lost_stolen --> ST[Safety template: call the bank]
-    FL -- nothing --> CTX[Context: name, locale, today, cards, last 3 exchanges]
+    FL -- nothing --> CTX[Context: name, locale, today, cards, last 3 exchanges, choice]
     CTX --> SUP[supervisor: Sonnet 4.6]
-    SUP -- tool calls within budget --> TOOLS[tools under the read-only session]
+    SUP -- tool calls within budget --> STATUS[status event and turn status per round]
+    STATUS --> TOOLS[tools under the read-only session, five rows shown]
     TOOLS --> SUP
-    SUP -- reply --> CHK{facts_check}
-    CHK -- pass --> FIN[render, parts, citations]
+    SUP -- reply: say, view, ask --> TIDY[tidy, counted] --> CHK{facts_check with allowed_asks}
+    CHK -- pass --> FIN[render says, views with readings, asks with labels]
     CHK -- first failure --> SUP
     CHK -- second failure --> FB[template from what the tools read]
     SUP -- budget out, model down or crash --> FB

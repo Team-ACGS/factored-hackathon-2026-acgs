@@ -1,5 +1,6 @@
 import json
 import os
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -14,16 +15,19 @@ from core.access import customer_session
 from core.graphs.profiles import profile_for
 from core.messaging import Message, Messaging, reply_key, reply_to
 from core.observability import annotate_origin, logger, metrics, trace_id, tracer
+from core.realtime import Publisher, room_channel
 from core.turn import CONTEXT_MESSAGES, run_turn
 
 if TYPE_CHECKING:
     from mypy_boto3_events import EventBridgeClient
 
 SERVICE = "chatbot"
+STATUS_SECONDS = 0.5
 
 processor = BatchProcessor(event_type=EventType.DynamoDBStreams)
 _events: "EventBridgeClient" = boto3.client("events")
 PROFILE = profile_for(os.environ["BEDROCK_MODEL_ID"])
+_publisher = Publisher.from_env(timeout=STATUS_SECONDS, retries=False)
 
 
 class RoomNotFound(Exception):
@@ -67,7 +71,9 @@ def answer(record: DynamoDBRecord) -> None:
     messaging.take_turn(message, datetime.now(UTC))
     try:
         history = messaging.before(message, CONTEXT_MESSAGES)
-        turn = run_turn(message, history, datetime.now(UTC), profile=PROFILE)
+        turn = run_turn(
+            message, history, datetime.now(UTC), profile=PROFILE, on_status=_status(message, messaging)
+        )
         answer = turn.reply
         reply, created = messaging.write(
             reply_to(
@@ -90,6 +96,24 @@ def answer(record: DynamoDBRecord) -> None:
     metrics.add_metric(name="TurnMilliseconds", unit=MetricUnit.Milliseconds, value=turn.duration_ms)
     if answer.source == "fallback":
         metrics.add_metric(name="TurnsFallback", unit=MetricUnit.Count, value=1)
+
+
+def _status(message: Message, messaging: Messaging) -> Callable[[str, int], None]:
+    def announce(status: str, round_: int) -> None:
+        event = {
+            "type": "status",
+            "id": f"{message.message_id}#{round_}",
+            "room_id": message.room_id,
+            "message_id": message.message_id,
+            "round": round_,
+            "status": status,
+        }
+        try:
+            messaging.mark_status(message, status)
+        finally:
+            _publisher.publish(room_channel(message.customer_id, message.room_id), [event])
+
+    return announce
 
 
 def _turn_completed(message: Message, reply: Message, summary: dict[str, Any]) -> None:

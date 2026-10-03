@@ -10,6 +10,7 @@ import boto3
 import pytest
 
 from core.access import RoleSession, customer_session
+from core.cases import COMPLAINT_ATTRIBUTES, case_code, stage
 from core.customers import create_customer
 from crud import handler as crud
 from crud.catalog import COUNTRIES, SUSPICIOUS_POOL
@@ -104,7 +105,12 @@ def test_a_new_customer_has_no_setup_until_it_completes(
 
     body = set_up(context)
 
-    assert body["profile"] == {"country": "MX", "language": "es", "setup_completed": True}
+    assert body["profile"] == {
+        "country": "MX",
+        "language": "es",
+        "setup_completed": True,
+        "bank_phone": "55 5000 0000",
+    }
     assert call("GET", "/crud/profile", context)[1]["profile"]["setup_completed"] is True
 
 
@@ -491,7 +497,17 @@ def test_suspicious_transactions_use_outside_merchants_with_suffixes_unique_in_t
     stored = aws.customers.get_item(Key={"customer_id": SUB})["Item"]["suspicious_suffixes"]
     assert stored == {"4821", "1234", "7777"}
     status, body = call("GET", "/crud/profile", context)
-    assert (status, body) == (200, {"profile": {"country": "MX", "language": "es", "setup_completed": True}})
+    assert (status, body) == (
+        200,
+        {
+            "profile": {
+                "country": "MX",
+                "language": "es",
+                "setup_completed": True,
+                "bank_phone": "55 5000 0000",
+            }
+        },
+    )
 
 
 @pytest.mark.parametrize(
@@ -540,6 +556,7 @@ def test_an_invalid_add_is_rejected(aws: Aws, customer: None, context: LambdaCon
         ("GET", "/crud/profile"),
         ("POST", "/crud/profile/setup"),
         ("GET", "/crud/cards"),
+        ("GET", "/crud/cases"),
         ("GET", f"/crud/cards/{uuid7()}"),
         ("GET", f"/crud/cards/{uuid7()}/transactions/{uuid7()}"),
         ("POST", f"/crud/cards/{uuid7()}/transactions"),
@@ -554,3 +571,38 @@ def test_a_staff_token_gets_forbidden(
 
     assert status == 403
     assert sessions == []
+
+
+def test_cases_are_the_customer_s_own_with_their_code_type_and_stage(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    set_up(context)
+    signed_up(OTHER)
+    set_up(context, OTHER)
+
+    status, body = call("GET", "/crud/cases", context)
+
+    assert status == 200
+    [claim] = [item for item in items(aws.complaints) if item["area"] == "claims"]
+    [case] = body["cases"]
+    assert case["complaint_id"] == claim["complaint_id"]
+    assert case["transaction_id"] == claim["transaction_id"]
+    assert case["case_id"] == case_code(claim["complaint_id"], claim["creation_date"])
+    assert (case["type"], case["stage"]) == ("claim", stage(claim))
+    assert set(case) <= {*COMPLAINT_ATTRIBUTES, "case_id", "type", "stage"}
+
+
+def test_a_customer_without_cases_gets_an_empty_list(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    assert call("GET", "/crud/cases", context) == (200, {"cases": []})
+
+
+def test_the_profile_carries_the_bank_phone_of_the_customer_s_country(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    set_up(context, country="PE")
+
+    _, body = call("GET", "/crud/profile", context)
+
+    assert body["profile"]["bank_phone"] == "+51 1 600 2000"

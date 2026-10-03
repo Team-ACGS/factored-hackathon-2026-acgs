@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-27
-source: 0003_walking_skeleton
+updated: 2026-10-03
+source: 0020_rich_parts
 ---
 
 # Messaging: product
@@ -20,7 +20,9 @@ It also solves a latency problem: Claude composing a reply can take longer than 
 1. The customer types in the chat window and sends.
 2. The reply does not come back on that same request; it arrives moments later in the same window, pushed to the browser.
 3. The customer never sees a spinner tied to a timeout: the message shows a clock until the bank confirms it, then a check, and the reply appears on its own.
-4. Reloading the chat shows the latest conversation in order.
+4. While Clara works, what she is checking arrives on the same channel and replaces itself round by round; it disappears when the reply arrives and is never stored as a message.
+5. Tapping one of Clara's options sends its text like any message, plus which option of which ask it was.
+6. Reloading the chat shows the latest conversation in order, and what Clara is checking if her turn is still running.
 
 Errors and empty states: a message that cannot be sent after automatic retries shows "not sent" with a retry; if the live connection drops, the chat says so and asks for a reload; there are no read receipts.
 
