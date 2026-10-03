@@ -17,7 +17,7 @@ locals {
   email_domain = "notifications.factoredai.sdfles.com"
 
   ### Assistant ################################################################
-  bedrock_inference_profile_id = "us.anthropic.claude-sonnet-5"
+  bedrock_inference_profile_id = "us.anthropic.claude-sonnet-4-6"
   policy_embedding_model_id    = "cohere.embed-v4:0"
   policy_min_similarity        = { es = 0.3638, pt = 0.3464, en = 0.3789 }
 

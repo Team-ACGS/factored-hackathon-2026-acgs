@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { initialChat, settled } from "./chat/state";
 import { claimOf } from "./claims";
 import { cardAt, purchase } from "./fixtures";
-import { cardLock, claimForTransaction, flaggedCharges, openClaims } from "./overlay";
+import { claimForTransaction, flaggedCharges, isBlocked, openClaims } from "./overlay";
 import { createClaraSession, memoryStorage } from "./session";
 
 const debit = cardAt("Tarjeta Débito");
@@ -19,13 +18,10 @@ function opened(storage = memoryStorage(), customerId = "customer-a") {
 describe("clara session", () => {
   it("survives a reload of the same customer and is separate per customer", () => {
     const { session, storage } = opened();
-    session.block(credit.product_id, "2026-09-29T10:31:00.000Z");
+    session.resolveSeeded(seeded);
 
-    const reloaded = opened(storage).session;
-    const other = opened(storage, "customer-b").session;
-
-    expect(reloaded.current().blocks).toEqual({ [credit.product_id]: "2026-09-29T10:31:00.000Z" });
-    expect(other.current().blocks).toEqual({});
+    expect(opened(storage).session.current().seeded).toEqual(seeded);
+    expect(opened(storage, "customer-b").session.current().seeded).toBeUndefined();
   });
 
   it("remembers across a reload that no seeded claim exists", () => {
@@ -35,25 +31,10 @@ describe("clara session", () => {
     expect(opened(storage).session.current().seeded).toBeNull();
   });
 
-  it("resets the demo without losing the seeded claim", () => {
-    const { session } = opened();
-    session.resolveSeeded(seeded);
-    session.block(credit.product_id, "2026-09-29T10:31:00.000Z");
-    session.addClaim(claimOf(purchase(credit, 1), "2026-09-29T10:40:00.000Z"));
-    session.markReviewed("t-1");
-    session.recognize("t-2");
-    session.saveChat(settled({ ...initialChat, entries: [{ id: "c1", kind: "me", text: "hola" }] }));
-    session.startTopic({ kind: "cards" });
-
-    session.resetDemo();
-
-    expect(session.current()).toEqual({ seeded, claims: [], blocks: {}, reviewed: [], recognized: [], topic: null, chat: null });
-  });
-
   it("forgets every customer on sign-out", () => {
     const { session, storage } = opened();
     session.resolveSeeded(seeded);
-    opened(storage, "customer-b").session.markReviewed("t-1");
+    opened(storage, "customer-b").session.startTopic({ kind: "cards" });
     storage.setItem("clara.locale", "es");
 
     session.clear();
@@ -75,7 +56,7 @@ describe("clara session", () => {
     const listener = vi.fn();
     session.subscribe(listener);
 
-    session.markReviewed("t-1");
+    session.startTopic({ kind: "cards" });
 
     expect(listener).toHaveBeenCalledTimes(1);
   });
@@ -87,40 +68,24 @@ describe("clara session", () => {
     };
     const { session } = opened(storage);
 
-    session.block(credit.product_id, "2026-09-29T10:31:00.000Z");
+    session.resolveSeeded(seeded);
 
-    expect(cardLock(credit, session.current()).blocked).toBe(true);
+    expect(session.current().seeded).toEqual(seeded);
   });
 });
 
 describe("bank overlay", () => {
-  it("shows a block made in the chat on the card, with its time", () => {
-    const { session } = opened();
-
-    session.block(credit.product_id, "2026-09-29T10:31:00.000Z");
-
-    expect(cardLock(credit, session.current())).toEqual({ blocked: true, since: "2026-09-29T10:31:00.000Z" });
-    expect(cardLock(debit, session.current())).toEqual({ blocked: false, since: null });
+  it("shows a card blocked only when the bank blocked it", () => {
+    expect(isBlocked({ ...credit, product_status: "Blocked" })).toBe(true);
+    expect(isBlocked(credit)).toBe(false);
   });
 
-  it("shows a card the bank already blocked, without a time", () => {
-    expect(cardLock({ ...credit, product_status: "Blocked" }, opened().session.current())).toEqual({
-      blocked: true,
-      since: null,
-    });
-  });
-
-  it("marks the movement of a claim made in the chat and lists it before the seeded one", () => {
+  it("marks the movement of the seeded claim", () => {
     const { session } = opened();
-    const charge = purchase(credit, 1);
-    const claim = claimOf(charge, "2026-09-29T10:40:00.000Z");
     session.resolveSeeded(seeded);
 
-    session.addClaim(claim);
-
-    expect(claimForTransaction(charge.transaction_id, session.current())).toEqual(claim);
     expect(claimForTransaction(seeded.transaction_id, session.current())).toEqual(seeded);
-    expect(openClaims(session.current())).toEqual([claim, seeded]);
+    expect(openClaims(session.current())).toEqual([seeded]);
   });
 });
 
@@ -131,16 +96,10 @@ describe("flagged charges", () => {
   const unscored = purchase(credit, -2, { fraud_score: null });
 
   it("lists charges the bank scored above 30, newest first", () => {
-    const { session } = opened();
-    expect(flaggedCharges([older, low, flagged, unscored], [credit], session.current())).toEqual([flagged, older]);
+    expect(flaggedCharges([older, low, flagged, unscored], [credit])).toEqual([flagged, older]);
   });
 
-  it("drops a charge once reviewed and every charge of a blocked card", () => {
-    const { session } = opened();
-    session.markReviewed(flagged.transaction_id);
-    expect(flaggedCharges([flagged, older], [credit], session.current())).toEqual([older]);
-
-    session.block(credit.product_id, "2026-09-29T10:31:00.000Z");
-    expect(flaggedCharges([flagged, older], [credit], session.current())).toEqual([]);
+  it("drops every charge of a card the bank blocked", () => {
+    expect(flaggedCharges([flagged, older], [{ ...credit, product_status: "Blocked" }])).toEqual([]);
   });
 });

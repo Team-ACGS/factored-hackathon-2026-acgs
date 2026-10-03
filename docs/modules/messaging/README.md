@@ -1,11 +1,11 @@
 ---
-updated: 2026-09-29
-source: 0010_customer_redesign
+updated: 2026-10-03
+source: 0019_open_mode_graph
 ---
 
 # Messaging
 
-Status: built as a walking skeleton (task 0003): customers send, read their latest room and receive every message live; agents and ratings are not built. The customer chat runs on the client mock (assistant/ard.md, 2026-09-29); messaging is reached only when `mockChat` in `apps/customer/src/clara/switch.ts` is off, through `src/chat/live.ts`.
+Status: built as a walking skeleton (task 0003): customers send, read their latest room and receive every message live; agents and ratings are not built. The customer chat talks to it through `apps/customer/src/chat/live.ts` (task 0019); Clara's replies carry `parts`.
 
 Owns the room and message history shared by a customer, Clara and, once a handoff happens, a human agent, and the path that delivers every new message to whoever is watching the room.
 A message is stored once, in `messages`; everyone who cares learns about it from that table's stream, never from a second write.

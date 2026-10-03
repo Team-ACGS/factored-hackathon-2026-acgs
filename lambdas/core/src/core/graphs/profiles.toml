@@ -1,0 +1,22 @@
+version = 1
+
+[[profile]]
+id = "us.anthropic.claude-sonnet-4-6"
+key = "sonnet-4-6"
+name = "Claude Sonnet 4.6"
+prompt = "system.v2"
+max_output_tokens = 1024
+effort = "low"
+thinking = "off"
+cache = { min_prefix_tokens = 1024 }
+prices = { input = "3.30", output = "16.50", cache_read = "0.33", cache_write = "4.125", source = "AWS Price List API, AmazonBedrockFoundationModels, us-east-1, regional cross-region inference, USD per 1M tokens", date = "2026-10-03" }
+
+[[profile]]
+id = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+key = "haiku-4-5"
+name = "Claude Haiku 4.5"
+prompt = "system.v2"
+max_output_tokens = 1024
+thinking = "off"
+cache = { min_prefix_tokens = 4096, note = "the cached prefix (tool schemas and system.v2, about 3.6k tokens) is below the minimum, so Haiku reads nothing from the cache" }
+prices = { input = "1.10", output = "5.50", cache_read = "0.11", cache_write = "1.375", source = "AWS Price List API, AmazonBedrockFoundationModels, us-east-1, regional cross-region inference, USD per 1M tokens", date = "2026-10-03" }

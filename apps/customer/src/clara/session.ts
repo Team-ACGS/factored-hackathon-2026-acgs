@@ -1,15 +1,9 @@
-import type { PersistedChat } from "./chat/state";
 import type { Claim } from "./claims";
 import type { Topic } from "./topics";
 
 export interface ClaraSessionState {
   seeded: Claim | null | undefined;
-  claims: Claim[];
-  blocks: Record<string, string>;
-  reviewed: string[];
-  recognized: string[];
   topic: Topic | null;
-  chat: PersistedChat | null;
 }
 
 export interface SessionStorage {
@@ -37,12 +31,7 @@ export function memoryStorage(): SessionStorage {
 
 export const emptySession: ClaraSessionState = {
   seeded: undefined,
-  claims: [],
-  blocks: {},
-  reviewed: [],
-  recognized: [],
   topic: null,
-  chat: null,
 };
 
 function quietly(action: () => void) {
@@ -57,15 +46,7 @@ function parse(raw: string | null): ClaraSessionState {
   if (!raw) return emptySession;
   try {
     const stored = JSON.parse(raw) as Partial<ClaraSessionState>;
-    return {
-      seeded: stored.seeded,
-      claims: Array.isArray(stored.claims) ? stored.claims : [],
-      blocks: stored.blocks && typeof stored.blocks === "object" ? stored.blocks : {},
-      reviewed: Array.isArray(stored.reviewed) ? stored.reviewed : [],
-      recognized: Array.isArray(stored.recognized) ? stored.recognized : [],
-      topic: stored.topic ?? null,
-      chat: stored.chat && typeof stored.chat === "object" ? stored.chat : null,
-    };
+    return { seeded: stored.seeded, topic: stored.topic ?? null };
   } catch {
     return emptySession;
   }
@@ -108,34 +89,6 @@ export function createClaraSession(storage: SessionStorage) {
     resolveSeeded(claim: Claim | null) {
       update((current) => ({ ...current, seeded: claim }));
     },
-    addClaim(claim: Claim) {
-      update((current) => ({
-        ...current,
-        claims: [claim, ...current.claims.filter((item) => item.transaction_id !== claim.transaction_id)],
-      }));
-    },
-    block(productId: string, at: string) {
-      update((current) =>
-        productId in current.blocks ? current : { ...current, blocks: { ...current.blocks, [productId]: at } },
-      );
-    },
-    markReviewed(transactionId: string) {
-      update((current) =>
-        current.reviewed.includes(transactionId)
-          ? current
-          : { ...current, reviewed: [...current.reviewed, transactionId] },
-      );
-    },
-    recognize(transactionId: string) {
-      update((current) =>
-        current.recognized.includes(transactionId)
-          ? current
-          : { ...current, recognized: [...current.recognized, transactionId] },
-      );
-    },
-    saveChat(chat: PersistedChat | null) {
-      update((current) => ({ ...current, chat }));
-    },
     startTopic(topic: Topic) {
       update((current) => ({ ...current, topic }));
     },
@@ -143,9 +96,6 @@ export function createClaraSession(storage: SessionStorage) {
       const { topic } = state;
       if (topic) update((current) => ({ ...current, topic: null }));
       return topic;
-    },
-    resetDemo() {
-      update((current) => ({ ...emptySession, seeded: current.seeded }));
     },
     clear() {
       quietly(() => {

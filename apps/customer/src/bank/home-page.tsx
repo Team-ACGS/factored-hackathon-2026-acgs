@@ -2,7 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 
-import { cardLock, claimForTransaction } from "../clara/overlay";
+import { claimForTransaction } from "../clara/overlay";
 import { useClaraSession } from "../clara/store";
 import { useI18n } from "../i18n";
 import { textLink } from "./buttons";
@@ -43,7 +43,6 @@ export function HomePage({ productId, transactionId }: HomePageProps) {
         ) : (
           <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-[22px] min-[821px]:grid-cols-3">
             {cards.map((card) => {
-              const lock = cardLock(card, session);
               return (
                 <div key={card.product_id} className="flex min-w-0 flex-col gap-3">
                   <Link
@@ -52,7 +51,7 @@ export function HomePage({ productId, transactionId }: HomePageProps) {
                     aria-label={t("card.viewMovementsOf", { card: cardName(card) })}
                     className="rounded-[14px] outline-none transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-[3px] focus-visible:ring-ring/40"
                   >
-                    <CardFace card={card} material={materialOf(cards, card.product_id)} lock={lock} />
+                    <CardFace card={card} material={materialOf(cards, card.product_id)} />
                   </Link>
                   <CardUsage card={card} />
                   <Link to="/cards/$productId" params={{ productId: card.product_id }} className={textLink}>

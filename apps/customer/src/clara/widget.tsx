@@ -28,7 +28,7 @@ function Widget() {
   return (
     <LedgersOf productIds={cards.map((card) => card.product_id)}>
       {(ledgers) => {
-        const flagged = flaggedCharges(ledgers.flat(), cards, session);
+        const flagged = flaggedCharges(ledgers.flat(), cards);
         return (
           <>
             <Fab unread={flagged.length} launched={open} onOpen={launcher.open} />

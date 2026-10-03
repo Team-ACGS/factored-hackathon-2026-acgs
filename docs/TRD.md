@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0009_client_data_cache
+updated: 2026-10-03
+source: 0019_open_mode_graph
 ---
 
 # Technical Requirements Document
@@ -39,7 +39,7 @@ Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a 
 - API Gateway (REST) on `api.factoredai.sdfles.com` with a Cognito authorizer accepting both pools: `/crud/*` to `crud` (today the customer's profile and setup, cards and transactions; routes in `modules/assistant/trd.md`), `/messages/*` to `messages`.
 - No lambda calls another lambda; shared behavior lives in `lambdas/core`.
 - A message is written once: `messages` stores it (and the room when new) with a conditional write; the `messages` DynamoDB stream feeds `chat_notifier`, which pushes it to the room's AppSync Events channel, and `chatbot`, which only sees customer messages (`sender_type = customer`).
-- A turn: `chatbot` understands, decides with the rules table, acts, composes with Claude Sonnet 5 on Bedrock, and writes the reply as an ordinary message, which reaches clients through the same notifier.
+- A turn: `chatbot` runs the deterministic safety floor, then the `open_mode` graph (Claude Sonnet 4.6 on Bedrock over read-only tools, every value by reference and checked by code), and writes the reply as an ordinary message with `parts`, which reaches clients through the same notifier; the story path with asks and writes is designed (B4).
 - Each stream consumer has 3 retries, bisect on error and its own SQS DLQ.
 - Identity of a customer: `customer_id` is the Cognito `sub` of the `customers` pool, set by Cognito at sign-up and never chosen by a client or a lambda; `post_confirmation` creates the `customers` row with it. `staff_id` is the `sub` of the `staff` pool.
 - Realtime: one AppSync Events channel per room, `/rooms/{customer_id}/{room_id}`; publishing is IAM only (`chat_notifier`); an `onSubscribe` handler lets a customer token subscribe only when the `customer_id` segment is its own `sub`, and lets staff tokens through.
@@ -57,7 +57,7 @@ Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a 
 - X-Ray active tracing on every lambda and the API Gateway stage, set in Terraform. The sampling rule `clara-prd-api` traces 100% of API requests, and `messages` inherits that decision. The stream consumers (`chatbot`, `chat_notifier`) keep Lambda's fixed sampling, 1 request per second plus 5%, which AWS does not let you change.
 - A message yields three traces, not one: X-Ray does not link traces through DynamoDB Streams. `messages` stores its trace id on the item and both consumers annotate it as `origin_trace_id` (task 0008), so the filter `annotation.origin_trace_id = "<trace id>"` plus the API trace itself finds the three.
 - A trace of `POST /messages` has API Gateway (`api.factoredai.sdfles.com`) as its entry point, with `messages` inside it; searching for traces that enter at `clara-prd-messages` finds nothing.
-- Memory: 1024 MB for `messages`, `chatbot` and `chat_notifier` (the chat path), 512 MB for the rest; every function runs on x86_64.
+- Memory: 2048 MB for `chatbot`, 1024 MB for `messages` and `chat_notifier` (the chat path), 512 MB for the rest; every function runs on x86_64.
 - Turn events from day one: `chatbot` publishes to EventBridge bus `clara-prd` with source `clara.chatbot` at the end of each turn, a rule delivers to Data Firehose, Firehose writes gzip JSON lines to `turns/` in the events bucket; ids only, never message text, each with `trace_id`.
 - Analysis of those events and the LLM judge are deferred (`docs/tasks/_drafts/turn_events_analysis.md` in the docs root).
 
@@ -93,7 +93,7 @@ Modules belong to the application and may span folders.
 
 | Module | Purpose | Folders | Docs |
 |---|---|---|---|
-| assistant | Clara's turn: triage explain, claim or protect; rules decide, the LLM extracts and writes | `lambdas/chatbot`, `lambdas/core`, `apps/customer` | [README](modules/assistant/README.md) |
+| assistant | Clara's turn: safety floor, the open-mode graph answering from the customer's data by reference; later the story path where rules decide and writes need consent | `lambdas/chatbot`, `lambdas/core`, `apps/customer` | [README](modules/assistant/README.md) |
 | cases | Case record in `complaints`, lifecycle, handoff package, agent console | `lambdas/crud`, `lambdas/core`, `apps/support` | [README](modules/cases/README.md) |
 | inbox | Categorize, rank and assign cases for officers | `lambdas/`, `apps/backoffice` | [README](modules/inbox/README.md) |
 | messaging | Rooms, messages, the messages stream and AppSync Events, customer rating | `lambdas/messages`, `lambdas/chat_notifier`, `lambdas/core` | [README](modules/messaging/README.md) |

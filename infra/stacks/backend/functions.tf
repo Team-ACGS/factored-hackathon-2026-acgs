@@ -128,7 +128,7 @@ locals {
         "policy_embed",
       ]
       namespace   = "Clara/Assistant"
-      memory_size = 1024
+      memory_size = 2048
       timeout     = 60
 
       environment = merge(local.table_env, {

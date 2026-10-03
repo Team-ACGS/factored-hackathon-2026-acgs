@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0008_chat_latency
+updated: 2026-10-03
+source: 0019_open_mode_graph
 ---
 
 # Messaging: database
@@ -12,13 +12,14 @@ Keys live in Terraform (`infra/stacks/backend/dynamo.tf`).
 
 | Table | Keys | Purpose |
 |---|---|---|
-| `rooms` | `customer_id`, `room_id` | One row per conversation; `delegated_to_human` silences Clara (set by hand until handoff exists); will hold the customer's rating (1 to 5) and optional comment. |
+| `rooms` | `customer_id`, `room_id` | One row per conversation; `delegated_to_human` silences Clara (set by hand until handoff exists); `turn_message_id` and `turn_started_at` mark the turn in progress; will hold the customer's rating (1 to 5) and optional comment. |
 | `messages` | `customer_id`, `message_key` (`<room_id>#<sent_at>#<message_id>`) | Every message of every room, in order within a room. Stream: new image. |
 
 Every message carries `sender_type`: `customer`, `assistant` or `agent`.
 It is a contract with the infrastructure: the chatbot's stream mapping filters on it.
 A message may carry `origin_trace_id`, the X-Ray root of the `POST /messages` that first stored it; a reply copies the one of the message it answers.
 It exists only to link traces across the stream: it is absent when there was no trace, never returned by `public()` and never published to a channel.
+A Clara reply also carries `parts` (public: rendered `say` parts with citation objects), and `facts` (the typed facts it referenced), `draft` (the parts before rendering) and `source` (`composed`, `repaired`, `fallback`, `safety`, `say_key`), kept for audit and never returned; `text` is the says joined, so readers that ignore `parts` still work.
 
 ## Tables referenced
 
@@ -33,7 +34,11 @@ None.
 - `customer_id` always comes from the token's `sub` or the stream record, never from a request body.
 - A message is written once; delivery and the chatbot react to the stream, never to a second write or a queue.
 - A room outlives any single case: the agent joins the room the customer was already in.
+- One turn per room at a time: `chatbot` takes the mark with a conditional update when it is absent, held by the same message, or older than 5 minutes, and clears it when the turn ends, also on failure; a fresh mark of another message makes the record retry.
+- A redelivered customer message whose reply (its successor id) is already stored runs no second turn.
 
 ## Migrations of note
+
+- 2026-10-03 (task 0019): new optional attributes `parts`, `facts`, `draft`, `source` on `messages` and the turn mark on `rooms`; no migration, readers ignore unknown attributes.
 
 - 2026-09-27 (task 0002): stream enabled on `messages`.

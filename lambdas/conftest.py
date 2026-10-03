@@ -10,14 +10,23 @@ from moto import mock_aws
 from harness import ENVIRONMENT, Aws, LambdaContext
 
 if TYPE_CHECKING:
+    from moto.core.config import DefaultConfig
     from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table
 
 os.environ.update(ENVIRONMENT)
 
 
+LIVE_BEDROCK = os.environ.get("CLARA_LIVE_BEDROCK") == "1"
+PASSTHROUGH: "DefaultConfig | None" = (
+    {"core": {"passthrough": {"urls": [r"https://bedrock-runtime\.[a-z0-9-]+\.amazonaws\.com/.*"]}}}
+    if LIVE_BEDROCK
+    else None
+)
+
+
 @pytest.fixture
 def aws() -> Iterator[Aws]:
-    with mock_aws():
+    with mock_aws(config=PASSTHROUGH):
         dynamodb = boto3.resource("dynamodb")
         customers = dynamodb.create_table(
             TableName=ENVIRONMENT["TABLE_CUSTOMERS"],

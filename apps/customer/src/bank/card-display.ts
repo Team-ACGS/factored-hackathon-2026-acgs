@@ -15,13 +15,3 @@ export function useCardName() {
   const { t } = useI18n();
   return (card: Card) => `${t(cardTypeKey(card))} •••• ${lastDigits(card.product_number)}`;
 }
-
-export function useLockTime() {
-  const { locale } = useI18n();
-  return (since: string) => {
-    const at = new Date(since);
-    const today = at.toDateString() === new Date().toDateString();
-    const format = new Intl.DateTimeFormat(locale, today ? { timeStyle: "short" } : { dateStyle: "medium", timeStyle: "short" });
-    return format.format(at);
-  };
-}

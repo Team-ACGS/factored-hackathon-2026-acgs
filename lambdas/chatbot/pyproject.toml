@@ -3,7 +3,7 @@ name = "clara-chatbot"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "clara-core",
+    "clara-core[graph]",
 ]
 
 [tool.uv.sources]

@@ -3,9 +3,11 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Literal, cast, get_args
 
 from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
 from core.conditional import put_if_absent
 from core.ids import InvalidId, format_instant, parse_uuid7, successor, uuid7_time
@@ -17,9 +19,16 @@ SenderType = Literal["customer", "assistant", "agent"]
 
 MAX_CLOCK_SKEW = timedelta(minutes=2)
 MAX_TEXT_LENGTH = 2000
+TURN_MARK_TTL = timedelta(minutes=5)
+
+Json = dict[str, Any]
 
 
 class InvalidMessage(ValueError):
+    pass
+
+
+class TurnInProgress(Exception):
     pass
 
 
@@ -33,13 +42,17 @@ class Message:
     sent_at: str
     created_at: str
     origin_trace_id: str | None = None
+    parts: tuple[Json, ...] = ()
+    facts: tuple[Json, ...] = ()
+    draft: tuple[Json, ...] = ()
+    source: str | None = None
 
     @property
     def message_key(self) -> str:
         return f"{self.room_id}#{self.sent_at}#{self.message_id}"
 
-    def to_item(self) -> dict[str, str]:
-        item = {
+    def to_item(self) -> dict[str, Any]:
+        item: dict[str, Any] = {
             "customer_id": self.customer_id,
             "message_key": self.message_key,
             "room_id": self.room_id,
@@ -51,6 +64,11 @@ class Message:
         }
         if self.origin_trace_id:
             item["origin_trace_id"] = self.origin_trace_id
+        for name in ("parts", "facts", "draft"):
+            if getattr(self, name):
+                item[name] = list(getattr(self, name))
+        if self.source:
+            item["source"] = self.source
         return item
 
     @classmethod
@@ -67,10 +85,14 @@ class Message:
             sent_at=str(item["sent_at"]),
             created_at=str(item["created_at"]),
             origin_trace_id=str(item["origin_trace_id"]) if item.get("origin_trace_id") else None,
+            parts=tuple(plain(item.get("parts") or [])),
+            facts=tuple(plain(item.get("facts") or [])),
+            draft=tuple(plain(item.get("draft") or [])),
+            source=str(item["source"]) if item.get("source") else None,
         )
 
-    def public(self) -> dict[str, str]:
-        return {
+    def public(self) -> dict[str, Any]:
+        public: dict[str, Any] = {
             "room_id": self.room_id,
             "message_id": self.message_id,
             "sender_type": self.sender_type,
@@ -78,6 +100,9 @@ class Message:
             "sent_at": self.sent_at,
             "created_at": self.created_at,
         }
+        if self.parts:
+            public["parts"] = list(self.parts)
+        return public
 
 
 @dataclass(frozen=True)
@@ -132,7 +157,30 @@ def customer_message(
     )
 
 
-def reply_to(message: Message, sender_type: SenderType, text: str, now: datetime) -> Message:
+def plain(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return int(value) if value == value.to_integral_value() else float(value)
+    if isinstance(value, list):
+        return [plain(entry) for entry in value]
+    if isinstance(value, dict):
+        return {key: plain(entry) for key, entry in value.items()}
+    return value
+
+
+def reply_key(message: Message) -> str:
+    return f"{message.room_id}#{message.sent_at}#{successor(uuid.UUID(message.message_id))}"
+
+
+def reply_to(
+    message: Message,
+    sender_type: SenderType,
+    text: str,
+    now: datetime,
+    parts: tuple[Json, ...] = (),
+    facts: tuple[Json, ...] = (),
+    draft: tuple[Json, ...] = (),
+    source: str | None = None,
+) -> Message:
     return Message(
         customer_id=message.customer_id,
         room_id=message.room_id,
@@ -142,6 +190,10 @@ def reply_to(message: Message, sender_type: SenderType, text: str, now: datetime
         sent_at=message.sent_at,
         created_at=format_instant(now),
         origin_trace_id=message.origin_trace_id,
+        parts=parts,
+        facts=facts,
+        draft=draft,
+        source=source,
     )
 
 
@@ -189,11 +241,56 @@ class Messaging:
             messages.extend(Message.from_item(item) for item in page["Items"])
         return messages
 
-    def _stored(self, message: Message) -> Message:
+    def before(self, message: Message, limit: int) -> list[Message]:
+        condition = Key("customer_id").eq(message.customer_id) & Key("message_key").between(
+            f"{message.room_id}#", message.message_key
+        )
+        items = self._messages.query(
+            KeyConditionExpression=condition, ScanIndexForward=False, Limit=limit + 1, ConsistentRead=True
+        )["Items"]
+        earlier = [Message.from_item(item) for item in items if item["message_key"] != message.message_key]
+        return list(reversed(earlier[:limit]))
+
+    def stored(self, customer_id: str, message_key: str) -> Message | None:
         item = self._messages.get_item(
-            Key={"customer_id": message.customer_id, "message_key": message.message_key}, ConsistentRead=True
-        )["Item"]
-        return Message.from_item(item)
+            Key={"customer_id": customer_id, "message_key": message_key}, ConsistentRead=True
+        ).get("Item")
+        return Message.from_item(item) if item else None
+
+    def take_turn(self, message: Message, now: datetime) -> None:
+        try:
+            self._rooms.update_item(
+                Key={"customer_id": message.customer_id, "room_id": message.room_id},
+                UpdateExpression="SET turn_message_id = :message, turn_started_at = :now",
+                ConditionExpression="attribute_exists(room_id) AND (attribute_not_exists(turn_message_id) "
+                "OR turn_message_id = :message OR turn_started_at < :expired)",
+                ExpressionAttributeValues={
+                    ":message": message.message_id,
+                    ":now": format_instant(now),
+                    ":expired": format_instant(now - TURN_MARK_TTL),
+                },
+            )
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                raise TurnInProgress(message.room_id) from error
+            raise
+
+    def release_turn(self, message: Message) -> None:
+        try:
+            self._rooms.update_item(
+                Key={"customer_id": message.customer_id, "room_id": message.room_id},
+                UpdateExpression="REMOVE turn_message_id, turn_started_at",
+                ConditionExpression="turn_message_id = :message",
+                ExpressionAttributeValues={":message": message.message_id},
+            )
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") != "ConditionalCheckFailedException":
+                raise
+
+    def _stored(self, message: Message) -> Message:
+        stored = self.stored(message.customer_id, message.message_key)
+        assert stored is not None
+        return stored
 
     def _open_room(self, customer_id: str, room_id: str, created_at: str) -> None:
         put_if_absent(

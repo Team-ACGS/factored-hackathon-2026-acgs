@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { emptyConversation, reduce, visibleMessages, type Action, type Conversation, type ServerMessage } from "./conversation";
+import {
+  emptyConversation,
+  reduce,
+  saysOf,
+  thinkingLeft,
+  THINKING_CAP_MS,
+  visibleMessages,
+  type Action,
+  type Conversation,
+  type ServerMessage,
+} from "./conversation";
 
 const room = "0199a0b0-0000-7000-8000-000000000001";
 
@@ -81,5 +91,61 @@ describe("conversation", () => {
     const state = run(sending("m-001"), { type: "failed", messageId: "m-001" }, { type: "discarded", messageId: "m-001" });
 
     expect(state.messages).toEqual({});
+  });
+});
+
+describe("clara's parts", () => {
+  const citation = { chunk_id: "pe-dispute-lifecycle#3", title: "Ciclo de una aclaración", page: 4, url: "https://docs.test/pe.pdf#page=4" };
+
+  it("renders each say with its sources and skips parts it does not know", () => {
+    const parts = [
+      { type: "say", text: "Tu aclaración está en revisión.", facts: ["f6"], citations: [] },
+      { type: "view", view: "movements", ids: ["t1"] },
+      { type: "say", text: "La revisión toma hasta diez días.", facts: ["p1"], citations: [citation] },
+    ];
+    const [message] = visibleMessages(run({ type: "loaded", roomId: room, messages: [server("m-002", { sender_type: "assistant", parts })] }));
+
+    expect(message?.says).toEqual([
+      { text: "Tu aclaración está en revisión.", citations: [] },
+      {
+        text: "La revisión toma hasta diez días.",
+        citations: [{ chunkId: citation.chunk_id, title: citation.title, page: 4, url: citation.url }],
+      },
+    ]);
+  });
+
+  it("never links a source outside https", () => {
+    const parts = [{ type: "say", text: "Hola.", citations: [{ ...citation, url: "javascript:alert(1)" }] }];
+
+    expect(saysOf({ text: "Hola.", parts })[0]?.citations[0]?.url).toBeNull();
+  });
+
+  it("renders a message without parts from its text, one paragraph per block", () => {
+    expect(saysOf({ text: "Hola.\n\n¿En qué te ayudo?" })).toEqual([
+      { text: "Hola.", citations: [] },
+      { text: "¿En qué te ayudo?", citations: [] },
+    ]);
+  });
+});
+
+describe("clara thinking", () => {
+  const sent = Date.parse("2026-09-27T20:00:00.001Z");
+  const asked = () => visibleMessages(run({ type: "loaded", roomId: room, messages: [server("m-001")] }));
+
+  it("lasts from the customer's message until a reply, at most thirty seconds", () => {
+    expect(thinkingLeft(asked(), sent + 10_000)).toBe(20_000);
+    expect(thinkingLeft(asked(), sent + THINKING_CAP_MS)).toBe(0);
+  });
+
+  it("starts the full window when the local clock is behind the message", () => {
+    expect(thinkingLeft(asked(), sent - 5_000)).toBe(THINKING_CAP_MS);
+  });
+
+  it("stops when Clara answers or the message failed", () => {
+    const answered = run({ type: "loaded", roomId: room, messages: [server("m-001"), server("m-002", { sender_type: "assistant" })] });
+    const failed = run(sending("m-003"), { type: "failed", messageId: "m-003" });
+
+    expect(thinkingLeft(visibleMessages(answered), sent)).toBe(0);
+    expect(thinkingLeft(visibleMessages(failed), sent)).toBe(0);
   });
 });
