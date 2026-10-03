@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-02
-source: 0018_policy_retrieval_quality
+updated: 2026-10-03
+source: 0019_open_mode_graph
 ---
 
 # assistant: architecture and debt
@@ -13,6 +13,7 @@ source: 0018_policy_retrieval_quality
 - Debt created: none.
 - Revisit when: the turn flow moves from `docs/tasks/_drafts/turn_flow.md` into this module's TRD as the current design.
 - Source: docs/tasks/_drafts/turn_flow.md
+- Superseded by: 0019_open_mode_graph, 2026-10-03: a free-text turn is the deterministic safety floor and router, then the `open_mode` graph (supervisor, tools, facts_check, fallback, finalize); the rules table returns as the story path's only decider in B4.
 
 ## 2026-09-26: verify before composing, not after
 
@@ -22,6 +23,7 @@ source: 0018_policy_retrieval_quality
 - Debt created: none.
 - Revisit when: never, this is treated as a hard invariant of the turn.
 - Source: docs/tasks/_drafts/turn_flow.md ("What the first sketch was minimizing")
+- Amended by: 0019_open_mode_graph, 2026-10-03: in open mode the check runs after the model composes and covers references only; the model never states a value, a failure is repaired once or replaced by a template, so nothing unchecked reaches the customer; writes still confirm and read back first (B4).
 
 ## 2026-09-26: injection detector runs on tool outputs, not only on the customer message
 
@@ -31,6 +33,7 @@ source: 0018_policy_retrieval_quality
 - Debt created: no adversarial fixture for tool-output injection exists yet to validate this in practice. [inferido]
 - Revisit when: the held-out adversarial set (`hackathon/docs/kickoff-compliance.md`, "Measured failures") is built.
 - Source: docs/tasks/_drafts/turn_flow.md
+- Superseded by: 0019_open_mode_graph, 2026-10-03: no detector model; tool results reach the model as tagged untrusted data, the model has no write tool, the safety floor reads only the customer's raw text, and the facts check refuses any value, phone or URL not read; the adversarial fixture debt stands.
 
 ## 2026-09-26: writes require confirmation and idempotency before a read-back-confirmed disclosure
 
@@ -49,6 +52,7 @@ source: 0018_policy_retrieval_quality
 - Debt created: none; this reshapes the training set boundary between this module's understand stage and the models module, not yet reconciled in either module's docs. [inferido]
 - Revisit when: the models module's trd.md is written and the router's exact class list is confirmed against this one.
 - Source: docs/tasks/_drafts/turn_flow.md
+- Superseded by: 0019_open_mode_graph, 2026-10-03: the turn has no intent classifier; a deterministic router sends free text to the graph and safety phrases to the floor.
 
 ## 2026-09-27: per-request STS AssumeRole with a session-tagged role, not a Cognito Identity Pool
 
@@ -68,6 +72,7 @@ source: 0018_policy_retrieval_quality
 - Revisit when: a measured cost or latency need appears.
 - Source: docs/tasks/_drafts/architecture_and_layout.md
 - Amended by: 0013_policy_search, 2026-10-01: embeddings are the one exception; `search_policies` embeds the query with Cohere Embed Multilingual v3 (`docs/ARD.md`, entry of that date).
+- Amended by: 0019_open_mode_graph, 2026-10-03: Claude Sonnet 4.6 (`us.anthropic.claude-sonnet-4-6`) is the graph's supervisor, choosing read tools and composing by reference; Sonnet 5 cannot be invoked from this account.
 
 ## 2026-09-26: legal due dates depend on an unverified deadline table
 
@@ -102,8 +107,10 @@ source: 0018_policy_retrieval_quality
 - Alternatives rejected: none, this entry records status rather than a choice.
 - Reason: confirmed by directory listing of the hackathon repo at setup time.
 - Debt created: the whole module is design debt rather than implementation debt: reliability primitives (bounded retries, a fallback template, a tool-down fixture) are designed but unproven, and `hackathon/docs/kickoff-compliance.md` names reliability as the piece most likely to slip; the dataset also bounds explain-only resolution to 4.5-8% of cases, so the evaluation story should lead with zero unsafe outcomes rather than an automation rate; Portuguese coverage is entirely team-generated test data with no real examples and no Portuguese-speaking night-shift fraud agent to hand a PROTECT case to.
+- Resolved by: 0019_open_mode_graph, 2026-10-03
 - Revisit when: the first implementation round for this module begins.
 - Source: hackathon/docs/kickoff-compliance.md ("Where the proposal is weak"); docs/problem-statement.md sections 4.5-4.6
+- Superseded by: 0019_open_mode_graph, 2026-10-03: the open-mode turn is built; the story path is B4.
 
 ## 2026-09-27: turn.completed is emitted at least once
 
@@ -202,6 +209,7 @@ source: 0018_policy_retrieval_quality
 - Alternatives rejected: waiting for the turn to show the redesign; commented-out code; a mock with the prototype's fixed data.
 - Reason: the whole experience can be shown now and agree with the bank pages beside it, and the backend is switched on in one place.
 - Debt created: the mock replaces the turn: its rules, wording and typed-answer matching live in the client, and its blocks, claims and recognized charges exist only in `sessionStorage`. To activate the backend, set `mockChat` to `false`: the chat then sends text through `/messages` and shows replies as text only, without panel views, until `chatbot` returns UI blocks (views, question and options) and the live adapter renders them.
+- Resolved by: 0019_open_mode_graph, 2026-10-03
 - Revisit when: the turn returns UI blocks, or the mock drifts from what the turn decides.
 - Source: 0010_customer_redesign
 
@@ -211,6 +219,7 @@ source: 0018_policy_retrieval_quality
 - Alternatives rejected: conversation in component state (lost on every navigation); dropping the in-flight input (a confirmed block could vanish on reload).
 - Reason: actions are never dropped, and a rerun after a reload must not write twice.
 - Debt created: a reload mid-flow can repeat the Clara messages of the step that was running; part of the mock-switch debt above, indexed in its row.
+- Resolved by: 0019_open_mode_graph, 2026-10-03
 - Revisit when: the conversation moves to the server with the turn.
 - Source: 0010_customer_redesign
 
@@ -222,6 +231,7 @@ source: 0018_policy_retrieval_quality
 - Debt created: none
 - Revisit when: the turn's rules table replaces the mock.
 - Source: 0010_customer_redesign
+- Superseded by: 0019_open_mode_graph, 2026-10-03: the mock is removed; the explain-first rule moves to the B4 story path.
 
 ## 2026-09-29: the seeded claim is anchored to the setup instant read from the card's UUIDv7
 
@@ -294,6 +304,7 @@ source: 0018_policy_retrieval_quality
 - Debt created: none
 - Revisit when: the measured check failure rate (C) points at a word list.
 - Source: 0012_data_tools
+- Amended by: 0019_open_mode_graph, 2026-10-03: a stored say carries `citations` as objects (`chunk_id`, `title`, `page`, `url`) filled by code from the ledger.
 
 ## 2026-10-01: a charge is found across the customer's cards with a bounded BatchGetItem
 
@@ -378,3 +389,48 @@ source: 0018_policy_retrieval_quality
 - Debt created: Spanish answer recall@3 is 0.76, below 0.8; cross-language questions (10, all hit at rank 1) have no cut of their own.
 - Revisit when: the next corpus build or retrieval change, or when C sees Spanish misses or cross-language questions passing wrongly.
 - Source: 0018_policy_retrieval_quality
+
+## 2026-10-03: the open-mode turn is a LangGraph graph that must call a tool every step
+
+- Decision: `core.graphs.open_mode` runs `supervisor` (Sonnet 4.6 through `langchain-aws` Converse, effort low, `tool_choice` any, and `reply` forced on the last step or once the tool budget is spent), `tools` (our own node, calls one at a time), `facts_check` (one repair), `fallback` (templates from the facts the tools read, says only) and `finalize`; budgets are 4 steps, 8 tool calls, 12 s with each Bedrock call's read timeout taken from the time left and one retry on throttling, and 40,000 input tokens per turn; any exception inside the graph ends in the fallback and is counted as `TurnsCrashed`.
+- Alternatives rejected: LangGraph's `ToolNode` (parallel calls on threads, and the `core.access` cache is not thread safe); free text as the answer (the parts would have to be parsed); letting an exception retry the record (four paid runs, then the DLQ and a frozen chat).
+- Reason: every step ends in a tool call, so the answer arrives typed and checkable, and every path, including a crash, ends in a reply.
+- Debt created: the input cap comes from four demo turns (9.6k to 10.2k tokens, worst 19.7k with a repair).
+- Revisit when: C measures turns at scale, or a tool result grows past a few thousand tokens.
+- Source: 0019_open_mode_graph
+
+## 2026-10-03: the safety floor is a phrase list, and a hit answers with the bank's phone until B4
+
+- Decision: `core.router` folds the customer's raw text (case, accents, spacing) and matches about 30 phrases in es, pt-BR and en with word boundaries, as `not_me` or `lost_stolen`; a hit answers with a fixed template built from the country's `channels.phone`, `phone_schedule` and `phone_abroad`, without the model; everything else goes to the graph.
+- Alternatives rejected: an LLM or a trained classifier (not deterministic, and a crafted merchant name could talk it down); "quiero una persona" as a floor class (B1 has no handoff; the prompt forbids promising one).
+- Reason: protection is never decided by the model, and the floor reads only text the customer wrote.
+- Debt created: a "not me" or "lost card" gets a phone number, not the block ask, until the story path exists; a negation ("no me robaron") still raises the floor.
+- Revisit when: B4 turns a floor hit into the `block_card` ask.
+- Source: 0019_open_mode_graph
+
+## 2026-10-03: the prompt caches one prefix, and recorded turns freeze every request
+
+- Decision: the request is ordered tool schemas (fixed order), the fixed system prompt in `core/graphs/system.md`, one `cachePoint`, then the turn's context (name, locale, today, cards, last 3 exchanges); the four demo turns of the real model are recorded in `lambdas/tests/core/recordings/`, and a replay test asserts the same rendered answer and byte-identical requests.
+- Alternatives rejected: a second cache point at the end of the messages (it would cache within a turn but put volatile content before a point); scripted responses only (they cannot show what the real model does with the prompt).
+- Reason: the 3.6k-token prefix is read from the cache on every call, and any prompt or schema change shows up as a failing replay that forces a new recording.
+- Debt created: none.
+- Revisit when: a turn regularly takes more than two steps, where the second cache point pays.
+- Source: 0019_open_mode_graph
+
+## 2026-10-03: the mock chat is removed with everything only it used
+
+- Decision: the engine, triage, lexicon, insight, snapshot, views, panel, switch, the session's blocks, claims, reviewed and recognized charges, the `clara` tones of CardFace, CardUsage and MovementRow, the panel CSS, the reset-demo links and 237 catalog keys go; the session keeps the seeded claim and the pending topic, and a card shows blocked only when the bank blocked it. B2 restores the views and panel with `git checkout 768840a^ -- <paths>` (paths in the task notes).
+- Alternatives rejected: keeping the mock behind its switch; keeping the tones, styles and keys for B2 (pieces nothing renders rot unseen).
+- Reason: the web must talk to the live Clara, and dead code is not documentation.
+- Debt created: the Clara button counts every high-score charge, since the reviewed list is gone.
+- Revisit when: B4 asks about a flagged charge in the chat.
+- Source: 0019_open_mode_graph
+
+## 2026-10-03: the chatbot zip uses Amazon Linux 2023 wheels and ships its bytecode
+
+- Decision: `build.py` installs the `chatbot` dependencies for `x86_64-manylinux_2_28` (numpy, required by `langchain-aws`, has no manylinux2014 wheel) and compiles the bundle with unchecked-hash bytecode under `/var/task`, so two builds are byte-identical; `chatbot` runs at 2048 MB; the other zips are unchanged.
+- Alternatives rejected: a container image (not needed for init once bytecode ships: the graph's imports add 0.6 s to 0.7 s locally, against 2.4 s compiling from source); timestamped bytecode (rejected as stale once the zip's times differ).
+- Reason: `/var/task` is read-only, so without shipped bytecode every cold start compiles langchain, langgraph, pydantic and botocore.
+- Debt created: none.
+- Revisit when: the unzipped bundle (187 MB) nears 250 MB, or cold starts on `prd` exceed the target.
+- Source: 0019_open_mode_graph

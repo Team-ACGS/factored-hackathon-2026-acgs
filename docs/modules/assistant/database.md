@@ -1,11 +1,11 @@
 ---
-updated: 2026-10-01
-source: 0014_ingestion
+updated: 2026-10-03
+source: 0019_open_mode_graph
 ---
 
 # assistant: database
 
-Status: `customers`, `products` and `transactions` are written and read by `crud` (task 0006); the read tools in `core.tools` read them (task 0012); the turn that calls them is not built.
+Status: `customers`, `products` and `transactions` are written and read by `crud` (task 0006); the read tools in `core.tools` read them (task 0012), called by the `open_mode` graph (task 0019) only under the read-only session.
 
 ## Tables owned
 
@@ -20,7 +20,7 @@ Status: `customers`, `products` and `transactions` are written and read by `crud
 | `customers`, `products`, `transactions` (PK `customer_id`) | seeded per demo customer by `crud` setup (profile on `customers`, cards, transactions); `infra/` defines the tables and identity owns the IAM roles that gate them | `crud` writes them for the customer app; the tools read them only through the `core` read models, with credentials scoped to one `customer_id` |
 | `complaints` (PK `customer_id`, GSI by area and priority) | cases | The case record; `case_status` reads it through `core.cases`; `crud` setup writes the seeded claim through the same module |
 | S3 Vectors index `policies` (one vector per document excerpt) | data (`build-policies`) | `search_policies` queries it with the country as a filter; the excerpt's text, lineage and figures come back in the vector metadata, so no bucket is read |
-| `rooms` / `messages` | messaging | Triggered by new customer messages on the `messages` stream; reads the room to skip one delegated to a human; writes its reply through the messaging code in `lambdas/core`, the only writer of `messages` |
+| `rooms` / `messages` | messaging | Triggered by new customer messages on the `messages` stream; reads the room to skip one delegated to a human, takes and clears the room's turn mark, reads the 6 messages before the one it answers, and writes its reply (with `parts`, `facts`, `draft`, `source`) through the messaging code in `lambdas/core`, the only writer of `messages` |
 
 ## Invariants kept in code
 

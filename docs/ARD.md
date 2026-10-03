@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-02
-source: 0018_policy_retrieval_quality
+updated: 2026-10-03
+source: 0019_open_mode_graph
 ---
 
 # Architecture and Debt Record
@@ -39,15 +39,16 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 - Revisit when: staff need a second factor.
 - Source: setup
 
-## 2026-09-27: One language model, Claude Sonnet 5 on Bedrock
+## 2026-09-27: One language model, Claude Sonnet 4.6 on Bedrock
 
-- Decision: Sonnet 5 at low effort extracts and composes on every turn, and labels and judges offline; prompt caching is mandatory.
+- Decision: Claude Sonnet 4.6 (`us.anthropic.claude-sonnet-4-6` inference profile) at low effort reads through tools and composes by reference on every open-mode turn, and labels and judges offline; prompt caching is mandatory.
 - Alternatives rejected: Haiku, Sonnet and Opus by role; Titan embeddings and Grok in the turn; Fable 5.1 and Opus 5.5 for cost and latency.
 - Reason: one model, one cache, the cheapest setup that holds quality; Clara decides with rules and the grounding check is deterministic, so no second model is needed in the turn.
 - Debt created: Sonnet judging Sonnet risks self-preference; the judge must be validated against human labels.
 - Revisit when: measured cost or latency per turn is too high (move extraction to Haiku 4.5).
 - Source: setup
 - Amended by: 0013_policy_search, 2026-10-01: embeddings are the one exception, with Cohere Embed Multilingual v3 for `search_policies` (entry of that date).
+- Amended by: 0019_open_mode_graph, 2026-10-03: Sonnet 4.6 instead of Sonnet 5, which this account cannot invoke (applied quota of 0 tokens per minute, liftable only through AWS Sales); moving back is one `apply` of `bedrock_inference_profile_id`.
 
 ## 2026-09-27: Infra and delivery follow the auvral pattern
 
@@ -105,7 +106,7 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 
 ## 2026-10-01: The policy corpus lives in S3 Vectors, embedded with Cohere Embed Multilingual v3
 
-- Decision: the bank's documents are chunked by a local build and stored in one S3 Vectors index (1024 dimensions, cosine), with each excerpt's text, lineage and figures in the vector metadata, so `search_policies` reads no other store; documents and queries are embedded with `cohere.embed-multilingual-v3` on Bedrock (`search_document` and `search_query`), the only model besides Sonnet 5 in the turn; retrieval sits behind a `search(query, country, k, filters)` interface; sources, rendered editions and PDFs live in S3, never in git.
+- Decision: the bank's documents are chunked by a local build and stored in one S3 Vectors index (1024 dimensions, cosine), with each excerpt's text, lineage and figures in the vector metadata, so `search_policies` reads no other store; documents and queries are embedded with `cohere.embed-multilingual-v3` on Bedrock (`search_document` and `search_query`), the only model besides Sonnet 4.6 in the turn; retrieval sits behind a `search(query, country, k, filters)` interface; sources, rendered editions and PDFs live in S3, never in git.
 - Alternatives rejected: BM25 in-process (fits a small corpus, not one that outgrows a Lambda); SQLite FTS5 (a file to ship and rebuild); OpenSearch Serverless (a cost floor for a hackathon); Titan Text Embeddings v2 (weaker on Spanish and Portuguese retrieval, no separate query and document types).
 - Reason: serverless, cents at this size, a country filter in the index, and a multilingual model that maps a question in the customer's language to the country's documents.
 - Debt created: retrieval is vector-only; exact terms (a fee's name, a code) can miss.
@@ -129,7 +130,9 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-09-28 | `crud` and `messages` duplicate the claims and body parsing of their handlers | when a third API lambda appears |
 | assistant | 2026-09-29 | The chat of `customer` is not on TanStack Query yet | when the chat is next changed |
 | assistant | 2026-09-29 | A failed background refetch after an add or a setup is silent (a focus refetch can briefly hide an add in flight; cards can stay empty after setup) | when a customer reports a missing row or card |
-| assistant | 2026-09-29 | The customer chat runs on a client mock (`mockChat` in `src/clara/switch.ts`); its writes live only in `sessionStorage`, a reload mid-flow can repeat the running step's messages, and the live path is text only | when the turn returns UI blocks, or the mock drifts from the turn |
+| assistant | 2026-10-03 | The input token cap (40,000 per turn) comes from four demo turns | when C measures turns at scale |
+| assistant | 2026-10-03 | A "not me" or "lost card" answers with the bank's phone, not the block ask | when B4 turns a floor hit into the `block_card` ask |
+| assistant | 2026-10-03 | The Clara button counts every high-score charge (no reviewed list) | when B4 asks about a flagged charge in the chat |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |
 | identity | 2026-09-29 | The credentials cache of `core.access` and its resources are not thread safe | when a handler runs work on threads |

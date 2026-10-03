@@ -1,6 +1,6 @@
 ---
-updated: 2026-09-29
-source: 0008_chat_latency
+updated: 2026-10-03
+source: 0019_open_mode_graph
 ---
 
 # Messaging: architecture decisions and debt
@@ -132,3 +132,12 @@ Status: built for customers (task 0003).
 - Debt created: none.
 - Revisit when: a lambda calls another HTTP service it needs traced.
 - Source: 0008_chat_latency
+
+## 2026-10-03: the room holds a turn mark, and a stored reply ends a redelivery
+
+- Decision: before a turn `chatbot` checks for the reply's key (the successor id) and, if it exists, re-emits `turn.completed` with no model call; otherwise it takes `turn_message_id` and `turn_started_at` on the room with a conditional update (absent, same message, or older than 5 minutes) and clears them in a `finally`; it reads only the 6 messages before the current one, newest first.
+- Alternatives rejected: Powertools Idempotency (an eighth table); relying on the reply's conditional write alone (a redelivery would pay a second model run before failing the write); reading the whole room for the context.
+- Reason: a redelivered record never pays for a second turn, a record sent to the DLQ never blocks the customer's next message for more than 5 minutes, and the read's cost does not grow with the room.
+- Debt created: none.
+- Revisit when: a second writer of Clara's messages appears (the watcher, B5).
+- Source: 0019_open_mode_graph

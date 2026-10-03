@@ -98,7 +98,7 @@ First sign-in at `https://975050033628.signin.aws.amazon.com/console` asks for a
 
 ## Manual steps
 
-- Bedrock model access for Claude Sonnet 5; `chatbot` invokes the `us.anthropic.claude-sonnet-5` inference profile.
+- Bedrock model access for Claude Sonnet 4.6, including the Anthropic use case form of the account; `chatbot` invokes the `us.anthropic.claude-sonnet-4-6` inference profile.
 - SES production access for `notifications.factoredai.sdfles.com`; until then Cognito only emails verified addresses.
 - Activate `Project`, `Environment` and `ManagedBy` as cost allocation tags in Billing after the first apply.
 
