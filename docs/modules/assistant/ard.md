@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-02
-source: 0017_policy_publish
+source: 0018_policy_retrieval_quality
 ---
 
 # assistant: architecture and debt
@@ -359,3 +359,22 @@ source: 0017_policy_publish
 - Debt created: section recall@3 is 0.575. Sections repeat almost word for word across documents (claim deadlines, the evidence window, the ombudsman), and one threshold serves languages whose similarity scales differ (en unrelated questions top out at 0.44, es and pt at 0.59).
 - Revisit when: the retrieval-quality task (repeated sections, a per-language threshold) lands, and after every build that changes the corpus hash.
 - Source: 0017_policy_publish
+- Resolved by: 0018_policy_retrieval_quality, 2026-10-02 (answer recall@3 0.85 on 100 questions; a cut per language; the Spanish gap stays as its own debt)
+
+## 2026-10-02: the excerpts of one search are distinct in content
+
+- Decision: `VectorRetriever.search` reads a pool of 30 candidates and keeps them in similarity order, skipping any whose 5-shingle containment over the smaller excerpt with an excerpt already kept is 0.5 or more, until k; `tune` and `search_policies` share this path, and the first excerpts do not depend on k. Shingles live in `core.overlap`, shared with the build's dedupe.
+- Alternatives rejected: dedupe across documents at build time (a customer reading one document needs the paragraph there, and the repeats did not cause the misses); Jaccard (it understates a paragraph shared inside a longer section).
+- Reason: three excerpts that repeat one paragraph give Clara one excerpt. Recall is the same for every cut from 0.4 to 0.9; from 0.5 up the pairs are the same paragraphs, below it they share a sentence around different content. Filling k=8 needed at most 21 candidates, and a query of 30 takes the same time as one of 4 (p95 about 0.21 s).
+- Debt created: none
+- Revisit when: a section rewrite changes how much text documents share, or k above 8.
+- Source: 0018_policy_retrieval_quality
+
+## 2026-10-02: `search_policies` embeds with Cohere Embed v4 and applies the cut of the country's document language
+
+- Decision: queries and documents are embedded with `cohere.embed-v4:0` at 1024 dimensions; `POLICY_MIN_SIMILARITY` is a JSON map with exactly `es`, `pt` and `en`, keyed by the document language of the customer's country (`core.policies.document_language`), and `policy_search()` fails on any other shape. In prd: es 0.3638, pt 0.3464, en 0.3789 (corpus `1bfff135`).
+- Alternatives rejected: keeping v3 (offline over the same chunks, v4 answers 84 of 100 questions in the top 3 against 74, every language gaining); one global cut (the scales differ by language); a cut by the customer's language (the documents searched are the country's).
+- Reason: measured on the new set. On the rebuilt index answer recall@3 is 0.85 (es 0.76, pt 0.88, en 0.91) and recall@4 0.91, with at most 1 in 10 unrelated questions passing per language; v4 query embedding p95 is 0.33 s, within the 0.8 s read timeout.
+- Debt created: Spanish answer recall@3 is 0.76, below 0.8; cross-language questions (10, all hit at rank 1) have no cut of their own.
+- Revisit when: the next corpus build or retrieval change, or when C sees Spanish misses or cross-language questions passing wrongly.
+- Source: 0018_policy_retrieval_quality

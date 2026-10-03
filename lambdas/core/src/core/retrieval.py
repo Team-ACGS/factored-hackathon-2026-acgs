@@ -1,11 +1,13 @@
+import json
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from functools import cache
 from typing import Any, Protocol
 
-from core.policies import decode_figures, encode_figures, figure
+from core.overlap import Shingles, containment, shingles
+from core.policies import DOCUMENT_LANGUAGES, decode_figures, document_language, encode_figures, figure
 from core.vectors import (
     SEARCH_QUERY,
     Embedder,
@@ -35,6 +37,10 @@ class RetrievedChunk:
     similarity: float
 
 
+POOL = 30
+NEAR_DUPLICATE = 0.5
+
+
 class Retriever(Protocol):
     def search(
         self, query: str, country: str, k: int, filters: Mapping[str, str]
@@ -48,8 +54,23 @@ class VectorRetriever:
 
     def search(self, query: str, country: str, k: int, filters: Mapping[str, str]) -> list[RetrievedChunk]:
         [vector] = self.embedder.embed([query], SEARCH_QUERY)
-        matches = self.index.query(vector, k, where_equal({**filters, "country": country}))
-        return [to_chunk(match) for match in matches]
+        matches = self.index.query(vector, max(k, POOL), where_equal({**filters, "country": country}))
+        return distinct([to_chunk(match) for match in matches], k)
+
+
+def distinct(chunks: Sequence[RetrievedChunk], k: int) -> list[RetrievedChunk]:
+    kept: list[tuple[RetrievedChunk, Shingles]] = []
+    for chunk in chunks:
+        own = shingles(chunk.text)
+        if all(containment(own, other) < NEAR_DUPLICATE for _, other in kept):
+            kept.append((chunk, own))
+        if len(kept) == k:
+            break
+    return [chunk for chunk, _ in kept]
+
+
+def near_duplicate(left: str, right: str) -> bool:
+    return containment(shingles(left), shingles(right)) >= NEAR_DUPLICATE
 
 
 NON_FILTERABLE = frozenset(
@@ -142,8 +163,20 @@ def _chunk(match: Match) -> RetrievedChunk:
 @dataclass(frozen=True)
 class PolicySearch:
     retriever: Retriever
-    min_similarity: float
+    min_similarity: Mapping[str, float]
     docs_domain: str
+
+    def cut(self, country: str) -> float:
+        return self.min_similarity[document_language(country)]
+
+
+def thresholds(encoded: str) -> dict[str, float]:
+    decoded = json.loads(encoded)
+    if not isinstance(decoded, dict) or set(decoded) != set(DOCUMENT_LANGUAGES):
+        raise ValueError(
+            f"POLICY_MIN_SIMILARITY must hold one cut for each of {', '.join(DOCUMENT_LANGUAGES)}"
+        )
+    return {language: float(value) for language, value in decoded.items()}
 
 
 @cache
@@ -153,5 +186,5 @@ def policy_search() -> PolicySearch:
         VectorIndex(s3vectors(), os.environ["POLICY_INDEX_ARN"]),
     )
     return PolicySearch(
-        retriever, float(os.environ["POLICY_MIN_SIMILARITY"]), os.environ["POLICY_DOCS_DOMAIN"]
+        retriever, thresholds(os.environ["POLICY_MIN_SIMILARITY"]), os.environ["POLICY_DOCS_DOMAIN"]
     )

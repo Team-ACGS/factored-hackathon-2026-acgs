@@ -17,7 +17,8 @@ if TYPE_CHECKING:
     from mypy_boto3_s3vectors import S3VectorsClient
 
 INDEX_ARN = "arn:aws:s3vectors:us-east-1:000000000000:bucket/clara-test-policies/index/policies"
-MODEL_ID = "cohere.embed-multilingual-v3"
+MODEL_ID = "cohere.embed-v4:0"
+DEFAULT_V4_DIMENSION = 1536
 
 MAX_EMBED_CHARS = 2048
 FILTERABLE_BYTES = 2048
@@ -26,17 +27,17 @@ NON_FILTERABLE_KEYS = 10
 WORD = re.compile(r"[a-z0-9]+")
 
 
-def local_embedding(text: str) -> list[float]:
+def local_embedding(text: str, dimension: int = EMBEDDING_DIMENSION) -> list[float]:
     folded = "".join(
         char for char in unicodedata.normalize("NFD", text.lower()) if not unicodedata.combining(char)
     )
-    vector = [0.0] * EMBEDDING_DIMENSION
+    vector = [0.0] * dimension
     for word in WORD.findall(folded):
         if len(word) < 4:
             continue
         for feature in {word, word[:5]}:
             digest = hashlib.blake2b(feature.encode(), digest_size=8).digest()
-            slot = int.from_bytes(digest[:4], "big") % EMBEDDING_DIMENSION
+            slot = int.from_bytes(digest[:4], "big") % dimension
             vector[slot] += 1.0 if digest[4] % 2 else -1.0
     norm = math.sqrt(sum(value * value for value in vector)) or 1.0
     return [value / norm for value in vector]
@@ -68,11 +69,17 @@ class FakeBedrockRuntime:
             raise _error("ValidationException", "InvokeModel", "bad input_type")
         if any(len(text) > MAX_EMBED_CHARS for text in texts):
             raise _error("ValidationException", "InvokeModel", "text too long")
+        v4 = str(request["modelId"]).startswith("cohere.embed-v4")
+        if "output_dimension" in body and not v4:
+            raise _error("ValidationException", "InvokeModel", "extraneous key [output_dimension]")
+        dimension = int(body.get("output_dimension", DEFAULT_V4_DIMENSION)) if v4 else EMBEDDING_DIMENSION
+        embeddings = [local_embedding(text, dimension) for text in texts[: -1 if self.short else None]]
+        typed = v4 or "embedding_types" in body
         payload = {
             "id": "local",
-            "response_type": "embeddings_floats",
+            "response_type": "embeddings_by_type" if typed else "embeddings_floats",
             "texts": texts,
-            "embeddings": [local_embedding(text) for text in texts[: -1 if self.short else None]],
+            "embeddings": {"float": embeddings} if typed else embeddings,
         }
         return {"body": io.BytesIO(json.dumps(payload).encode()), "contentType": "application/json"}
 

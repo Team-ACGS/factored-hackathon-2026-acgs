@@ -1,242 +1,1269 @@
 [[query]]
 country = "MX"
 query = "Ya escribí varias veces por lo mismo, ¿me van a pasar con alguien de verdad aunque no lo pida?"
-doc_id = "mx-assistant-handoff"
-section = 3
+answers = [
+  { doc_id = "mx-assistant-handoff", section = 3 },
+  { doc_id = "mx-assistant-handoff", section = 5 },
+]
 
 [[query]]
 country = "BR"
 query = "Quando um atendente assumir a conversa, vou ter que contar tudo de novo?"
-doc_id = "br-assistant-handoff"
-section = 4
+answers = [
+  { doc_id = "br-assistant-handoff", section = 1 },
+  { doc_id = "br-assistant-handoff", section = 4 },
+]
 
 [[query]]
 country = "CO"
 query = "¿El asistente virtual me puede devolver la plata o decirme si fue fraude?"
-doc_id = "co-assistant-scope"
-section = 7
+answers = [
+  { doc_id = "co-assistant-scope", section = 7 },
+]
 
 [[query]]
 country = "US"
 query = "If I ask the chatbot something it doesn't know, what does it do?"
-doc_id = "us-assistant-scope"
-section = 5
+answers = [
+  { doc_id = "us-assistant-scope", section = 5 },
+  { doc_id = "us-assistant-scope", section = 7 },
+]
 
 [[query]]
 country = "AR"
 query = "Bloqueé la tarjeta, ¿qué pasa con Netflix y las otras suscripciones que pagaba con ella?"
-doc_id = "ar-blocked-card-effects"
-section = 4
+answers = [
+  { doc_id = "ar-blocked-card-effects", section = 4 },
+  { doc_id = "ar-blocked-card-effects", section = 7 },
+  { doc_id = "ar-recurring-payments", section = 7 },
+]
 
 [[query]]
 country = "US"
 query = "I'm paying off a TV in monthly installments, does locking my card cancel that?"
-doc_id = "us-blocked-card-effects"
-section = 7
+answers = [
+  { doc_id = "us-blocked-card-effects", section = 4 },
+  { doc_id = "us-blocked-card-effects", section = 7 },
+]
 
 [[query]]
 country = "PE"
 query = "¿El banco puede congelar mi tarjeta por su cuenta si ve algo raro?"
-doc_id = "pe-card-blocking"
-section = 8
+answers = [
+  { doc_id = "pe-blocked-card-effects", section = 2 },
+  { doc_id = "pe-card-blocking", section = 1 },
+  { doc_id = "pe-card-blocking", section = 4 },
+  { doc_id = "pe-card-blocking", section = 6 },
+  { doc_id = "pe-card-blocking", section = 8 },
+  { doc_id = "pe-lost-or-stolen-card", section = 3 },
+  { doc_id = "pe-transaction-alerts", section = 2 },
+  { doc_id = "pe-transaction-alerts", section = 4 },
+]
 
 [[query]]
 country = "BR"
 query = "Por que para reativar o cartão eles pedem mais verificação do que para travar?"
-doc_id = "br-card-blocking"
-section = 4
+answers = [
+  { doc_id = "br-card-blocking", section = 4 },
+]
 
 [[query]]
 country = "MX"
 query = "Si me clonaron la tarjeta y pido que la nueva me llegue rápido, ¿eso sí lo pago?"
-doc_id = "mx-card-replacement"
-section = 8
+answers = [
+  { doc_id = "mx-card-replacement", section = 8 },
+]
 
 [[query]]
 country = "US"
 query = "How much does it cost to get my new card mailed faster?"
-doc_id = "us-card-replacement"
-section = 5
+answers = [
+  { doc_id = "us-card-replacement", section = 5 },
+  { doc_id = "us-card-replacement", section = 8 },
+  { doc_id = "us-lost-or-stolen-card", section = 5 },
+]
 
 [[query]]
 country = "CO"
 query = "¿Hay algún lugar donde vea juntos todos los tiempos: el reclamo, la tarjeta nueva, lo retenido en el hotel?"
-doc_id = "co-deadlines-calendar"
-section = 1
+answers = [
+  { doc_id = "co-deadlines-calendar", section = 1 },
+  { doc_id = "co-deadlines-calendar", section = 9 },
+]
 
 [[query]]
 country = "AR"
 query = "¿Desde cuándo se empieza a contar cada tiempo, desde que reclamo o desde que me llega el resumen?"
-doc_id = "ar-deadlines-calendar"
-section = 5
+answers = [
+  { doc_id = "ar-deadlines-calendar", section = 3 },
+  { doc_id = "ar-deadlines-calendar", section = 5 },
+  { doc_id = "ar-dispute-deadlines", section = 3 },
+]
 
 [[query]]
 country = "PE"
 query = "Si me piden un comprobante, ¿cuánto tiempo tengo para mandarlo y qué pasa si no lo mando?"
-doc_id = "pe-dispute-deadlines"
-section = 5
+answers = [
+  { doc_id = "pe-dispute-deadlines", section = 5 },
+  { doc_id = "pe-unrecognized-charge-rights", section = 5 },
+  { doc_id = "pe-unrecognized-charges-faq", section = 3 },
+]
 
 [[query]]
 country = "US"
 query = "My dispute is taking forever because the store hasn't answered, is that allowed?"
-doc_id = "us-dispute-deadlines"
-section = 8
+answers = [
+  { doc_id = "us-deadlines-calendar", section = 8 },
+  { doc_id = "us-dispute-deadlines", section = 8 },
+  { doc_id = "us-dispute-lifecycle", section = 6 },
+  { doc_id = "us-special-purchase-disputes", section = 4 },
+  { doc_id = "us-unrecognized-charge-rights", section = 8 },
+]
 
 [[query]]
 country = "BR"
 query = "Depois que eu abro a reclamação, quem olha o caso e em que ordem as coisas acontecem?"
-doc_id = "br-dispute-lifecycle"
-section = 4
+answers = [
+  { doc_id = "br-dispute-lifecycle", section = 4 },
+  { doc_id = "br-disputes-glossary", section = 2 },
+  { doc_id = "br-recurring-payments", section = 4 },
+  { doc_id = "br-special-purchase-disputes", section = 4 },
+  { doc_id = "br-unrecognized-charge-guide", section = 4 },
+  { doc_id = "br-unrecognized-charge-rights", section = 3 },
+  { doc_id = "br-unrecognized-charges-faq", section = 3 },
+]
 
 [[query]]
 country = "MX"
 query = "Si al final resulta que la compra sí era mía, ¿qué pasa con mi reclamo?"
-doc_id = "mx-dispute-lifecycle"
-section = 5
+answers = [
+  { doc_id = "mx-dispute-lifecycle", section = 5 },
+  { doc_id = "mx-dispute-lifecycle", section = 8 },
+  { doc_id = "mx-unauthorized-use-liability", section = 8 },
+  { doc_id = "mx-unrecognized-charge-rights", section = 8 },
+]
 
 [[query]]
 country = "CO"
 query = "¿Qué significa cada estado que le van poniendo a mi caso en la app?"
-doc_id = "co-disputes-glossary"
-section = 2
+answers = [
+  { doc_id = "co-dispute-lifecycle", section = 4 },
+  { doc_id = "co-disputes-glossary", section = 2 },
+  { doc_id = "co-recurring-payments", section = 4 },
+  { doc_id = "co-special-purchase-disputes", section = 4 },
+  { doc_id = "co-unrecognized-charge-guide", section = 4 },
+  { doc_id = "co-unrecognized-charge-rights", section = 3 },
+  { doc_id = "co-unrecognized-charges-faq", section = 3 },
+]
 
 [[query]]
 country = "US"
 query = "What's the difference between the bank's complaints office and the government consumer agency?"
-doc_id = "us-disputes-glossary"
-section = 5
+answers = [
+  { doc_id = "us-assistant-handoff", section = 2 },
+  { doc_id = "us-disputes-glossary", section = 5 },
+]
 
 [[query]]
 country = "AR"
 query = "Estoy de viaje afuera del país y perdí la billetera con la tarjeta, ¿qué hago?"
-doc_id = "ar-lost-or-stolen-card"
-section = 7
+answers = [
+  { doc_id = "ar-lost-or-stolen-card", section = 3 },
+  { doc_id = "ar-lost-or-stolen-card", section = 7 },
+]
 
 [[query]]
 country = "BR"
 query = "O caixa eletrônico engoliu meu cartão, o que eu faço?"
-doc_id = "br-lost-or-stolen-card"
-section = 2
+answers = [
+  { doc_id = "br-lost-or-stolen-card", section = 2 },
+]
 
 [[query]]
 country = "PE"
 query = "Cargué gasolina y en la app me sale retenido un monto mayor al que pagué"
-doc_id = "pe-pending-charges"
-section = 7
+answers = [
+  { doc_id = "pe-pending-charges", section = 1 },
+  { doc_id = "pe-pending-charges", section = 7 },
+]
 
 [[query]]
 country = "US"
 query = "Why is there money held on my card that I haven't actually been charged for yet?"
-doc_id = "us-pending-charges"
-section = 1
+answers = [
+  { doc_id = "us-pending-charges", section = 1 },
+]
 
 [[query]]
 country = "MX"
 query = "¿Cómo dejo de pagar un gimnasio que se cobra solo cada mes? No encuentro la opción en la app"
-doc_id = "mx-recurring-payments"
-section = 3
+answers = [
+  { doc_id = "mx-blocked-card-effects", section = 3 },
+  { doc_id = "mx-recurring-payments", section = 3 },
+  { doc_id = "mx-special-purchase-disputes", section = 7 },
+]
 
 [[query]]
 country = "BR"
 query = "Pedi para parar a assinatura, mas a empresa ainda pode tentar me cobrar?"
-doc_id = "br-recurring-payments"
-section = 4
+answers = [
+  { doc_id = "br-recurring-payments", section = 3 },
+  { doc_id = "br-recurring-payments", section = 4 },
+]
 
 [[query]]
 country = "CO"
 query = "En la tienda me dijeron que ya me devolvieron la plata de una compra en el local, ¿en cuánto tiempo la veo?"
-doc_id = "co-reversals-and-duplicates"
-section = 5
+answers = [
+  { doc_id = "co-deadlines-calendar", section = 9 },
+  { doc_id = "co-reversals-and-duplicates", section = 5 },
+  { doc_id = "co-reversals-and-duplicates", section = 9 },
+  { doc_id = "co-transaction-statuses", section = 5 },
+  { doc_id = "co-transaction-statuses", section = 7 },
+]
 
 [[query]]
 country = "US"
 query = "The store refuses to take my item back, can the bank make them?"
-doc_id = "us-reversals-and-duplicates"
-section = 8
+answers = [
+  { doc_id = "us-reversals-and-duplicates", section = 4 },
+  { doc_id = "us-reversals-and-duplicates", section = 5 },
+  { doc_id = "us-reversals-and-duplicates", section = 8 },
+]
 
 [[query]]
 country = "AR"
 query = "Compré algo en dólares por internet y me cobraron más de lo que decía la página, ¿por qué?"
-doc_id = "ar-special-purchase-disputes"
-section = 7
+answers = [
+  { doc_id = "ar-special-purchase-disputes", section = 3 },
+  { doc_id = "ar-special-purchase-disputes", section = 7 },
+  { doc_id = "ar-unrecognized-charges-faq", section = 1 },
+]
 
 [[query]]
 country = "BR"
 query = "Comprei num site de fora e não reconheço a cobrança, o que eu preciso juntar para reclamar?"
-doc_id = "br-special-purchase-disputes"
-section = 6
+answers = [
+  { doc_id = "br-special-purchase-disputes", section = 6 },
+  { doc_id = "br-unrecognized-charge-guide", section = 6 },
+  { doc_id = "br-unrecognized-charges-faq", section = 2 },
+]
 
 [[query]]
 country = "PE"
 query = "Me llegó un mensaje preguntando si hice una compra y no contesté, ¿me van a bloquear la tarjeta?"
-doc_id = "pe-transaction-alerts"
-section = 2
+answers = [
+  { doc_id = "pe-transaction-alerts", section = 2 },
+  { doc_id = "pe-transaction-alerts", section = 4 },
+]
 
 [[query]]
 country = "US"
 query = "I got a text about a purchase with a link to verify my card number, is that real?"
-doc_id = "us-transaction-alerts"
-section = 6
+answers = [
+  { doc_id = "us-transaction-alerts", section = 6 },
+  { doc_id = "us-transaction-alerts", section = 7 },
+]
 
 [[query]]
 country = "MX"
 query = "Me aparece una compra rechazada que yo no intenté hacer, ¿qué quiere decir?"
-doc_id = "mx-transaction-statuses"
-section = 3
+answers = [
+  { doc_id = "mx-transaction-statuses", section = 3 },
+  { doc_id = "mx-transaction-statuses", section = 7 },
+]
 
 [[query]]
 country = "BR"
 query = "Aparece a mesma loja duas vezes, uma ainda em processamento, fui cobrado em dobro?"
-doc_id = "br-transaction-statuses"
-section = 7
+answers = [
+  { doc_id = "br-reversals-and-duplicates", section = 8 },
+  { doc_id = "br-transaction-statuses", section = 7 },
+]
 
 [[query]]
 country = "CO"
 query = "Avisé varios días después de que me usaron la tarjeta, ¿igual me revisan el caso?"
-doc_id = "co-unauthorized-use-liability"
-section = 8
+answers = [
+  { doc_id = "co-unauthorized-use-liability", section = 5 },
+  { doc_id = "co-unauthorized-use-liability", section = 8 },
+]
 
 [[query]]
 country = "US"
 query = "Do I have to pay for the purchases a thief made with my card?"
-doc_id = "us-unauthorized-use-liability"
-section = 5
+answers = [
+  { doc_id = "us-unauthorized-use-liability", section = 1 },
+  { doc_id = "us-unauthorized-use-liability", section = 5 },
+]
 
 [[query]]
 country = "AR"
 query = "Veo un gasto que no me suena en el resumen, ¿qué reviso antes de reclamar?"
-doc_id = "ar-unrecognized-charge-guide"
-section = 3
+answers = [
+  { doc_id = "ar-special-purchase-disputes", section = 3 },
+  { doc_id = "ar-transaction-alerts", section = 3 },
+  { doc_id = "ar-unrecognized-charge-guide", section = 3 },
+  { doc_id = "ar-unrecognized-charges-faq", section = 1 },
+]
 
 [[query]]
 country = "BR"
 query = "O nome da loja na fatura é diferente do que eu conheço, pode ser golpe?"
-doc_id = "br-unrecognized-charge-guide"
-section = 7
+answers = [
+  { doc_id = "br-special-purchase-disputes", section = 7 },
+  { doc_id = "br-transaction-alerts", section = 7 },
+  { doc_id = "br-unrecognized-charge-guide", section = 3 },
+  { doc_id = "br-unrecognized-charge-guide", section = 7 },
+  { doc_id = "br-unrecognized-charges-faq", section = 1 },
+]
 
 [[query]]
 country = "PE"
 query = "Si el banco no me responde en el tiempo que dijo, ¿se cierra mi reclamo?"
-doc_id = "pe-unrecognized-charge-rights"
-section = 9
+answers = [
+  { doc_id = "pe-unrecognized-charge-rights", section = 9 },
+]
 
 [[query]]
 country = "BR"
 query = "Se a minha reclamação for demorar mais, o banco me avisa uma nova data?"
-doc_id = "br-unrecognized-charge-rights"
-section = 8
+answers = [
+  { doc_id = "br-unrecognized-charge-rights", section = 8 },
+]
 
 [[query]]
 country = "MX"
 query = "En mi estado de cuenta sale un cobro extra por una compra que hice en el extranjero, ¿lo puedo reclamar?"
-doc_id = "mx-unrecognized-charges-faq"
-section = 1
+answers = [
+  { doc_id = "mx-special-purchase-disputes", section = 3 },
+  { doc_id = "mx-special-purchase-disputes", section = 7 },
+  { doc_id = "mx-unrecognized-charges-faq", section = 1 },
+]
 
 [[query]]
 country = "CO"
 query = "¿Qué datos de mi tarjeta nunca me va a pedir el banco?"
-doc_id = "co-unrecognized-charges-faq"
-section = 5
+answers = [
+  { doc_id = "co-assistant-handoff", section = 7 },
+  { doc_id = "co-assistant-scope", section = 4 },
+  { doc_id = "co-blocked-card-effects", section = 6 },
+  { doc_id = "co-card-blocking", section = 4 },
+  { doc_id = "co-card-blocking", section = 7 },
+  { doc_id = "co-card-replacement", section = 4 },
+  { doc_id = "co-card-replacement", section = 7 },
+  { doc_id = "co-dispute-lifecycle", section = 7 },
+  { doc_id = "co-lost-or-stolen-card", section = 6 },
+  { doc_id = "co-pending-charges", section = 6 },
+  { doc_id = "co-recurring-payments", section = 6 },
+  { doc_id = "co-reversals-and-duplicates", section = 4 },
+  { doc_id = "co-reversals-and-duplicates", section = 7 },
+  { doc_id = "co-special-purchase-disputes", section = 6 },
+  { doc_id = "co-transaction-alerts", section = 6 },
+  { doc_id = "co-transaction-statuses", section = 6 },
+  { doc_id = "co-unauthorized-use-liability", section = 4 },
+  { doc_id = "co-unauthorized-use-liability", section = 7 },
+  { doc_id = "co-unrecognized-charge-guide", section = 6 },
+  { doc_id = "co-unrecognized-charge-rights", section = 5 },
+  { doc_id = "co-unrecognized-charges-faq", section = 5 },
+]
+
+[[query]]
+country = "MX"
+query = "¿Cuánto me cobran por reponer una tarjeta que se me rompió?"
+answers = [
+  { doc_id = "mx-card-replacement", section = 3 },
+  { doc_id = "mx-card-replacement", section = 5 },
+]
+
+[[query]]
+country = "MX"
+query = "Si no estoy de acuerdo con lo que decidió el banco, ¿con quién me quejo fuera del banco?"
+answers = [
+  { doc_id = "mx-assistant-handoff", section = 2 },
+  { doc_id = "mx-assistant-handoff", section = 9 },
+  { doc_id = "mx-assistant-scope", section = 10 },
+  { doc_id = "mx-card-blocking", section = 10 },
+  { doc_id = "mx-card-replacement", section = 10 },
+  { doc_id = "mx-deadlines-calendar", section = 6 },
+  { doc_id = "mx-dispute-deadlines", section = 6 },
+  { doc_id = "mx-dispute-lifecycle", section = 9 },
+  { doc_id = "mx-disputes-glossary", section = 5 },
+  { doc_id = "mx-pending-charges", section = 8 },
+  { doc_id = "mx-recurring-payments", section = 8 },
+  { doc_id = "mx-reversals-and-duplicates", section = 10 },
+  { doc_id = "mx-special-purchase-disputes", section = 8 },
+  { doc_id = "mx-transaction-alerts", section = 8 },
+  { doc_id = "mx-transaction-statuses", section = 8 },
+  { doc_id = "mx-unauthorized-use-liability", section = 10 },
+  { doc_id = "mx-unrecognized-charge-guide", section = 8 },
+  { doc_id = "mx-unrecognized-charge-rights", section = 6 },
+  { doc_id = "mx-unrecognized-charges-faq", section = 5 },
+]
+
+[[query]]
+country = "CO"
+query = "¿Cuánto tarda en liberarse lo que me retuvieron en el alquiler del carro?"
+answers = [
+  { doc_id = "co-deadlines-calendar", section = 9 },
+  { doc_id = "co-pending-charges", section = 5 },
+  { doc_id = "co-pending-charges", section = 7 },
+]
+
+[[query]]
+country = "CO"
+query = "Me están pidiendo un recibo para mi reclamo, ¿por dónde lo mando?"
+answers = [
+  { doc_id = "co-dispute-deadlines", section = 5 },
+  { doc_id = "co-dispute-deadlines", section = 8 },
+  { doc_id = "co-dispute-lifecycle", section = 5 },
+  { doc_id = "co-dispute-lifecycle", section = 7 },
+  { doc_id = "co-disputes-glossary", section = 1 },
+  { doc_id = "co-unrecognized-charge-rights", section = 5 },
+  { doc_id = "co-unrecognized-charges-faq", section = 3 },
+]
+
+[[query]]
+country = "AR"
+query = "Cuando hago un reclamo, ¿me dan algún número para seguirlo?"
+answers = [
+  { doc_id = "ar-dispute-lifecycle", section = 4 },
+  { doc_id = "ar-reversals-and-duplicates", section = 6 },
+  { doc_id = "ar-special-purchase-disputes", section = 4 },
+  { doc_id = "ar-transaction-alerts", section = 4 },
+  { doc_id = "ar-unauthorized-use-liability", section = 6 },
+  { doc_id = "ar-unrecognized-charge-guide", section = 4 },
+  { doc_id = "ar-unrecognized-charge-rights", section = 6 },
+]
+
+[[query]]
+country = "AR"
+query = "Si me roban la tarjeta, ¿tengo que hacer la denuncia o llevar papeles para que la bloqueen?"
+answers = [
+  { doc_id = "ar-lost-or-stolen-card", section = 6 },
+]
+
+[[query]]
+country = "AR"
+query = "¿Qué pasa si no aviso a tiempo que me usaron la tarjeta?"
+answers = [
+  { doc_id = "ar-unauthorized-use-liability", section = 8 },
+]
+
+[[query]]
+country = "PE"
+query = "¿La asistente virtual me puede prometer que me devuelven el dinero?"
+answers = [
+  { doc_id = "pe-assistant-scope", section = 7 },
+  { doc_id = "pe-assistant-scope", section = 8 },
+  { doc_id = "pe-unauthorized-use-liability", section = 8 },
+]
+
+[[query]]
+country = "PE"
+query = "Me llamaron diciendo que eran del banco y me pidieron el código que me llegó, ¿qué hago?"
+answers = [
+  { doc_id = "pe-lost-or-stolen-card", section = 7 },
+  { doc_id = "pe-unrecognized-charge-guide", section = 7 },
+  { doc_id = "pe-unrecognized-charges-faq", section = 5 },
+]
+
+[[query]]
+country = "PE"
+query = "¿Si bloqueo la tarjeta se cancelan solas mis suscripciones?"
+answers = [
+  { doc_id = "pe-blocked-card-effects", section = 4 },
+  { doc_id = "pe-recurring-payments", section = 7 },
+]
+
+[[query]]
+country = "PE"
+query = "¿Me van a avisar cuando mi reclamo pase a otra etapa?"
+answers = [
+  { doc_id = "pe-deadlines-calendar", section = 4 },
+  { doc_id = "pe-dispute-deadlines", section = 4 },
+  { doc_id = "pe-dispute-deadlines", section = 7 },
+  { doc_id = "pe-unauthorized-use-liability", section = 9 },
+  { doc_id = "pe-unrecognized-charge-rights", section = 4 },
+  { doc_id = "pe-unrecognized-charge-rights", section = 6 },
+]
+
+[[query]]
+country = "BR"
+query = "A Clara consegue me dizer se a compra foi golpe ou não?"
+answers = [
+  { doc_id = "br-assistant-scope", section = 7 },
+]
+
+[[query]]
+country = "BR"
+query = "A assistente faz alguma coisa na minha conta sem eu aceitar antes?"
+answers = [
+  { doc_id = "br-assistant-scope", section = 4 },
+  { doc_id = "br-assistant-scope", section = 5 },
+  { doc_id = "br-assistant-scope", section = 6 },
+  { doc_id = "br-assistant-scope", section = 8 },
+]
+
+[[query]]
+country = "BR"
+query = "Se eu bloquear o cartão, a compra parcelada que eu fiz continua valendo?"
+answers = [
+  { doc_id = "br-blocked-card-effects", section = 4 },
+  { doc_id = "br-blocked-card-effects", section = 7 },
+]
+
+[[query]]
+country = "BR"
+query = "Bloqueei o cartão, como faço para continuar pagando o streaming?"
+answers = [
+  { doc_id = "br-blocked-card-effects", section = 3 },
+  { doc_id = "br-blocked-card-effects", section = 7 },
+  { doc_id = "br-recurring-payments", section = 3 },
+  { doc_id = "br-recurring-payments", section = 7 },
+]
+
+[[query]]
+country = "BR"
+query = "Em quantos dias chega o cartão novo?"
+answers = [
+  { doc_id = "br-blocked-card-effects", section = 5 },
+  { doc_id = "br-card-replacement", section = 5 },
+  { doc_id = "br-card-replacement", section = 9 },
+  { doc_id = "br-deadlines-calendar", section = 7 },
+  { doc_id = "br-lost-or-stolen-card", section = 5 },
+]
+
+[[query]]
+country = "BR"
+query = "Perdi o cartão, vou ter que pagar pelo novo?"
+answers = [
+  { doc_id = "br-card-replacement", section = 3 },
+  { doc_id = "br-card-replacement", section = 5 },
+  { doc_id = "br-lost-or-stolen-card", section = 4 },
+]
+
+[[query]]
+country = "BR"
+query = "Até quando posso reclamar de uma compra que não fiz?"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 9 },
+  { doc_id = "br-dispute-deadlines", section = 5 },
+  { doc_id = "br-dispute-deadlines", section = 9 },
+  { doc_id = "br-dispute-lifecycle", section = 3 },
+  { doc_id = "br-recurring-payments", section = 5 },
+  { doc_id = "br-reversals-and-duplicates", section = 9 },
+  { doc_id = "br-special-purchase-disputes", section = 5 },
+  { doc_id = "br-transaction-alerts", section = 5 },
+  { doc_id = "br-transaction-statuses", section = 5 },
+  { doc_id = "br-unrecognized-charge-guide", section = 5 },
+  { doc_id = "br-unrecognized-charge-rights", section = 5 },
+  { doc_id = "br-unrecognized-charges-faq", section = 2 },
+]
+
+[[query]]
+country = "BR"
+query = "Quanto tempo o banco leva para dar uma resposta final na minha reclamação?"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 7 },
+  { doc_id = "br-dispute-deadlines", section = 7 },
+  { doc_id = "br-dispute-lifecycle", section = 6 },
+  { doc_id = "br-disputes-glossary", section = 4 },
+  { doc_id = "br-recurring-payments", section = 5 },
+  { doc_id = "br-reversals-and-duplicates", section = 9 },
+  { doc_id = "br-special-purchase-disputes", section = 5 },
+  { doc_id = "br-transaction-alerts", section = 5 },
+  { doc_id = "br-transaction-statuses", section = 5 },
+  { doc_id = "br-unrecognized-charge-guide", section = 5 },
+  { doc_id = "br-unrecognized-charge-rights", section = 7 },
+  { doc_id = "br-unrecognized-charge-rights", section = 9 },
+  { doc_id = "br-unrecognized-charges-faq", section = 3 },
+]
+
+[[query]]
+country = "BR"
+query = "Apareceu um crédito no meu cartão enquanto analisam meu caso, esse dinheiro já é meu?"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 8 },
+  { doc_id = "br-dispute-deadlines", section = 8 },
+  { doc_id = "br-dispute-lifecycle", section = 5 },
+  { doc_id = "br-dispute-lifecycle", section = 6 },
+  { doc_id = "br-disputes-glossary", section = 3 },
+  { doc_id = "br-special-purchase-disputes", section = 4 },
+  { doc_id = "br-unauthorized-use-liability", section = 7 },
+  { doc_id = "br-unrecognized-charge-guide", section = 4 },
+  { doc_id = "br-unrecognized-charge-rights", section = 3 },
+  { doc_id = "br-unrecognized-charge-rights", section = 7 },
+  { doc_id = "br-unrecognized-charges-faq", section = 4 },
+]
+
+[[query]]
+country = "BR"
+query = "Encerraram meu caso e depois achei um comprovante, dá para pedir de novo?"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 6 },
+  { doc_id = "br-deadlines-calendar", section = 9 },
+  { doc_id = "br-dispute-deadlines", section = 5 },
+  { doc_id = "br-dispute-deadlines", section = 6 },
+  { doc_id = "br-dispute-deadlines", section = 9 },
+  { doc_id = "br-dispute-lifecycle", section = 6 },
+  { doc_id = "br-dispute-lifecycle", section = 8 },
+  { doc_id = "br-disputes-glossary", section = 3 },
+  { doc_id = "br-disputes-glossary", section = 4 },
+  { doc_id = "br-special-purchase-disputes", section = 5 },
+  { doc_id = "br-unauthorized-use-liability", section = 6 },
+  { doc_id = "br-unauthorized-use-liability", section = 9 },
+  { doc_id = "br-unrecognized-charge-guide", section = 5 },
+  { doc_id = "br-unrecognized-charge-rights", section = 6 },
+  { doc_id = "br-unrecognized-charges-faq", section = 4 },
+]
+
+[[query]]
+country = "BR"
+query = "Qual a diferença entre dias úteis e dias corridos nos prazos que vocês dão?"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 3 },
+  { doc_id = "br-dispute-deadlines", section = 3 },
+  { doc_id = "br-disputes-glossary", section = 4 },
+]
+
+[[query]]
+country = "BR"
+query = "No app meu caso está como atribuído, o que isso quer dizer?"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 7 },
+  { doc_id = "br-dispute-deadlines", section = 7 },
+  { doc_id = "br-dispute-lifecycle", section = 4 },
+  { doc_id = "br-disputes-glossary", section = 2 },
+  { doc_id = "br-recurring-payments", section = 4 },
+  { doc_id = "br-special-purchase-disputes", section = 4 },
+  { doc_id = "br-unrecognized-charge-guide", section = 4 },
+  { doc_id = "br-unrecognized-charge-rights", section = 3 },
+  { doc_id = "br-unrecognized-charges-faq", section = 3 },
+]
+
+[[query]]
+country = "BR"
+query = "Fiz check-out do hotel e ainda tem um valor preso no cartão, quando volta?"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 9 },
+  { doc_id = "br-pending-charges", section = 5 },
+  { doc_id = "br-pending-charges", section = 7 },
+]
+
+[[query]]
+country = "BR"
+query = "Por que o posto ou a locadora seguram um valor antes de cobrar de verdade?"
+answers = [
+  { doc_id = "br-pending-charges", section = 1 },
+]
+
+[[query]]
+country = "BR"
+query = "A loja disse que estornou a compra que fiz pela internet, mas o dinheiro ainda não apareceu"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 9 },
+  { doc_id = "br-reversals-and-duplicates", section = 5 },
+  { doc_id = "br-reversals-and-duplicates", section = 9 },
+  { doc_id = "br-special-purchase-disputes", section = 7 },
+  { doc_id = "br-transaction-statuses", section = 5 },
+  { doc_id = "br-transaction-statuses", section = 7 },
+]
+
+[[query]]
+country = "BR"
+query = "Me cobraram duas vezes a mesma compra, o que eu faço?"
+answers = [
+  { doc_id = "br-reversals-and-duplicates", section = 5 },
+  { doc_id = "br-reversals-and-duplicates", section = 6 },
+  { doc_id = "br-transaction-statuses", section = 7 },
+  { doc_id = "br-unrecognized-charge-guide", section = 7 },
+]
+
+[[query]]
+country = "BR"
+query = "Chegou um SMS com um link pedindo os dados do meu cartão, é do banco?"
+answers = [
+  { doc_id = "br-transaction-alerts", section = 6 },
+  { doc_id = "br-transaction-alerts", section = 7 },
+]
+
+[[query]]
+country = "BR"
+query = "O banco me perguntou se uma compra foi minha e foi sim, preciso fazer mais alguma coisa?"
+answers = [
+  { doc_id = "br-transaction-alerts", section = 3 },
+  { doc_id = "br-transaction-alerts", section = 4 },
+  { doc_id = "br-transaction-alerts", section = 7 },
+]
+
+[[query]]
+country = "BR"
+query = "Usaram meu cartão sem eu saber, quanto tempo tenho para avisar sem perder a proteção?"
+answers = [
+  { doc_id = "br-card-blocking", section = 9 },
+  { doc_id = "br-deadlines-calendar", section = 9 },
+  { doc_id = "br-lost-or-stolen-card", section = 5 },
+  { doc_id = "br-transaction-alerts", section = 5 },
+  { doc_id = "br-unauthorized-use-liability", section = 5 },
+  { doc_id = "br-unauthorized-use-liability", section = 9 },
+]
+
+[[query]]
+country = "BR"
+query = "O banco garante que não vou pagar nada se clonaram meu cartão?"
+answers = [
+  { doc_id = "br-unauthorized-use-liability", section = 4 },
+  { doc_id = "br-unauthorized-use-liability", section = 5 },
+  { doc_id = "br-unauthorized-use-liability", section = 8 },
+]
+
+[[query]]
+country = "BR"
+query = "Estou viajando fora do país, para qual número eu ligo?"
+answers = [
+  { doc_id = "br-blocked-card-effects", section = 8 },
+  { doc_id = "br-lost-or-stolen-card", section = 8 },
+  { doc_id = "br-pending-charges", section = 8 },
+  { doc_id = "br-recurring-payments", section = 8 },
+  { doc_id = "br-special-purchase-disputes", section = 8 },
+  { doc_id = "br-transaction-alerts", section = 8 },
+  { doc_id = "br-transaction-statuses", section = 8 },
+  { doc_id = "br-unrecognized-charge-guide", section = 8 },
+]
+
+[[query]]
+country = "BR"
+query = "Até que horas dá para falar com uma pessoa no chat?"
+answers = [
+  { doc_id = "br-assistant-handoff", section = 4 },
+  { doc_id = "br-assistant-scope", section = 9 },
+  { doc_id = "br-blocked-card-effects", section = 5 },
+  { doc_id = "br-blocked-card-effects", section = 8 },
+  { doc_id = "br-card-blocking", section = 6 },
+  { doc_id = "br-card-blocking", section = 9 },
+  { doc_id = "br-card-replacement", section = 6 },
+  { doc_id = "br-card-replacement", section = 9 },
+  { doc_id = "br-deadlines-calendar", section = 7 },
+  { doc_id = "br-dispute-lifecycle", section = 9 },
+  { doc_id = "br-lost-or-stolen-card", section = 8 },
+  { doc_id = "br-pending-charges", section = 8 },
+  { doc_id = "br-recurring-payments", section = 8 },
+  { doc_id = "br-reversals-and-duplicates", section = 6 },
+  { doc_id = "br-special-purchase-disputes", section = 8 },
+  { doc_id = "br-transaction-alerts", section = 8 },
+  { doc_id = "br-transaction-statuses", section = 8 },
+  { doc_id = "br-unauthorized-use-liability", section = 6 },
+  { doc_id = "br-unauthorized-use-liability", section = 9 },
+  { doc_id = "br-unrecognized-charge-guide", section = 8 },
+  { doc_id = "br-unrecognized-charges-faq", section = 5 },
+]
+
+[[query]]
+country = "BR"
+query = "Se a ouvidoria também não resolver, a quem mais posso recorrer?"
+answers = [
+  { doc_id = "br-assistant-handoff", section = 2 },
+  { doc_id = "br-assistant-handoff", section = 9 },
+  { doc_id = "br-assistant-scope", section = 10 },
+  { doc_id = "br-card-blocking", section = 10 },
+  { doc_id = "br-card-replacement", section = 10 },
+  { doc_id = "br-deadlines-calendar", section = 6 },
+  { doc_id = "br-dispute-deadlines", section = 6 },
+  { doc_id = "br-dispute-lifecycle", section = 9 },
+  { doc_id = "br-disputes-glossary", section = 5 },
+  { doc_id = "br-pending-charges", section = 8 },
+  { doc_id = "br-recurring-payments", section = 8 },
+  { doc_id = "br-reversals-and-duplicates", section = 10 },
+  { doc_id = "br-special-purchase-disputes", section = 8 },
+  { doc_id = "br-transaction-alerts", section = 8 },
+  { doc_id = "br-transaction-statuses", section = 8 },
+  { doc_id = "br-unauthorized-use-liability", section = 10 },
+  { doc_id = "br-unrecognized-charge-guide", section = 8 },
+  { doc_id = "br-unrecognized-charge-rights", section = 6 },
+  { doc_id = "br-unrecognized-charges-faq", section = 5 },
+]
+
+[[query]]
+country = "BR"
+query = "Cancelei a assinatura, o banco devolve o que já tinham cobrado antes?"
+answers = [
+  { doc_id = "br-recurring-payments", section = 4 },
+]
+
+[[query]]
+country = "US"
+query = "Can I talk to a real person instead of the bot?"
+answers = [
+  { doc_id = "us-assistant-handoff", section = 3 },
+  { doc_id = "us-assistant-handoff", section = 5 },
+  { doc_id = "us-assistant-scope", section = 6 },
+]
+
+[[query]]
+country = "US"
+query = "Once a human takes over the chat, will the bot keep answering me?"
+answers = [
+  { doc_id = "us-assistant-handoff", section = 4 },
+  { doc_id = "us-assistant-scope", section = 8 },
+]
+
+[[query]]
+country = "US"
+query = "How long do I usually wait to get an agent in the chat?"
+answers = [
+  { doc_id = "us-assistant-handoff", section = 6 },
+  { doc_id = "us-assistant-scope", section = 9 },
+  { doc_id = "us-card-blocking", section = 9 },
+  { doc_id = "us-card-replacement", section = 9 },
+  { doc_id = "us-deadlines-calendar", section = 7 },
+]
+
+[[query]]
+country = "US"
+query = "I lost my card and then found it in my jacket, can I start using it again?"
+answers = [
+  { doc_id = "us-blocked-card-effects", section = 7 },
+  { doc_id = "us-lost-or-stolen-card", section = 4 },
+  { doc_id = "us-lost-or-stolen-card", section = 7 },
+]
+
+[[query]]
+country = "US"
+query = "Does the bot need my OK before it freezes my card?"
+answers = [
+  { doc_id = "us-assistant-scope", section = 4 },
+  { doc_id = "us-assistant-scope", section = 5 },
+  { doc_id = "us-card-blocking", section = 4 },
+  { doc_id = "us-card-blocking", section = 5 },
+]
+
+[[query]]
+country = "US"
+query = "Who can turn my card back on after I locked it?"
+answers = [
+  { doc_id = "us-assistant-scope", section = 7 },
+  { doc_id = "us-blocked-card-effects", section = 7 },
+  { doc_id = "us-card-blocking", section = 3 },
+  { doc_id = "us-card-blocking", section = 7 },
+  { doc_id = "us-card-blocking", section = 8 },
+  { doc_id = "us-card-blocking", section = 10 },
+  { doc_id = "us-card-replacement", section = 7 },
+  { doc_id = "us-deadlines-calendar", section = 5 },
+  { doc_id = "us-dispute-deadlines", section = 5 },
+  { doc_id = "us-dispute-lifecycle", section = 3 },
+  { doc_id = "us-lost-or-stolen-card", section = 4 },
+  { doc_id = "us-special-purchase-disputes", section = 3 },
+  { doc_id = "us-transaction-alerts", section = 3 },
+  { doc_id = "us-transaction-statuses", section = 7 },
+  { doc_id = "us-unauthorized-use-liability", section = 5 },
+  { doc_id = "us-unrecognized-charge-guide", section = 3 },
+  { doc_id = "us-unrecognized-charge-rights", section = 5 },
+  { doc_id = "us-unrecognized-charges-faq", section = 2 },
+]
+
+[[query]]
+country = "US"
+query = "If I don't pay for faster shipping, how long until my replacement card shows up?"
+answers = [
+  { doc_id = "us-blocked-card-effects", section = 5 },
+  { doc_id = "us-card-replacement", section = 5 },
+  { doc_id = "us-card-replacement", section = 9 },
+  { doc_id = "us-deadlines-calendar", section = 7 },
+  { doc_id = "us-lost-or-stolen-card", section = 5 },
+]
+
+[[query]]
+country = "US"
+query = "Someone stole my card and used it, do I have to pay for the new one?"
+answers = [
+  { doc_id = "us-card-replacement", section = 4 },
+  { doc_id = "us-card-replacement", section = 5 },
+  { doc_id = "us-card-replacement", section = 6 },
+  { doc_id = "us-card-replacement", section = 7 },
+  { doc_id = "us-card-replacement", section = 8 },
+  { doc_id = "us-card-replacement", section = 9 },
+  { doc_id = "us-lost-or-stolen-card", section = 4 },
+]
+
+[[query]]
+country = "US"
+query = "What's the latest I can report a charge I don't recognize?"
+answers = [
+  { doc_id = "us-deadlines-calendar", section = 9 },
+  { doc_id = "us-dispute-deadlines", section = 5 },
+  { doc_id = "us-dispute-deadlines", section = 9 },
+  { doc_id = "us-dispute-lifecycle", section = 3 },
+  { doc_id = "us-recurring-payments", section = 5 },
+  { doc_id = "us-reversals-and-duplicates", section = 9 },
+  { doc_id = "us-special-purchase-disputes", section = 5 },
+  { doc_id = "us-transaction-alerts", section = 5 },
+  { doc_id = "us-transaction-statuses", section = 5 },
+  { doc_id = "us-unrecognized-charge-guide", section = 5 },
+  { doc_id = "us-unrecognized-charge-rights", section = 5 },
+  { doc_id = "us-unrecognized-charges-faq", section = 2 },
+]
+
+[[query]]
+country = "US"
+query = "How many days does the bank have to give me an answer on my dispute?"
+answers = [
+  { doc_id = "us-deadlines-calendar", section = 7 },
+  { doc_id = "us-dispute-deadlines", section = 7 },
+  { doc_id = "us-dispute-lifecycle", section = 6 },
+  { doc_id = "us-disputes-glossary", section = 4 },
+  { doc_id = "us-recurring-payments", section = 5 },
+  { doc_id = "us-reversals-and-duplicates", section = 9 },
+  { doc_id = "us-special-purchase-disputes", section = 5 },
+  { doc_id = "us-transaction-alerts", section = 5 },
+  { doc_id = "us-transaction-statuses", section = 5 },
+  { doc_id = "us-unrecognized-charge-guide", section = 5 },
+  { doc_id = "us-unrecognized-charge-rights", section = 7 },
+  { doc_id = "us-unrecognized-charge-rights", section = 9 },
+  { doc_id = "us-unrecognized-charges-faq", section = 3 },
+]
+
+[[query]]
+country = "US"
+query = "Will you put the money back on my card while you look into it?"
+answers = [
+  { doc_id = "us-deadlines-calendar", section = 8 },
+  { doc_id = "us-dispute-deadlines", section = 8 },
+  { doc_id = "us-dispute-lifecycle", section = 5 },
+  { doc_id = "us-dispute-lifecycle", section = 6 },
+  { doc_id = "us-disputes-glossary", section = 3 },
+  { doc_id = "us-special-purchase-disputes", section = 4 },
+  { doc_id = "us-unauthorized-use-liability", section = 7 },
+  { doc_id = "us-unrecognized-charge-guide", section = 4 },
+  { doc_id = "us-unrecognized-charge-rights", section = 3 },
+  { doc_id = "us-unrecognized-charge-rights", section = 7 },
+  { doc_id = "us-unrecognized-charges-faq", section = 4 },
+]
+
+[[query]]
+country = "US"
+query = "You said no to my dispute, can I ask you to look at it again?"
+answers = [
+  { doc_id = "us-deadlines-calendar", section = 6 },
+  { doc_id = "us-deadlines-calendar", section = 9 },
+  { doc_id = "us-dispute-deadlines", section = 5 },
+  { doc_id = "us-dispute-deadlines", section = 6 },
+  { doc_id = "us-dispute-deadlines", section = 9 },
+  { doc_id = "us-dispute-lifecycle", section = 6 },
+  { doc_id = "us-dispute-lifecycle", section = 8 },
+  { doc_id = "us-disputes-glossary", section = 3 },
+  { doc_id = "us-disputes-glossary", section = 4 },
+  { doc_id = "us-special-purchase-disputes", section = 5 },
+  { doc_id = "us-unauthorized-use-liability", section = 6 },
+  { doc_id = "us-unauthorized-use-liability", section = 9 },
+  { doc_id = "us-unrecognized-charge-guide", section = 5 },
+  { doc_id = "us-unrecognized-charge-rights", section = 6 },
+  { doc_id = "us-unrecognized-charges-faq", section = 4 },
+]
+
+[[query]]
+country = "US"
+query = "If you decide against me, does the charge stay on my account?"
+answers = [
+  { doc_id = "us-dispute-lifecycle", section = 8 },
+  { doc_id = "us-disputes-glossary", section = 3 },
+  { doc_id = "us-unrecognized-charges-faq", section = 4 },
+]
+
+[[query]]
+country = "US"
+query = "The hotel put a hold on my card when I checked in, when do I get it back?"
+answers = [
+  { doc_id = "us-deadlines-calendar", section = 9 },
+  { doc_id = "us-pending-charges", section = 5 },
+  { doc_id = "us-pending-charges", section = 7 },
+]
+
+[[query]]
+country = "US"
+query = "I returned the rental car two weeks ago and there's still a hold on my card"
+answers = [
+  { doc_id = "us-deadlines-calendar", section = 9 },
+  { doc_id = "us-pending-charges", section = 5 },
+  { doc_id = "us-pending-charges", section = 7 },
+]
+
+[[query]]
+country = "US"
+query = "There's a pending charge I don't recognize, should I wait until it goes through?"
+answers = [
+  { doc_id = "us-pending-charges", section = 3 },
+  { doc_id = "us-pending-charges", section = 4 },
+  { doc_id = "us-pending-charges", section = 7 },
+  { doc_id = "us-transaction-statuses", section = 3 },
+]
+
+[[query]]
+country = "US"
+query = "What does it mean when a purchase says reversed?"
+answers = [
+  { doc_id = "us-reversals-and-duplicates", section = 3 },
+  { doc_id = "us-transaction-statuses", section = 3 },
+  { doc_id = "us-transaction-statuses", section = 4 },
+]
+
+[[query]]
+country = "US"
+query = "I got charged twice for the same thing, how long until it's sorted out?"
+answers = [
+  { doc_id = "us-deadlines-calendar", section = 8 },
+  { doc_id = "us-dispute-deadlines", section = 8 },
+  { doc_id = "us-reversals-and-duplicates", section = 5 },
+  { doc_id = "us-reversals-and-duplicates", section = 9 },
+  { doc_id = "us-unrecognized-charge-rights", section = 8 },
+]
+
+[[query]]
+country = "US"
+query = "The gym keeps charging me even though I canceled my membership"
+answers = [
+  { doc_id = "us-recurring-payments", section = 4 },
+  { doc_id = "us-recurring-payments", section = 7 },
+]
+
+[[query]]
+country = "US"
+query = "How many days ahead do I need to tell you to stop an automatic payment?"
+answers = [
+  { doc_id = "us-blocked-card-effects", section = 5 },
+  { doc_id = "us-blocked-card-effects", section = 7 },
+  { doc_id = "us-deadlines-calendar", section = 9 },
+  { doc_id = "us-recurring-payments", section = 3 },
+  { doc_id = "us-recurring-payments", section = 5 },
+  { doc_id = "us-special-purchase-disputes", section = 5 },
+  { doc_id = "us-special-purchase-disputes", section = 7 },
+]
+
+[[query]]
+country = "US"
+query = "Would someone from the bank ever call me and ask for my PIN?"
+answers = [
+  { doc_id = "us-assistant-handoff", section = 7 },
+  { doc_id = "us-assistant-scope", section = 4 },
+  { doc_id = "us-blocked-card-effects", section = 6 },
+  { doc_id = "us-card-blocking", section = 4 },
+  { doc_id = "us-card-blocking", section = 7 },
+  { doc_id = "us-card-replacement", section = 4 },
+  { doc_id = "us-card-replacement", section = 7 },
+  { doc_id = "us-dispute-lifecycle", section = 7 },
+  { doc_id = "us-lost-or-stolen-card", section = 6 },
+  { doc_id = "us-lost-or-stolen-card", section = 7 },
+  { doc_id = "us-pending-charges", section = 6 },
+  { doc_id = "us-recurring-payments", section = 6 },
+  { doc_id = "us-reversals-and-duplicates", section = 4 },
+  { doc_id = "us-reversals-and-duplicates", section = 7 },
+  { doc_id = "us-special-purchase-disputes", section = 6 },
+  { doc_id = "us-transaction-alerts", section = 6 },
+  { doc_id = "us-transaction-statuses", section = 6 },
+  { doc_id = "us-unauthorized-use-liability", section = 4 },
+  { doc_id = "us-unauthorized-use-liability", section = 7 },
+  { doc_id = "us-unrecognized-charge-guide", section = 6 },
+  { doc_id = "us-unrecognized-charge-guide", section = 7 },
+  { doc_id = "us-unrecognized-charge-rights", section = 5 },
+  { doc_id = "us-unrecognized-charges-faq", section = 5 },
+]
+
+[[query]]
+country = "US"
+query = "How do I change the way I get notified about purchases?"
+answers = [
+  { doc_id = "us-transaction-alerts", section = 1 },
+  { doc_id = "us-transaction-alerts", section = 7 },
+]
+
+[[query]]
+country = "US"
+query = "Which government office oversees this bank?"
+answers = [
+  { doc_id = "us-assistant-scope", section = 10 },
+  { doc_id = "us-card-blocking", section = 10 },
+  { doc_id = "us-card-replacement", section = 10 },
+  { doc_id = "us-deadlines-calendar", section = 10 },
+  { doc_id = "us-dispute-deadlines", section = 10 },
+  { doc_id = "us-disputes-glossary", section = 5 },
+  { doc_id = "us-reversals-and-duplicates", section = 10 },
+  { doc_id = "us-unauthorized-use-liability", section = 10 },
+  { doc_id = "us-unrecognized-charge-rights", section = 10 },
+]
+
+[[query]]
+country = "US"
+query = "Where do I send a formal complaint if I'm unhappy with how my case was handled?"
+answers = [
+  { doc_id = "us-assistant-handoff", section = 9 },
+  { doc_id = "us-assistant-scope", section = 10 },
+  { doc_id = "us-blocked-card-effects", section = 8 },
+  { doc_id = "us-card-blocking", section = 10 },
+  { doc_id = "us-card-replacement", section = 10 },
+  { doc_id = "us-deadlines-calendar", section = 10 },
+  { doc_id = "us-dispute-deadlines", section = 10 },
+  { doc_id = "us-dispute-lifecycle", section = 9 },
+  { doc_id = "us-disputes-glossary", section = 5 },
+  { doc_id = "us-lost-or-stolen-card", section = 8 },
+  { doc_id = "us-pending-charges", section = 8 },
+  { doc_id = "us-recurring-payments", section = 8 },
+  { doc_id = "us-reversals-and-duplicates", section = 10 },
+  { doc_id = "us-special-purchase-disputes", section = 8 },
+  { doc_id = "us-transaction-alerts", section = 8 },
+  { doc_id = "us-transaction-statuses", section = 8 },
+  { doc_id = "us-unauthorized-use-liability", section = 10 },
+  { doc_id = "us-unrecognized-charge-guide", section = 8 },
+  { doc_id = "us-unrecognized-charge-rights", section = 10 },
+  { doc_id = "us-unrecognized-charges-faq", section = 5 },
+]
+
+[[query]]
+country = "US"
+query = "I bought something in an app and the charge shows a company name I've never heard of"
+answers = [
+  { doc_id = "us-special-purchase-disputes", section = 7 },
+  { doc_id = "us-transaction-alerts", section = 7 },
+  { doc_id = "us-unrecognized-charge-guide", section = 3 },
+  { doc_id = "us-unrecognized-charge-guide", section = 7 },
+  { doc_id = "us-unrecognized-charges-faq", section = 1 },
+]
+
+[[query]]
+country = "MX"
+language = "en"
+query = "How long does the bank take to resolve my claim?"
+answers = [
+  { doc_id = "mx-deadlines-calendar", section = 7 },
+  { doc_id = "mx-dispute-deadlines", section = 7 },
+  { doc_id = "mx-dispute-lifecycle", section = 6 },
+  { doc_id = "mx-disputes-glossary", section = 4 },
+  { doc_id = "mx-recurring-payments", section = 5 },
+  { doc_id = "mx-reversals-and-duplicates", section = 9 },
+  { doc_id = "mx-special-purchase-disputes", section = 5 },
+  { doc_id = "mx-transaction-alerts", section = 5 },
+  { doc_id = "mx-transaction-statuses", section = 5 },
+  { doc_id = "mx-unrecognized-charge-guide", section = 5 },
+  { doc_id = "mx-unrecognized-charge-rights", section = 7 },
+  { doc_id = "mx-unrecognized-charge-rights", section = 9 },
+  { doc_id = "mx-unrecognized-charges-faq", section = 3 },
+]
+
+[[query]]
+country = "CO"
+language = "en"
+query = "Can the chatbot unblock my card?"
+answers = [
+  { doc_id = "co-assistant-scope", section = 7 },
+  { doc_id = "co-card-blocking", section = 3 },
+  { doc_id = "co-card-blocking", section = 8 },
+]
+
+[[query]]
+country = "AR"
+language = "pt"
+query = "Quanto tempo demora para liberar o valor retido no hotel?"
+answers = [
+  { doc_id = "ar-deadlines-calendar", section = 9 },
+  { doc_id = "ar-pending-charges", section = 5 },
+  { doc_id = "ar-pending-charges", section = 7 },
+]
+
+[[query]]
+country = "PE"
+language = "en"
+query = "I lost my card while traveling abroad, what number do I call?"
+answers = [
+  { doc_id = "pe-lost-or-stolen-card", section = 7 },
+]
+
+[[query]]
+country = "BR"
+language = "en"
+query = "How much does express delivery of a new card cost?"
+answers = [
+  { doc_id = "br-card-replacement", section = 5 },
+  { doc_id = "br-card-replacement", section = 8 },
+  { doc_id = "br-lost-or-stolen-card", section = 5 },
+]
+
+[[query]]
+country = "BR"
+language = "es"
+query = "¿Cuántos días tengo para mandar los documentos que me pidieron?"
+answers = [
+  { doc_id = "br-deadlines-calendar", section = 9 },
+  { doc_id = "br-dispute-deadlines", section = 5 },
+  { doc_id = "br-dispute-deadlines", section = 9 },
+  { doc_id = "br-dispute-lifecycle", section = 7 },
+  { doc_id = "br-disputes-glossary", section = 1 },
+  { doc_id = "br-reversals-and-duplicates", section = 8 },
+  { doc_id = "br-special-purchase-disputes", section = 5 },
+  { doc_id = "br-unrecognized-charge-guide", section = 5 },
+  { doc_id = "br-unrecognized-charge-rights", section = 5 },
+  { doc_id = "br-unrecognized-charges-faq", section = 3 },
+]
+
+[[query]]
+country = "US"
+language = "es"
+query = "¿Qué pasa con mis suscripciones si bloqueo la tarjeta?"
+answers = [
+  { doc_id = "us-blocked-card-effects", section = 4 },
+  { doc_id = "us-blocked-card-effects", section = 7 },
+  { doc_id = "us-recurring-payments", section = 7 },
+]
+
+[[query]]
+country = "US"
+language = "pt"
+query = "O banco pode bloquear meu cartão sem eu pedir?"
+answers = [
+  { doc_id = "us-blocked-card-effects", section = 2 },
+  { doc_id = "us-card-blocking", section = 1 },
+  { doc_id = "us-card-blocking", section = 4 },
+  { doc_id = "us-card-blocking", section = 6 },
+  { doc_id = "us-card-blocking", section = 8 },
+  { doc_id = "us-lost-or-stolen-card", section = 3 },
+  { doc_id = "us-transaction-alerts", section = 2 },
+  { doc_id = "us-transaction-alerts", section = 4 },
+]
+
+[[query]]
+country = "MX"
+language = "en"
+query = "Is the foreign transaction fee something I can dispute?"
+answers = [
+  { doc_id = "mx-special-purchase-disputes", section = 3 },
+  { doc_id = "mx-special-purchase-disputes", section = 7 },
+  { doc_id = "mx-unrecognized-charges-faq", section = 1 },
+]
+
+[[query]]
+country = "CO"
+language = "pt"
+query = "Quem eu procuro se o banco não responder no prazo?"
+answers = [
+  { doc_id = "co-assistant-handoff", section = 2 },
+  { doc_id = "co-assistant-handoff", section = 9 },
+  { doc_id = "co-blocked-card-effects", section = 8 },
+  { doc_id = "co-deadlines-calendar", section = 6 },
+  { doc_id = "co-deadlines-calendar", section = 10 },
+  { doc_id = "co-dispute-deadlines", section = 6 },
+  { doc_id = "co-dispute-deadlines", section = 10 },
+  { doc_id = "co-dispute-lifecycle", section = 9 },
+  { doc_id = "co-disputes-glossary", section = 5 },
+  { doc_id = "co-lost-or-stolen-card", section = 8 },
+  { doc_id = "co-pending-charges", section = 8 },
+  { doc_id = "co-recurring-payments", section = 8 },
+  { doc_id = "co-reversals-and-duplicates", section = 10 },
+  { doc_id = "co-special-purchase-disputes", section = 8 },
+  { doc_id = "co-transaction-statuses", section = 8 },
+  { doc_id = "co-unrecognized-charge-guide", section = 8 },
+  { doc_id = "co-unrecognized-charge-rights", section = 6 },
+  { doc_id = "co-unrecognized-charge-rights", section = 9 },
+  { doc_id = "co-unrecognized-charge-rights", section = 10 },
+  { doc_id = "co-unrecognized-charges-faq", section = 5 },
+]
 
 [[query]]
 country = "MX"
@@ -297,3 +1324,63 @@ query = "Can you recommend a good restaurant near me?"
 [[query]]
 country = "US"
 query = "How do I add my spouse as an authorized user on my account?"
+
+[[query]]
+country = "MX"
+query = "¿Puedo pedir una tarjeta adicional para mi esposa?"
+
+[[query]]
+country = "AR"
+query = "¿Cómo le transfiero plata a mi hermano a otra cuenta?"
+
+[[query]]
+country = "BR"
+query = "Como faço um Pix para outra pessoa?"
+
+[[query]]
+country = "BR"
+query = "Qual a taxa do cheque especial?"
+
+[[query]]
+country = "BR"
+query = "Como abro uma conta para a minha empresa?"
+
+[[query]]
+country = "BR"
+query = "Vocês têm algum cartão com cashback?"
+
+[[query]]
+country = "BR"
+query = "Vale a pena investir no CDB do banco?"
+
+[[query]]
+country = "BR"
+query = "Qual a cotação do dólar hoje?"
+
+[[query]]
+country = "BR"
+query = "Posso parcelar o IPVA no cartão?"
+
+[[query]]
+country = "US"
+query = "What's the interest rate on a personal loan?"
+
+[[query]]
+country = "US"
+query = "How do I order a new checkbook?"
+
+[[query]]
+country = "US"
+query = "Can I open a joint savings account with my partner?"
+
+[[query]]
+country = "US"
+query = "Does my card come with travel insurance?"
+
+[[query]]
+country = "US"
+query = "What's the weather going to be like in Miami tomorrow?"
+
+[[query]]
+country = "US"
+query = "Can I get a higher credit limit?"

@@ -1,5 +1,6 @@
 import json
 import re
+import shutil
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import pytest
 from botocore.exceptions import ClientError
 from core.facts.check import fold
 from core.policies import CountryFacts, decode_figures, policy_facts
+from core.vectors import Embedder
 
 from bankdata.policies.build import MANIFEST_KEY, Report, build
 from bankdata.policies.chunk import Chunking
@@ -204,6 +206,38 @@ def test_a_removed_document_loses_its_vectors_but_not_its_pdfs(sample: Corpus) -
     documents = manifest(sample)["documents"]
     assert isinstance(documents, dict)
     assert len(documents) == 6
+
+
+def test_a_build_that_finds_no_source_fails_and_removes_nothing(sample: Corpus) -> None:
+    run(sample)
+    for folder in sample.sources.root.iterdir():
+        shutil.rmtree(folder)
+
+    report = run(sample)
+
+    assert report.removed == []
+    assert [problem.code for problem in report.problems] == ["no_sources"]
+    assert "pe-dispute-deadlines-v1-f2-s9-c1" in sample.vectors.vectors
+    documents = manifest(sample)["documents"]
+    assert isinstance(documents, dict)
+    assert len(documents) == 12
+
+
+def test_a_rebuild_with_another_model_reembeds_every_edition_and_never_rewrites_a_pdf(sample: Corpus) -> None:
+    run(sample)
+    pdfs = {key: sample.documents.read(key) for key in sample.documents.names()}
+    sample.documents.writes.clear()
+    target = replace(
+        sample.target, embedder=Embedder(sample.target.embedder.client, "cohere.embed-multilingual-v3")
+    )
+
+    report = build(target, chunking=Chunking())
+
+    assert len(report.built) == 12
+    assert sorted(report.pdfs_kept) == sorted(pdfs)
+    assert sample.documents.writes == []
+    assert {key: sample.documents.read(key) for key in sample.documents.names()} == pdfs
+    assert manifest(sample)["embedding_model"] == "cohere.embed-multilingual-v3"
 
 
 def test_a_folder_build_keeps_the_published_documents_it_does_not_hold(sample: Corpus) -> None:

@@ -36,7 +36,7 @@ def search_policies(context: ToolContext, ledger: Ledger, args: SearchPoliciesIn
     chunks = [
         chunk
         for chunk in search.retriever.search(args.query, context.country, args.k, filters)
-        if chunk.country == context.country and chunk.similarity >= search.min_similarity
+        if chunk.country == context.country and chunk.similarity >= search.cut(context.country)
     ]
     rows = [ledger.add(POLICY_CHUNK, chunk_fields(chunk, search), prefix="p") for chunk in chunks]
     aggregate = ledger.add(

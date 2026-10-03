@@ -6,6 +6,9 @@ from botocore.exceptions import ClientError
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+    from mypy_boto3_s3.type_defs import PutObjectRequestTypeDef
+
+EXISTS = ("PreconditionFailed", "ConditionalRequestConflict")
 
 
 class Store(Protocol):
@@ -14,6 +17,8 @@ class Store(Protocol):
     def read(self, key: str) -> bytes | None: ...
 
     def write(self, key: str, data: bytes, content_type: str, cache_control: str | None = None) -> None: ...
+
+    def create(self, key: str, data: bytes, content_type: str, cache_control: str | None = None) -> bool: ...
 
 
 @dataclass
@@ -38,6 +43,12 @@ class LocalStore:
         path.write_bytes(data)
         self.writes.append(key)
 
+    def create(self, key: str, data: bytes, content_type: str, cache_control: str | None = None) -> bool:
+        if (self.root / key).exists():
+            return False
+        self.write(key, data, content_type, cache_control)
+        return True
+
 
 @dataclass(frozen=True)
 class S3Store:
@@ -59,9 +70,28 @@ class S3Store:
             raise
 
     def write(self, key: str, data: bytes, content_type: str, cache_control: str | None = None) -> None:
-        if cache_control is None:
-            self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
-        else:
-            self.client.put_object(
-                Bucket=self.bucket, Key=key, Body=data, ContentType=content_type, CacheControl=cache_control
-            )
+        self.client.put_object(**self._request(key, data, content_type, cache_control))
+
+    def create(self, key: str, data: bytes, content_type: str, cache_control: str | None = None) -> bool:
+        try:
+            request = self._request(key, data, content_type, cache_control)
+            request["IfNoneMatch"] = "*"
+            self.client.put_object(**request)
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") in EXISTS:
+                return False
+            raise
+        return True
+
+    def _request(
+        self, key: str, data: bytes, content_type: str, cache_control: str | None
+    ) -> "PutObjectRequestTypeDef":
+        request: PutObjectRequestTypeDef = {
+            "Bucket": self.bucket,
+            "Key": key,
+            "Body": data,
+            "ContentType": content_type,
+        }
+        if cache_control is not None:
+            request["CacheControl"] = cache_control
+        return request

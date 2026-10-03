@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-01
-source: 0015_policy_base_layout
+updated: 2026-10-02
+source: 0018_policy_retrieval_quality
 ---
 
 # data: architecture and debt
@@ -87,6 +87,7 @@ source: 0015_policy_base_layout
 - Debt created: none
 - Revisit when: Sebastian's review of the real PDFs finds a page off.
 - Source: 0013_policy_search
+- Amended by: 0018_policy_retrieval_quality, 2026-10-02: a query lists every accepted answer, and the cut is one per document language, the best split that lets at most 1 in 10 of that language's unrelated questions through (entry "answer recall measures what the customer gets").
 
 ## 2026-10-01: the pitch's base rates use ASOF joins
 
@@ -123,3 +124,21 @@ source: 0015_policy_base_layout
 - Debt created: none
 - Revisit when: the build changes how it chunks or renders again.
 - Source: 0015_policy_base_layout
+
+## 2026-10-02: answer recall measures what the customer gets
+
+- Decision: each labeled query in `queries.toml` lists every `(doc_id, section)` that answers it, written from the rendered sources before the first run; a section counts when it states explicitly what the question asks, and because the three languages are parallel, answers are labeled once per topic and section and written per country. `tune-policies` reports answer recall at 3 and at the tool's default k, overall and per document language, one cut per language with at most 1 in 10 unrelated questions passing, cross-language questions apart with no cut, and near-duplicate pairs among returned excerpts. The set has 100 answerable questions (33 or 34 per language), 30 unrelated and 10 cross-language.
+- Alternatives rejected: one labeled section per query (a copy of the paragraph in another document of the country serves the customer equally).
+- Reason: recall must count what Clara can actually use.
+- Debt created: the om-developer wrote the questions and their answers; Sebastian's read of `queries.toml` is the only human check.
+- Revisit when: Sebastian reviews the set, or the corpus changes text.
+- Source: 0018_policy_retrieval_quality
+
+## 2026-10-02: the build never rewrites a PDF and never prunes from nothing
+
+- Decision: PDFs are written only if the key is absent (`IfNoneMatch: "*"` on S3) and the build reports the ones it kept; a build that loads no source while documents are published fails with `no_sources` and removes nothing. prd's sources are the docs root's `docs/policies/`, built with `--sources`; the policies bucket holds none. A model change rebuilds every edition through the content hash, with no `BUILD_VERSION` bump.
+- Alternatives rejected: trusting that an unchanged render writes identical bytes (an overwrite still changes the object a citation opens).
+- Reason: in 0018 a bucket build found no sources and pruned all 1007 vectors; the folder rebuild restored them and left all 120 PDFs untouched.
+- Debt created: a bucket holding only some sources would still prune the rest; the RUNBOOK forbids bucket builds against prd.
+- Revisit when: sources move to the bucket, or the build runs in CI.
+- Source: 0018_policy_retrieval_quality

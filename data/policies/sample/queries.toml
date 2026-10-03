@@ -1,56 +1,47 @@
 [[query]]
 country = "PE"
 query = "¿Cuánto tarda la revisión de mi aclaración?"
-doc_id = "pe-unrecognized-charges-faq"
-section = 3
+answers = [{ doc_id = "pe-unrecognized-charges-faq", section = 3 }]
 
 [[query]]
 country = "PE"
 query = "No estoy de acuerdo con la decisión, ¿puedo pedir que el banco reabra mi caso?"
-doc_id = "pe-dispute-deadlines"
-section = 6
+answers = [{ doc_id = "pe-dispute-deadlines", section = 6 }]
 
 [[query]]
 country = "MX"
 query = "¿Qué regulador bancario y qué norma sigue el banco?"
-doc_id = "mx-dispute-deadlines"
-section = 10
+answers = [{ doc_id = "mx-dispute-deadlines", section = 10 }]
 
 [[query]]
 country = "CO"
 query = "Tengo un cargo duplicado, ¿cuánto tarda esa revisión?"
-doc_id = "co-dispute-deadlines"
-section = 8
+answers = [{ doc_id = "co-dispute-deadlines", section = 8 }]
 
 [[query]]
 country = "AR"
 query = "¿Qué es un abono provisional mientras el banco revisa el caso?"
-doc_id = "ar-dispute-deadlines"
-section = 3
+answers = [{ doc_id = "ar-dispute-deadlines", section = 3 }]
 
 [[query]]
 country = "BR"
 query = "Quanto tempo leva a análise da minha contestação?"
-doc_id = "br-unrecognized-charges-faq"
-section = 3
+answers = [{ doc_id = "br-unrecognized-charges-faq", section = 3 }]
 
 [[query]]
 country = "BR"
 query = "Qual é o prazo da norma para o banco responder uma reclamação?"
-doc_id = "br-dispute-deadlines"
-section = 9
+answers = [{ doc_id = "br-dispute-deadlines", section = 9 }]
 
 [[query]]
 country = "US"
 query = "Where do I open a claim, and can I talk to a person?"
-doc_id = "us-unrecognized-charges-faq"
-section = 2
+answers = [{ doc_id = "us-unrecognized-charges-faq", section = 2 }]
 
 [[query]]
 country = "US"
 query = "Which banking regulator and consumer protection agency does the bank follow?"
-doc_id = "us-dispute-deadlines"
-section = 10
+answers = [{ doc_id = "us-dispute-deadlines", section = 10 }]
 
 [[query]]
 country = "PE"

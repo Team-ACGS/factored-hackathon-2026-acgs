@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-01
-source: 0014_ingestion
+updated: 2026-10-02
+source: 0018_policy_retrieval_quality
 ---
 
 # assistant: technical
@@ -43,11 +43,11 @@ Jobs and listeners: `chatbot` consumes the `messages` stream, only inserts with 
 - DynamoDB tables `customers`, `products`, `transactions` (PK `customer_id`), read and written through `role-customer` via STS AssumeRole with a `customer_id` session tag; `crud` setup seeds them per demo customer, a seed from the dataset is not built.
 - DynamoDB table `complaints` (PK `customer_id`, GSI by area and priority): this table is the case record, historical and new; this module reads it through Q5 and writes to it only through the `A2 create complaint` and `A3 withdraw complaint` tools, which call the cases module's write code inside the shared `lambdas/core` package (the same code path `lambdas/crud` uses), never another lambda.
 - models: the injection detector and intent router (multilingual e5 + logistic regression), loaded as versioned S3 artifacts; serving is not in `infra/` yet.
-- Bedrock Claude Sonnet 5 (low effort) for slot extraction and for the composer, and Cohere Embed Multilingual v3 only to embed `search_policies` queries; no Titan, Grok or Haiku unless a measured need is shown.
+- Bedrock Claude Sonnet 5 (low effort) for slot extraction and for the composer, and Cohere Embed v4 (`cohere.embed-v4:0`, 1024 dimensions) only to embed `search_policies` queries; no Titan, Grok or Haiku unless a measured need is shown.
 - messaging: the reply is written as an ordinary message (`sender_type = assistant`) through the messaging code in `lambdas/core`, assuming `role-customer` with the stream record's `customer_id`; `chat-notifier` pushes it. On handoff the room is marked delegated and Clara stays silent.
 - Observability: every lambda uses AWS Lambda Powertools for Python (Logger, Metrics, Tracer); the block-card and create-complaint writes are idempotent through conditional writes on deterministic ids; CloudWatch Logs (structured JSON) and EMF metrics in namespaces `Clara/Backend` and `Clara/Assistant`; X-Ray active tracing, and `chatbot` annotates each record with the message's `origin_trace_id` (messaging `trd.md`, Latency and tracing).
 - EventBridge bus `clara-prd`: `lambdas/chatbot` calls PutEvents once at the end of every turn with ids and a `trace_id` only, never message text; events flow through Firehose to S3. Analysis of these events and the offline LLM judge are deferred.
-- `search_policies`: reads no customer data, so it runs under `chatbot`'s own role, which may only call `s3vectors:QueryVectors` and `GetVectors` on the policy index and `bedrock:InvokeModel` on `cohere.embed-multilingual-v3`; the index is built by the data module's `build-policies`.
+- `search_policies`: reads no customer data, so it runs under `chatbot`'s own role, which may only call `s3vectors:QueryVectors` and `GetVectors` on the policy index and `bedrock:InvokeModel` on `cohere.embed-v4:0`; it returns excerpts distinct in content, from a pool of 30; the index is built by the data module's `build-policies`.
 - legal deadlines: the `legal.*` keys of `policy_facts.toml` are the bank's reading of each norm, flagged `verified = false`; any due date the composer states depends on them being verified before it reaches a real reply.
 
 ## Depended on by
@@ -57,7 +57,7 @@ Jobs and listeners: `chatbot` consumes the `messages` stream, only inserts with 
 
 ## Configuration
 
-- `chatbot`: `EVENT_BUS_NAME` (`clara-prd`) and `EVENT_SOURCE` (`clara.chatbot`) for `turn.completed`, `ROLE_CUSTOMER_ARN`, the table names, `BEDROCK_MODEL_ID` (unused until the turn lands), and for `search_policies` `POLICY_INDEX_ARN`, `POLICY_EMBEDDING_MODEL_ID`, `POLICY_DOCS_DOMAIN` and `POLICY_MIN_SIMILARITY` (set in `infra/environments/prd/locals.tf`, tuned by `tune-policies`).
+- `chatbot`: `EVENT_BUS_NAME` (`clara-prd`) and `EVENT_SOURCE` (`clara.chatbot`) for `turn.completed`, `ROLE_CUSTOMER_ARN`, the table names, `BEDROCK_MODEL_ID` (unused until the turn lands), and for `search_policies` `POLICY_INDEX_ARN`, `POLICY_EMBEDDING_MODEL_ID`, `POLICY_DOCS_DOMAIN` and `POLICY_MIN_SIMILARITY`, a JSON map of one cut per document language (`es`, `pt`, `en`), validated by Terraform and by the code (set in `infra/environments/prd/locals.tf`, tuned by `tune-policies`).
 - `crud`: `ROLE_CUSTOMER_ARN`, the pool ids and the table names from Terraform's request environment.
 - `apps/customer`: the `VITE_` variables of the `customer-prd` Actions environment, baked in at build time.
 - Metrics namespace `Clara/Assistant` (and the shared `Clara/Backend`) for EMF metrics.
@@ -65,7 +65,7 @@ Jobs and listeners: `chatbot` consumes the `messages` stream, only inserts with 
 ## Testing
 
 - `lambdas/tests/chatbot/`: echo placement, delegated rooms, no loop, redelivery, `turn.completed` without text, partial batch failures.
-- `lambdas/tests/core/test_policy_search.py`: `search_policies` over an in-memory index (country only, typed figures, URL at the page, filters, `no_match`, `unavailable` on failures and unreadable answers, the turn's time budget); `test_policy_facts.py`: the facts file (same keys in every country, renders, claim times inside the norm, the hold window equal to triage's).
+- `lambdas/tests/core/test_policy_search.py`: `search_policies` over an in-memory index (country only, typed figures, URL at the page, filters, `no_match`, `unavailable` on failures and unreadable answers, the turn's time budget, the cut of the country's document language, distinct excerpts, the request of each embedding model); `test_policy_facts.py`: the facts file (same keys in every country, renders, claim times inside the norm, the hold window equal to triage's).
 - `lambdas/tests/core/test_tools.py` and `test_facts.py`: every tool on moto fixtures (limits, truncation, `not_found` for refs of another customer, hidden attributes absent, the read-only policy on every AssumeRole), and every render and check rule per locale with a passing and a failing case.
 - `lambdas/tests/crud/`: the generated account (counts, status mix, merchant minimums, monthly subscriptions, the seeded claim, planted cases, determinism per country), first, second, resumed and concurrent setup, paging and cursor tampering, cross-customer reads, adds and suffix uniqueness, staff 403, and no hidden attribute in any response; `lambdas/tests/core/` proves the read models drop them, and `test_ingestion.py` proves the contract, the single balance move per `transaction_id` and the refused charges.
 - `apps/customer`: `vitest` in node on `*.test.ts`: the locale store and catalogs (no "fraud" in Clara's text, no due date or legal term), the bank API client, money formatting and the bank queries against a real `QueryClient`; the Clara session, overlay, seeded claim and topics; the mock chat's triage precedence, typed answers, and engine flows (flagged charge to block and handoff, claim with the one question, lost card, confirmation before any action, no bar while a confirmed choice is handled, a queue that never drops, references reopening with current state, gap cases, reload mid-write, reset). Screens have no tests; Sebastian validates the UI on the PR.
