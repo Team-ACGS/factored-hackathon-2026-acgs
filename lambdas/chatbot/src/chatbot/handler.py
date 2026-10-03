@@ -14,6 +14,8 @@ from core.access import customer_session
 from core.messaging import Message, Messaging, reply_to
 from core.observability import annotate_origin, logger, metrics, trace_id, tracer
 
+from chatbot.turn import run_turn
+
 if TYPE_CHECKING:
     from mypy_boto3_events import EventBridgeClient
 
@@ -45,7 +47,8 @@ def answer(record: DynamoDBRecord) -> None:
         logger.info("skipped, not a customer message", sender_type=message.sender_type)
         return
 
-    messaging = Messaging.from_dynamodb(customer_session(message.customer_id, SERVICE).dynamodb)
+    session = customer_session(message.customer_id, SERVICE)
+    messaging = Messaging.from_dynamodb(session.dynamodb)
     room = messaging.room(message.customer_id, message.room_id)
     if room is None:
         raise RoomNotFound(message.room_id)
@@ -54,7 +57,8 @@ def answer(record: DynamoDBRecord) -> None:
         metrics.add_metric(name="TurnsSkippedDelegated", unit=MetricUnit.Count, value=1)
         return
 
-    reply, created = messaging.write(reply_to(message, "assistant", message.text, datetime.now(UTC)))
+    reply_text = run_turn(message, messaging, session.dynamodb, SERVICE)
+    reply, created = messaging.write(reply_to(message, "assistant", reply_text, datetime.now(UTC)))
     _turn_completed(message, reply)
     logger.info("turn completed", reply_id=reply.message_id, first_write=created)
     metrics.add_metric(name="TurnsCompleted", unit=MetricUnit.Count, value=1)

@@ -1,10 +1,15 @@
+import io
+import json
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import boto3
 import pytest
 
+from chatbot import llm, turn
 from chatbot.handler import handler
+from core.facts.values import Trace
 from core.ids import successor
 from core.messaging import Message, Messaging, customer_message, reply_to
 from core.observability import tracer
@@ -27,6 +32,31 @@ def delegate(aws: Aws, room_id: str) -> None:
     )
 
 
+class FakeChatModel:
+    def __init__(self, say: str) -> None:
+        self.say = say
+        self.requests: list[dict[str, Any]] = []
+
+    def invoke_model(self, **request: Any) -> dict[str, Any]:
+        self.requests.append(request)
+        response = {"content": [{"type": "text", "text": json.dumps({"say": self.say})}]}
+        return {"body": io.BytesIO(json.dumps(response).encode())}
+
+
+def configure_policy_llm(monkeypatch: pytest.MonkeyPatch, say: str) -> FakeChatModel:
+    model = FakeChatModel(say)
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "test-model")
+    monkeypatch.setattr(llm, "bedrock_runtime", lambda: model)
+
+    def retrieve_policy(state: turn.TurnState, context: Any) -> None:
+        assert state.ledger is not None
+        state.ledger.add("policy_chunk", {"chunk_id": Trace("policy-1")}, prefix="p")
+
+    monkeypatch.setattr(turn, "retrieve", retrieve_policy)
+    return model
+
+
+@pytest.mark.skip(reason="El handler ya no responde copiando el texto del cliente")
 def test_a_customer_message_gets_an_echo_right_after_it(aws: Aws, context: LambdaContext) -> None:
     message = customer_says("no reconozco este cargo")
 
@@ -37,6 +67,32 @@ def test_a_customer_message_gets_an_echo_right_after_it(aws: Aws, context: Lambd
     assert reply.text == "no reconozco este cargo"
     assert reply.message_id == str(successor(uuid.UUID(message.message_id)))
     assert reply.sent_at == message.sent_at
+
+
+def test_a_policy_question_uses_the_grounded_llm_reply(
+    aws: Aws, context: LambdaContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = configure_policy_llm(monkeypatch, "Consulta el documento de referencia [p:policy-1].")
+    customer_says("¿Cuál es el plazo de respuesta de la política?")
+
+    result = handler(aws.stream(), context)
+
+    [reply] = [Message.from_item(item) for item in aws.message_items() if item["sender_type"] == "assistant"]
+    assert result == {"batchItemFailures": []}
+    assert reply.text == "Consulta el documento de referencia."
+    assert model.requests[0]["modelId"] == "test-model"
+
+
+def test_an_ungrounded_llm_reply_is_replaced_with_a_fallback(
+    aws: Aws, context: LambdaContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configure_policy_llm(monkeypatch, "El plazo es 42 días.")
+    customer_says("¿Cuál es el plazo de respuesta de la política?")
+
+    handler(aws.stream(), context)
+
+    [reply] = [Message.from_item(item) for item in aws.message_items() if item["sender_type"] == "assistant"]
+    assert "42" not in reply.text
 
 
 def test_the_turn_event_carries_ids_and_never_the_text(aws: Aws, context: LambdaContext) -> None:
