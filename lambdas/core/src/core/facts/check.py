@@ -8,20 +8,24 @@ from core.facts.catalog import (
     CARDINALS,
     COUNT_NOUNS,
     DATE_HOMONYMS,
+    DATE_PREPOSITIONS,
     DATE_WORDS,
     FORBIDDEN,
     INSTRUCTIONS,
     MONTHS,
+    NOUNS,
     NUMBER_HOMONYMS,
+    NUMBER_VALUES,
     ORDINALS,
     PERIOD_PREPOSITIONS,
+    UNSEEN_CLAIMS,
     WEEKDAYS,
 )
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.parts import Ask, Part, Say, View
 from core.facts.render import CITATION, REFERENCE, is_renderable, render_value, resolve
-from core.facts.targets import Unfit, ask_options, view_items
-from core.facts.values import Channel, Count, Json, Ledger, Money, Percent, Period, Url
+from core.facts.targets import SHOWN_ROWS, Unfit, ask_options, view_items
+from core.facts.values import Channel, Count, Day, Instant, Json, Ledger, Money, Percent, Period, Url
 
 POLICY_FIGURES = (Count, Money, Percent, Channel, Url)
 SENTENCE_END = re.compile(r"[.!?]+(?=\s|$)")
@@ -33,7 +37,7 @@ URL = re.compile(
 )
 PHONE = re.compile(r"\+?\d[\d\s().-]{6,}\d")
 DIGITS = re.compile(r"\d+")
-NEXT_WORD = re.compile(r"\s+(\w+)")
+NOUN_LINKS = frozenset({"de", "do", "da", "of"})
 WORD_BEFORE = re.compile(r"(?<!\w)(\w+)\s+$")
 CONTEXT_CHARS = 30
 DASH = re.compile(r"\s*[\u2014\u2013]\s*")
@@ -88,34 +92,86 @@ def check(
     return sorted(errors, key=lambda error: (error.part, error.span))
 
 
-def tidy(text: str, ledger: Ledger, locale: str) -> str:
-    return DASH.sub(
-        ", ", _drop_period_prepositions(_drop_doubled_nouns(text, ledger, locale), ledger, locale)
-    )
+def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
+    text, numbers = _counts_as_references(text, ledger, locale)
+    text, nouns = _drop_doubled_nouns(text, ledger, locale)
+    text, periods = _drop_prepositions(text, ledger, (Period,), PERIOD_PREPOSITIONS[locale])
+    text, dates = _drop_prepositions(text, ledger, (Day, Instant), DATE_PREPOSITIONS[locale])
+    text, dashes = DASH.subn(", ", text)
+    edits = {
+        "number_word": numbers,
+        "doubled_noun": nouns,
+        "period_preposition": periods,
+        "date_preposition": dates,
+        "dash": dashes,
+    }
+    return text, {kind: count for kind, count in edits.items() if count}
 
 
-def _drop_period_prepositions(text: str, ledger: Ledger, locale: str) -> str:
+def _counts_as_references(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    counts = [
+        (f"{{{fact.id}.{name}}}", value)
+        for fact in ledger.facts.values()
+        for name, value in fact.fields.items()
+        if isinstance(value, Count) and value.value > 1
+    ]
+    folded = fold(text)
+    swaps = []
+    for match in number_words(locale).finditer(folded):
+        number = NUMBER_VALUES[locale].get(match.group(0))
+        for reference, count in counts:
+            if count.value != number:
+                continue
+            noun = fold(NOUNS.get(count.noun, {}).get(locale, ("", ""))[1])
+            following = re.compile(r"\s+" + r"\s+".join(map(re.escape, noun.split())) + r"(?!\w)")
+            after = following.match(folded, match.end()) if noun else None
+            if after:
+                swaps.append((match.start(), after.end(), reference))
+                break
+    for start, end, reference in reversed(swaps):
+        text = text[:start] + reference + text[end:]
+    return text, len(swaps)
+
+
+def _drop_prepositions(
+    text: str, ledger: Ledger, kinds: tuple[type, ...], prepositions: frozenset[str]
+) -> tuple[str, int]:
     cuts = []
     for match in REFERENCE.finditer(text):
         before = WORD_BEFORE.search(text, 0, match.start())
-        is_period = isinstance(resolve(ledger, match.group(1), match.group(2)), Period)
-        if is_period and before and fold(before.group(1)) in PERIOD_PREPOSITIONS[locale]:
+        typed = isinstance(resolve(ledger, match.group(1), match.group(2)), kinds)
+        if typed and before and fold(before.group(1)) in prepositions:
             cuts.append(before.span())
     for start, end in reversed(cuts):
         text = text[:start] + text[end:]
-    return text
+    return text, len(cuts)
 
 
-def _drop_doubled_nouns(text: str, ledger: Ledger, locale: str) -> str:
+def _drop_doubled_nouns(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
     cuts = []
     for match in REFERENCE.finditer(text):
-        following = NEXT_WORD.match(text, match.end())
-        counted = isinstance(resolve(ledger, match.group(1), match.group(2)), Count)
-        if counted and following and fold(following.group(1)) in _count_nouns(locale):
-            cuts.append(following.span())
+        value = resolve(ledger, match.group(1), match.group(2))
+        doubled = doubled_noun(text, match.end(), value, locale) if isinstance(value, Count) else None
+        if doubled:
+            cuts.append((match.end(), doubled[1]))
     for start, end in reversed(cuts):
         text = text[:start] + text[end:]
-    return text
+    return text, len(cuts)
+
+
+def doubled_noun(text: str, end: int, count: Count, locale: str) -> tuple[int, int] | None:
+    match = _noun_phrases(count.noun, locale).match(fold(text), end)
+    return match.span(1) if match else None
+
+
+@cache
+def _noun_phrases(noun: str, locale: str) -> re.Pattern[str]:
+    phrases: set[tuple[str, ...]] = {(word,) for word in _count_nouns(locale)}
+    for form in NOUNS.get(noun, {}).get(locale, ()):
+        words = fold(form).split()
+        phrases.update(tuple(words[start:]) for start in range(len(words)) if set(words[start:]) - NOUN_LINKS)
+    alternatives = sorted((r"\s+".join(map(re.escape, phrase)) for phrase in phrases), key=len, reverse=True)
+    return re.compile(r"\s+(" + "|".join(alternatives) + r")(?!\w)")
 
 
 def fold(text: str) -> str:
@@ -160,6 +216,20 @@ def number_homonyms(locale: str) -> tuple[re.Pattern[str], ...]:
 
 
 @cache
+def _unseen_claims() -> re.Pattern[str]:
+    return bounded(UNSEEN_CLAIMS)
+
+
+def _unseen_rows(ledger: Ledger) -> bool:
+    return any(
+        fact.kind == "movements"
+        and isinstance(count := fact.fields.get("count"), Count)
+        and count.value > SHOWN_ROWS
+        for fact in ledger.facts.values()
+    )
+
+
+@cache
 def _count_nouns(locale: str) -> frozenset[str]:
     return frozenset(fold(word) for word in COUNT_NOUNS[locale].split())
 
@@ -197,6 +267,8 @@ class _SayCheck:
         self._scan_raw(CURRENCY, "currency_outside_reference")
         self._scan_folded(_date_words(self.locale), "date_outside_reference")
         self._scan_number_words()
+        if _unseen_rows(self.ledger):
+            self._scan_folded(_unseen_claims(), "unseen_rows_claim")
         for code, pattern in _forbidden():
             self._scan_folded(pattern, code)
         return self.errors
@@ -209,17 +281,17 @@ class _SayCheck:
             elif not is_renderable(value):
                 self._report("trace_only_reference", match.span())
             elif isinstance(value, Count):
-                self._noun_after(match.end())
+                self._noun_after(match.end(), value)
             self._mask(match.span())
         for match in CITATION.finditer(self.original):
             if match.group(1) not in self.chunks:
                 self._report("unknown_citation", match.span())
             self._mask(match.span())
 
-    def _noun_after(self, end: int) -> None:
-        following = NEXT_WORD.match(self.original, end)
-        if following and fold(following.group(1)) in _count_nouns(self.locale):
-            self._report("noun_after_count", following.span(1))
+    def _noun_after(self, end: int, count: Count) -> None:
+        doubled = doubled_noun(self.original, end, count, self.locale)
+        if doubled:
+            self._report("noun_after_count", doubled)
 
     def _citations_per_sentence(self) -> None:
         chunk_of = {fact.id: chunk_id for chunk_id, fact in self.chunks.items()}

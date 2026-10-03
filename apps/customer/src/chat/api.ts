@@ -1,16 +1,11 @@
 import { ApiError, type Http } from "../api/http";
-import { isServerMessage, type ServerMessage } from "./conversation";
+import { isServerMessage, type ServerMessage, type Tap } from "./conversation";
 
 export interface LatestRoom {
   room: { room_id: string; created_at: string } | null;
   messages: ServerMessage[];
   turn?: { message_id: string; status: string | null } | null;
   server_time: string;
-}
-
-export interface Tap {
-  ask_id: string;
-  option: string;
 }
 
 export interface NewMessage {

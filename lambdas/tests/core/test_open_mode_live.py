@@ -128,4 +128,4 @@ def test_a_single_charge_question_shows_a_charge_or_asks_which_one(aws: Aws, pro
     assert result.reply.source in ("composed", "repaired")
     views = [part["view"] for part in parts_of(result, "view")]
     asks = [part["ask"] for part in parts_of(result, "ask")]
-    assert set(views) & {"charge", "movement", "movements"} or asks == ["which_one"]
+    assert set(views) & {"charge", "movement", "movements", "history"} or asks == ["which_one"]

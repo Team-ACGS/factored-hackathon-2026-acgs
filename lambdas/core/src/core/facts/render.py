@@ -53,6 +53,7 @@ from core.facts.values import (
 REFERENCE = re.compile(r"\{([fp]\d+)\.([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\}")
 CITATION = re.compile(r"\[p:([^\[\]\s]+)\]")
 PREVIOUS_WORD = re.compile(r"(\w+)\s+$")
+SENTENCE_START = re.compile(r"(^|[.!?]\s+)([a-záéíóúñãõâêôç])")
 
 
 class TraceOnly(ValueError):
@@ -206,6 +207,10 @@ def render_text(text: str, ledger: Ledger, locale: str) -> str:
     return REFERENCE.sub(replace, without_citations)
 
 
+def sentence_case(text: str) -> str:
+    return SENTENCE_START.sub(lambda match: match.group(1) + match.group(2).upper(), text)
+
+
 def render(parts: Sequence[Part], ledger: Ledger, locale: str) -> list[Json]:
     rendered: list[Json] = []
     for part in parts:
@@ -214,7 +219,7 @@ def render(parts: Sequence[Part], ledger: Ledger, locale: str) -> list[Json]:
                 rendered.append(
                     {
                         "type": "say",
-                        "text": render_text(text, ledger, locale),
+                        "text": sentence_case(render_text(text, ledger, locale)),
                         "facts": list(dict.fromkeys(match.group(1) for match in REFERENCE.finditer(text))),
                         "citations": [match.group(1) for match in CITATION.finditer(text)],
                     }

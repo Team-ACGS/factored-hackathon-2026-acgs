@@ -14,7 +14,7 @@ from core.facts.values import Country, Ledger, Text
 from core.graphs.model import Clients, bedrock_clients
 from core.graphs.open_mode import Metrics, OpenModeRun, run_open_mode
 from core.graphs.profiles import ModelProfile
-from core.graphs.prompt import Context
+from core.graphs.prompt import Context, shown_rows
 from core.messaging import Message
 from core.policies import COUNTRIES
 from core.replies import Reply, compose
@@ -55,7 +55,11 @@ class Turn:
             "timings": metrics.steps,
             "tool_calls": metrics.tools,
             "tokens": metrics.tokens(),
-            "check": {"result": _check_result(self.reply, metrics), "errors": metrics.check_errors},
+            "check": {
+                "result": _check_result(self.reply, metrics),
+                "errors": metrics.check_errors,
+                "tidied": metrics.tidied,
+            },
             "exhausted": metrics.exhausted,
         }
 
@@ -108,7 +112,7 @@ def run_turn(
         cards=ledger.payload(cards.ids),
         exchanges=exchanges(history, message),
         choice=(
-            {"ask": choice.ask, "option": choice.option, "facts": ledger.payload(picked.ids)}
+            {"ask": choice.ask, "option": choice.option, **shown_rows(ledger, picked.ids)}
             if choice and picked
             else None
         ),

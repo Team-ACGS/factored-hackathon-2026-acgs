@@ -135,7 +135,7 @@ export const ptBR: Record<MessageKey, string> = {
   "help.noClaims": "Você não tem contestações abertas.",
   "help.need": "Precisa de ajuda?",
   "help.claraTitle": "Clara, sua assistente",
-  "help.claraText": "Ela ajuda com cobranças que você não reconhece, suas contestações ou seu cartão. Se precisar, ela passa você para uma pessoa do banco.",
+  "help.claraText": "Ela ajuda a revisar cobranças que você não reconhece, suas contestações e seus cartões, com os dados da sua conta.",
   "help.talkToClara": "Falar com a Clara",
   "help.phoneTitle": "Central {bank}",
   "help.phoneText": "24 horas, todos os dias.",

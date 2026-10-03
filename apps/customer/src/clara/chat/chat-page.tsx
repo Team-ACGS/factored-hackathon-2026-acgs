@@ -48,7 +48,7 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
   }
 
   const shown = shownView(panel, views);
-  const mode = panelMode(shown, chat.thinking);
+  const mode = panelMode(shown, chat.thinking, asked !== null);
   const typing = draft.trim() !== "";
   const face = faceOf(mode, typing, asked !== null);
 

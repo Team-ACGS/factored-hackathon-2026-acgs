@@ -24,7 +24,7 @@ from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS
 from core.facts.values import Ledger
 from core.graphs.model import Clients, bedrock_clients, chat_model
 from core.graphs.profiles import ModelProfile, profile_for
-from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, Context, tool_result, tool_specs
+from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, Context, shown_rows, tool_result, tool_specs
 from core.observability import logger, metrics
 from core.replies import Reply, Source, compose
 from core.rules import TurnState, allowed_asks
@@ -38,7 +38,6 @@ MAX_TOOL_CALLS = 8
 TURN_SECONDS = 12.0
 INPUT_TOKEN_CAP = 40_000
 MIN_CALL_SECONDS = 2.0
-MODEL_ROWS = 5
 MODEL_ATTEMPTS = 2
 RECURSION_LIMIT = 4 * MAX_STEPS + 4
 RETRYABLE = frozenset(
@@ -97,6 +96,7 @@ class Metrics:
     steps: list[dict[str, Any]] = field(default_factory=list)
     tools: list[dict[str, Any]] = field(default_factory=list)
     check_errors: list[str] = field(default_factory=list)
+    tidied: dict[str, int] = field(default_factory=dict)
     exhausted: Exhausted | None = None
 
     def tokens(self) -> dict[str, int]:
@@ -317,7 +317,8 @@ def _run_tool(run: OpenModeRun, tool_call: ToolCall) -> ToolMessage:
     result = call(name, tool_call["args"], run.tools, run.ledger)
     run.tool_calls += 1
     run.tool_facts.extend(result.ids)
-    facts = run.ledger.payload(_shown(run.ledger, result.ids))
+    body = shown_rows(run.ledger, result.ids)
+    facts = body["facts"]
     error = next((fact for fact in facts if fact["kind"] == "error"), None)
     outcome = str(error["fields"]["error"]["value"]) if error else "ok"
     run.metrics.tools.append(
@@ -328,14 +329,8 @@ def _run_tool(run: OpenModeRun, tool_call: ToolCall) -> ToolMessage:
         }
     )
     return ToolMessage(
-        content=tool_result(facts), tool_call_id=tool_call_id, status="error" if error else "success"
+        content=tool_result(body), tool_call_id=tool_call_id, status="error" if error else "success"
     )
-
-
-def _shown(ledger: Ledger, ids: tuple[str, ...]) -> list[str]:
-    rows = [fact_id for fact_id in ids if ledger.facts[fact_id].kind == "movement"]
-    hidden = set(rows[MODEL_ROWS:])
-    return [fact_id for fact_id in ids if fact_id not in hidden]
 
 
 def _refused(run: OpenModeRun, name: str, tool_call_id: str, outcome: str, detail: str) -> ToolMessage:
@@ -358,7 +353,12 @@ def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source
         parts = answers.say_key(args.say_key, run.ledger, locale)
         source: Source = "say_key"
     else:
-        parts = [Say(tidy(text, run.ledger, locale)) for text in args.say or ()]
+        parts = []
+        for text in args.say or ():
+            tidied, edits = tidy(text, run.ledger, locale)
+            parts.append(Say(tidied))
+            for kind, count in edits.items():
+                run.metrics.tidied[kind] = run.metrics.tidied.get(kind, 0) + count
         source = "repaired" if run.repairs else "composed"
     if args.view is not None:
         parts.append(View(args.view.type, args.view.facts))

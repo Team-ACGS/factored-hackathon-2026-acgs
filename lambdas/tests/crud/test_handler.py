@@ -105,7 +105,12 @@ def test_a_new_customer_has_no_setup_until_it_completes(
 
     body = set_up(context)
 
-    assert body["profile"] == {"country": "MX", "language": "es", "setup_completed": True}
+    assert body["profile"] == {
+        "country": "MX",
+        "language": "es",
+        "setup_completed": True,
+        "bank_phone": "55 5000 0000",
+    }
     assert call("GET", "/crud/profile", context)[1]["profile"]["setup_completed"] is True
 
 
@@ -492,7 +497,17 @@ def test_suspicious_transactions_use_outside_merchants_with_suffixes_unique_in_t
     stored = aws.customers.get_item(Key={"customer_id": SUB})["Item"]["suspicious_suffixes"]
     assert stored == {"4821", "1234", "7777"}
     status, body = call("GET", "/crud/profile", context)
-    assert (status, body) == (200, {"profile": {"country": "MX", "language": "es", "setup_completed": True}})
+    assert (status, body) == (
+        200,
+        {
+            "profile": {
+                "country": "MX",
+                "language": "es",
+                "setup_completed": True,
+                "bank_phone": "55 5000 0000",
+            }
+        },
+    )
 
 
 @pytest.mark.parametrize(
@@ -581,3 +596,13 @@ def test_a_customer_without_cases_gets_an_empty_list(
     aws: Aws, customer: None, context: LambdaContext
 ) -> None:
     assert call("GET", "/crud/cases", context) == (200, {"cases": []})
+
+
+def test_the_profile_carries_the_bank_phone_of_the_customer_s_country(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    set_up(context, country="PE")
+
+    _, body = call("GET", "/crud/profile", context)
+
+    assert body["profile"]["bank_phone"] == "+51 1 600 2000"

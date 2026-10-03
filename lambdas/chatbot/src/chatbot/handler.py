@@ -108,8 +108,10 @@ def _status(message: Message, messaging: Messaging) -> Callable[[str, int], None
             "round": round_,
             "status": status,
         }
-        _publisher.publish(room_channel(message.customer_id, message.room_id), [event])
-        messaging.mark_status(message, status)
+        try:
+            messaging.mark_status(message, status)
+        finally:
+            _publisher.publish(room_channel(message.customer_id, message.room_id), [event])
 
     return announce
 

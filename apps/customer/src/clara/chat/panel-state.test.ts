@@ -46,6 +46,11 @@ describe("clara's panel", () => {
   it("shrinks to searching while Clara reads and docks once a view is shown", () => {
     const shown = { id: "m1", spec: specOf(movements) ?? { kind: "cards", cards: [] } };
 
-    expect([panelMode(null, false), panelMode(shown, false), panelMode(shown, true)]).toEqual(["hero", "docked", "searching"]);
+    expect([panelMode(null, false, false), panelMode(shown, false, false), panelMode(shown, true, false)]).toEqual([
+      "hero",
+      "docked",
+      "searching",
+    ]);
+    expect(panelMode(null, false, true)).toBe("docked");
   });
 });

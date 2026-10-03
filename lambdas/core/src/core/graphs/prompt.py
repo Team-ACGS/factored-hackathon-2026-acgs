@@ -5,10 +5,15 @@ from typing import Any
 
 from core.answers import SAY_KEYS
 from core.facts.parts import ASK_TYPES, VIEW_TYPES
-from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS
+from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS, SHOWN_ROWS
+from core.facts.values import Count, Fact, Ledger
 from core.tools import TOOLS
 
 REPLY = "reply"
+UNSEEN_NOTE = (
+    "You see {shown} of {matched} matching rows. Say nothing about all of them (no 'todas', 'all'), and "
+    "do not offer them in which_one: to find one, ask the customer for its date or amount."
+)
 MAX_SAYS = 3
 MAX_SAY_CHARS = 800
 
@@ -33,7 +38,7 @@ DESCRIPTIONS = {
     "search_movements": "The customer's movements filtered by card, dates (ISO, local), merchant, status, "
     "channel, country, category or amount, newest first by default; returns one fact per row (at most "
     "`limit`, up to 25) plus a `movements` fact with the full match count, which the movements view lists. "
-    "Covers the last 92 days.",
+    "Covers a window of recent months; name it only by the result's `period`.",
     "merchant_history": "How the customer usually buys at one merchant over the last 1 to 3 months: count, "
     "first and last date, typical amount.",
     "spend_summary": "Total spent (approved and pending purchases) in a period, optionally at one merchant "
@@ -161,5 +166,32 @@ class Context:
         )
 
 
-def tool_result(facts: Sequence[Mapping[str, Any]]) -> str:
-    return json.dumps({"untrusted": True, "facts": list(facts)}, ensure_ascii=False, separators=(",", ":"))
+def visible(ledger: Ledger, ids: Sequence[str]) -> tuple[list[str], int]:
+    rows = [fact_id for fact_id in ids if ledger.facts[fact_id].kind == "movement"]
+    hidden = set(rows[SHOWN_ROWS:])
+    return [fact_id for fact_id in ids if fact_id not in hidden], len(hidden)
+
+
+def shown_rows(ledger: Ledger, ids: Sequence[str]) -> dict[str, Any]:
+    shown, _ = visible(ledger, ids)
+    body: dict[str, Any] = {"facts": ledger.payload(shown)}
+    rows = sum(1 for fact_id in shown if ledger.facts[fact_id].kind == "movement")
+    matched = max((_matched(ledger.facts[fact_id]) for fact_id in ids), default=0)
+    if matched > rows:
+        body.update(
+            {
+                "rows_shown": rows,
+                "rows_not_shown": matched - rows,
+                "note": UNSEEN_NOTE.format(shown=rows, matched=matched),
+            }
+        )
+    return body
+
+
+def _matched(fact: Fact) -> int:
+    count = fact.fields.get("count")
+    return count.value if fact.kind == "movements" and isinstance(count, Count) else 0
+
+
+def tool_result(body: Mapping[str, Any]) -> str:
+    return json.dumps({"untrusted": True, **body}, ensure_ascii=False, separators=(",", ":"))

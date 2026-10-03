@@ -135,7 +135,7 @@ export const es: Record<MessageKey, string> = {
   "help.noClaims": "No tienes aclaraciones abiertas.",
   "help.need": "¿Necesitas ayuda?",
   "help.claraTitle": "Clara, tu asistente",
-  "help.claraText": "Te ayuda con cargos que no reconoces, tus aclaraciones o tu tarjeta. Si hace falta, te pasa con una persona del banco.",
+  "help.claraText": "Te ayuda a revisar cargos que no reconoces, tus aclaraciones y tus tarjetas, con los datos de tu cuenta.",
   "help.talkToClara": "Hablar con Clara",
   "help.phoneTitle": "Línea {bank}",
   "help.phoneText": "Las 24 horas, todos los días.",

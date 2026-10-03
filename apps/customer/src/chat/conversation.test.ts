@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   askOf,
-  currentStatus,
   emptyConversation,
+  liveTurn,
   openAsk,
   reduce,
   saysOf,
   sourcesOf,
   thinkingLeft,
-  turnInProgress,
+  turnLeft,
   THINKING_CAP_MS,
   visibleMessages,
   type Action,
@@ -209,6 +209,7 @@ describe("clara's views and asks", () => {
 });
 
 describe("clara's status", () => {
+  const at = Date.parse("2026-09-27T20:00:05.000Z");
   const event = (round: number, status: string, id = "m-001"): StatusEvent => ({
     type: "status",
     room_id: room,
@@ -217,21 +218,30 @@ describe("clara's status", () => {
     status,
   });
   const asked = () => run({ type: "loaded", roomId: room, messages: [server("m-001")] });
+  const statusOf = (state: Conversation, now = at) => liveTurn(state, now)?.status ?? null;
 
   it("shows the latest round's status while the turn runs", () => {
     const state = [event(1, "movements"), event(2, "policies"), event(1, "cards")].reduce(
-      (current, item) => reduce(current, { type: "status", event: item }),
+      (current, item) => reduce(current, { type: "status", event: item, at }),
       asked(),
     );
 
-    expect(currentStatus(state)).toBe("policies");
+    expect(statusOf(state)).toBe("policies");
   });
 
   it("drops a status that arrives after the reply or for another message", () => {
     const answered = reduce(asked(), { type: "received", message: server("m-002", { sender_type: "assistant" }) });
 
-    expect(currentStatus(reduce(answered, { type: "status", event: event(1, "movements") }))).toBeNull();
-    expect(currentStatus(reduce(asked(), { type: "status", event: event(1, "movements", "m-000") }))).toBeNull();
+    expect(statusOf(reduce(answered, { type: "status", event: event(1, "movements"), at }))).toBeNull();
+    expect(statusOf(reduce(asked(), { type: "status", event: event(1, "movements", "m-000"), at }))).toBeNull();
+  });
+
+  it("gives up on a turn when no newer status or reply arrives within thirty seconds", () => {
+    const state = reduce(asked(), { type: "status", event: event(1, "movements"), at });
+
+    expect(turnLeft(state, at + 10_000)).toBe(20_000);
+    expect(statusOf(state, at + THINKING_CAP_MS)).toBeNull();
+    expect(turnLeft(state, at + THINKING_CAP_MS)).toBe(0);
   });
 
   it("shows the status of a turn already running when the chat reloads, until the reply", () => {
@@ -239,11 +249,20 @@ describe("clara's status", () => {
       type: "loaded",
       roomId: room,
       messages: [server("m-001")],
-      turn: { messageId: "m-001", round: 0, status: "cases" },
+      turn: { messageId: "m-001", round: 0, status: "cases", at },
     });
     const answered = reduce(reloaded, { type: "received", message: server("m-002", { sender_type: "assistant" }) });
 
-    expect([currentStatus(reloaded), turnInProgress(reloaded)]).toEqual(["cases", true]);
-    expect([currentStatus(answered), turnInProgress(answered)]).toEqual([null, false]);
+    expect([statusOf(reloaded), turnLeft(reloaded, at) > 0]).toEqual(["cases", true]);
+    expect([statusOf(answered), turnLeft(answered, at)]).toEqual([null, 0]);
+  });
+});
+
+describe("a tap", () => {
+  it("keeps its ask and option on the pending message, also after it fails, so a retry sends them again", () => {
+    const input = { ask_id: "m-002", option: "t1" };
+    const state = run({ ...(sending("m-003") as Extract<Action, { type: "sending" }>), input }, { type: "failed", messageId: "m-003" });
+
+    expect(visibleMessages(state)[0]).toMatchObject({ delivery: "failed", input });
   });
 });

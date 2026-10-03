@@ -90,11 +90,23 @@ ARTICLE_DROPPED_AFTER = {
     "en": frozenset(),
 }
 
+DATE_PREPOSITIONS = {
+    "es": frozenset({"en", "el"}),
+    "pt-BR": frozenset({"em", "no", "na"}),
+    "en": frozenset(),
+}
+
 PERIOD_PREPOSITIONS = {
-    "es": frozenset({"en", "durante", "entre"}),
-    "pt-BR": frozenset({"em", "no", "durante", "entre"}),
+    "es": frozenset({"en", "de", "desde", "durante", "entre"}),
+    "pt-BR": frozenset({"em", "no", "de", "desde", "durante", "entre"}),
     "en": frozenset({"in", "during", "between"}),
 }
+
+UNSEEN_CLAIMS = (
+    r"tod[oa]s (ell[oa]s|el[ae]s|hech[oa]s|feit[oa]s|realizad[oa]s|fueron|foram|son|sao|estan|estao"
+    r"|en|em|na|no|con|com|por|pela|pelo)",
+    r"all (of them|were|are|in|at|made|from|on)",
+)
 
 CLOCK_AT = {"es": ("a la", "a las"), "pt-BR": ("à", "às"), "en": ("at", "at")}
 
@@ -145,7 +157,10 @@ NOUNS: dict[str, dict[str, tuple[str, str]]] = {
 
 COUNT_SYNONYMS = {
     "es": "transacción transacciones cargo cargos pago pagos suscripción suscripciones",
-    "pt-BR": "transação transações cobrança cobranças pagamento pagamentos assinatura assinaturas",
+    "pt-BR": (
+        "transação transações cobrança cobranças pagamento pagamentos assinatura assinaturas "
+        "movimento movimentos"
+    ),
     "en": "charge charges payment payments subscription subscriptions",
 }
 
@@ -386,6 +401,18 @@ CARDINALS = {
     ),
 }
 
+NUMBER_VALUES = {
+    "es": {word: value for value, word in enumerate(CARDINALS["es"].split(), start=2)},
+    "en": {word: value for value, word in enumerate(CARDINALS["en"].split(), start=2)},
+    "pt-BR": dict(
+        zip(
+            CARDINALS["pt-BR"].split(),
+            (2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 15, 16, 17, 18, 19, 20),
+            strict=True,
+        )
+    ),
+}
+
 ORDINALS = {
     "es": (
         "segundo segunda segundos segundas tercer tercero tercera terceros terceras cuarto cuarta cuartos "
@@ -459,6 +486,14 @@ FORBIDDEN = {
         r"(get|receive|recover) your money",
         r"guarante\w*",
     ),
+    "promise_talk": (
+        r"promet\w*",
+        r"promes\w*",
+        r"promis\w*",
+        r"no (puedo|podria|sabria) (decir|adelantar|anticipar|asegurar|confirmar|indicar)\w*",
+        r"nao (posso|consigo|saberia) (dizer|antecipar|informar|confirmar|assegurar|indicar)\w*",
+        r"(cannot|can't|can not) (tell you|say when|confirm when)",
+    ),
     "legal_term": (
         r"abogad\w*",
         r"advogad\w*",
@@ -497,6 +532,7 @@ INSTRUCTIONS = {
     "safety_claim": "Never say a charge is safe or legitimate.",
     "money_promise": "Never promise money back; describe the next step of the process instead.",
     "legal_term": "Avoid legal terms; describe the bank's process in plain words.",
+    "promise_talk": "Never say what you can or cannot promise; state the bank's process with its citation.",
     "noun_after_count": "A count renders with its noun; remove the noun you wrote after the reference.",
     "view_unknown": "Use one of the view types of the reply tool.",
     "view_fact_unknown": "A view may show only facts a tool returned this turn.",
@@ -506,6 +542,8 @@ INSTRUCTIONS = {
     "ask_fact_unknown": "An ask may use only facts a tool returned this turn.",
     "ask_fact_unfit": "That fact cannot be an option of this ask; see the reply tool for each ask.",
     "ask_options_count": "which_one takes two to five candidate facts; show takes exactly one fact.",
+    "ask_options_partial": "More charges match than your options; ask for the date or the amount instead.",
+    "unseen_rows_claim": "You saw only some of these rows; say nothing about all of them.",
     "show_with_view": "The view already shows the rows; send the reply without the show ask.",
     "ask_options_repeated": "Each option of which_one must be a different charge or card.",
     "ask_options_mixed": "The options of which_one must all be charges or all be cards.",

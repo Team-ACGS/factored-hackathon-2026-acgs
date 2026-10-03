@@ -4,7 +4,7 @@ import { claraSession } from "../clara/store";
 import { topicMessage } from "../clara/topics";
 import { useI18n } from "../i18n";
 import type { MessageKey } from "../i18n/en";
-import { thinkingLeft, type AskOption, type ChatMessage } from "./conversation";
+import { liveTurn, thinkingLeft, turnLeft, type AskOption, type ChatMessage } from "./conversation";
 import { clock } from "./services";
 import { useChat } from "./use-chat";
 
@@ -24,9 +24,10 @@ export interface LiveChat {
 
 export function useLiveChat(customerId: string): LiveChat {
   const { locale, t } = useI18n();
-  const { loaded, send, messages, status, inTurn, problem, retry, reload } = useChat(customerId);
-  const [now, setNow] = useState(() => clock.now());
-  const left = thinkingLeft(messages, now);
+  const { loaded, send, state, messages, problem, retry, reload } = useChat(customerId);
+  const [tick, setNow] = useState(() => clock.now());
+  const now = Math.max(tick, state.turn?.at ?? 0);
+  const left = Math.max(thinkingLeft(messages, now), turnLeft(state, now));
 
   useEffect(() => {
     if (!loaded) return;
@@ -43,8 +44,8 @@ export function useLiveChat(customerId: string): LiveChat {
   return {
     loaded,
     messages,
-    thinking: loaded && (left > 0 || inTurn),
-    status,
+    thinking: loaded && left > 0,
+    status: liveTurn(state, now)?.status ?? null,
     notice: problem === "load" ? "chat.loadFailed" : problem === "live" ? "chat.liveUpdatesLost" : null,
     send: (text) => void send(text.slice(0, MAX_TEXT_LENGTH)),
     choose: (asked, option) => void send(option.label.slice(0, MAX_TEXT_LENGTH), { ask_id: asked.messageId, option: option.id }),

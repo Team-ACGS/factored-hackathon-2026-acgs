@@ -51,7 +51,7 @@ export function ChatPanel({ chat, shown: target, mode, face, asked, nav, sheet, 
   const { shown, leaving } = useLeaving(target);
   const bar = useLastAsk(asked);
   const body = useRef<HTMLDivElement>(null);
-  const docked = mode !== "hero" || shown !== null || asked !== null;
+  const docked = mode !== "hero" || shown !== null;
 
   useLayoutEffect(() => {
     if (body.current) body.current.scrollTop = 0;

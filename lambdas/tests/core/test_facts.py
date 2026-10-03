@@ -31,6 +31,7 @@ from core.facts.values import (
     Count,
     Country,
     Day,
+    Fact,
     FactIds,
     Flag,
     Instant,
@@ -392,6 +393,13 @@ def with_chunk(book: Ledger) -> Ledger:
         ("La ley te protege.", "es", ["legal_term"]),
         ("You could go to court.", "en", ["legal_term"]),
         ("Puedes hablar con una persona del banco.", "es", []),
+        ("No puedo prometerte una fecha exacta.", "es", ["promise_talk"]),
+        ("Não posso fazer promessas sobre o prazo.", "pt-BR", ["promise_talk"]),
+        ("I cannot promise a date.", "en", ["promise_talk"]),
+        ("No puedo decirte una fecha exacta.", "es", ["promise_talk"]),
+        ("No puedo anticipar el resultado.", "es", ["promise_talk"]),
+        ("Não posso antecipar o resultado.", "pt-BR", ["promise_talk"]),
+        ("No pude revisar eso ahora.", "es", []),
     ],
 )
 def test_the_check_applies_each_rule_outside_references(text: str, locale: str, expected: list[str]) -> None:
@@ -427,7 +435,7 @@ def view_ledger() -> Ledger:
         )
         for index in (1, 2)
     ]
-    book.add("movements", {"count": Count(32, "movement"), "ids": FactIds(tuple(row.id for row in rows))})
+    book.add("movements", {"count": Count(2, "movement"), "ids": FactIds(tuple(row.id for row in rows))})
     book.locate("tx-7", "card-2")
     book.add(
         "merchant_history",
@@ -478,6 +486,15 @@ def test_an_ask_outside_allowed_asks_never_passes_the_check() -> None:
     assert check_codes([Ask("which_one", ("f3", "f1"))], book, allowed) == [("ask_options_mixed", "f1")]
     assert check_codes([Ask("which_one", ("f3", "f3"))], book, allowed) == [("ask_options_repeated", "f3")]
     assert check_codes([Ask("show", ("f6",))], book, allowed) == [("ask_fact_unfit", "f6")]
+
+
+def test_which_one_is_refused_when_the_search_matched_more_charges_than_its_options() -> None:
+    book = view_ledger()
+    book.facts["f5"] = Fact("f5", "movements", {**book.facts["f5"].fields, "count": Count(13, "movement")})
+
+    assert check_codes([Ask("which_one", ("f3", "f4"))], book, frozenset({"which_one"})) == [
+        ("ask_options_partial", "f3")
+    ]
 
 
 def test_allowed_asks_need_candidates_and_never_repeat_the_choice_just_made() -> None:
@@ -737,17 +754,43 @@ def test_policy_figures_render_in_the_customers_country(
     assert render_value(value, Ledger(country, NOW), locale) == expected
 
 
-def test_a_noun_doubled_after_a_count_and_dashes_are_tidied_before_the_check() -> None:
+def test_a_noun_doubled_after_a_count_and_dashes_are_tidied_and_counted_before_the_check() -> None:
     book = spend_ledger()
 
     assert tidy("Gastaste {f1.total} \u2014 con {f1.count} \u2013 en total.", book, "es") == (
-        "Gastaste {f1.total}, con {f1.count}, en total."
+        "Gastaste {f1.total}, con {f1.count}, en total.",
+        {"dash": 2},
     )
-    assert tidy("Hiciste {f1.count} en {f1.period}.", book, "es") == "Hiciste {f1.count} {f1.period}."
-    fixed = tidy("Hiciste {f1.count} compras en {f1.merchant} y {f1.count}, compras pequeñas.", book, "es")
+    assert tidy("Hiciste {f1.count} en {f1.period}.", book, "es") == (
+        "Hiciste {f1.count} {f1.period}.",
+        {"period_preposition": 1},
+    )
+    fixed, edits = tidy(
+        "Hiciste {f1.count} compras en {f1.merchant} y {f1.count}, compras pequeñas.", book, "es"
+    )
 
     assert fixed == "Hiciste {f1.count} en {f1.merchant} y {f1.count}, compras pequeñas."
+    assert edits == {"doubled_noun": 1}
     assert check([Say(fixed)], book, "es") == []
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "kept"),
+    [
+        ("es", "Tienes {f1.credit} de crédito activas.", "Tienes {f1.credit} activas."),
+        ("es", "Tienes {f1.credit} tarjetas de crédito.", "Tienes {f1.credit}."),
+        ("pt-BR", "Você tem {f1.credit} de crédito ativos.", "Você tem {f1.credit} ativos."),
+        ("pt-BR", "Você tem {f1.credit} cartões de crédito.", "Você tem {f1.credit}."),
+    ],
+)
+def test_a_multi_word_noun_doubled_after_a_count_is_caught_and_tidied(
+    locale: str, text: str, kept: str
+) -> None:
+    book = ledger()
+    book.add("cards", {"credit": Count(2, "credit_card")})
+
+    assert [error.code for error in check([Say(text)], book, locale)] == ["noun_after_count"]
+    assert tidy(text, book, locale) == (kept, {"doubled_noun": 1})
 
 
 def test_a_repair_error_carries_the_words_around_it() -> None:
@@ -774,3 +817,48 @@ def test_a_date_after_a_preposition_renders_without_its_article() -> None:
     assert render_text("Desde {f1.date}, fue el {f1.date}; desde {f1.today}.", book, "es") == (
         "Desde el 18 de septiembre, fue el 18 de septiembre; desde hoy."
     )
+
+
+def test_a_claim_about_all_rows_fails_only_when_the_search_matched_more_than_were_shown() -> None:
+    many, few = ledger(), ledger()
+    many.add("movements", {"count": Count(13, "movement")})
+    few.add("movements", {"count": Count(3, "movement")})
+    text = "Encontrei {f1.count}, todas feitas na loja."
+
+    assert [error.code for error in check([Say(text)], many, "pt-BR")] == ["unseen_rows_claim"]
+    assert check([Say(text)], few, "pt-BR") == []
+    assert check([Say("Tienes {f1.count} en todas tus tarjetas.")], many, "es") == []
+
+
+def test_a_number_word_naming_a_counted_noun_becomes_its_reference() -> None:
+    book = ledger()
+    book.add("cards", {"count": Count(3, "card"), "credit": Count(2, "credit_card")})
+
+    assert tidy("Tienes dos tarjetas de crédito Visa; ¿cuál de las dos?", book, "es") == (
+        "Tienes {f1.credit} Visa; ¿cuál de las dos?",
+        {"number_word": 1},
+    )
+    assert (
+        tidy("Você tem três cartões e dois meses.", book, "pt-BR")[0] == "Você tem {f1.count} e dois meses."
+    )
+    assert tidy("Tienes cuatro tarjetas.", book, "es") == ("Tienes cuatro tarjetas.", {})
+
+
+def test_a_preposition_before_a_date_reference_is_dropped_in_spanish_and_portuguese() -> None:
+    book = ledger()
+    book.add("day", {"date": Day(date(2026, 9, 18))})
+
+    assert tidy("La compra fue en {f1.date}.", book, "es") == (
+        "La compra fue {f1.date}.",
+        {"date_preposition": 1},
+    )
+    assert tidy("A compra foi em {f1.date}.", book, "pt-BR")[0] == "A compra foi {f1.date}."
+
+
+def test_a_rendered_sentence_starts_with_a_capital() -> None:
+    book = ledger()
+    book.add("period", {"period": Period(date(2026, 9, 1), date(2026, 9, 30))})
+
+    [said] = render([Say("{f1.period} gastaste poco. ¿todo bien? sí.")], book, "es")
+
+    assert said["text"] == "Del 1 al 30 de septiembre gastaste poco. ¿todo bien? Sí."

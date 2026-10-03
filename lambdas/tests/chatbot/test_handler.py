@@ -93,7 +93,7 @@ def test_the_turn_event_carries_ids_and_measures_and_never_the_text(
     assert (detail["model"], detail["prompt"]) == ("us.anthropic.claude-sonnet-4-6", "system.v3")
     assert Decimal(detail["cost_usd"]) > 0
     assert detail["steps"] == 1
-    assert detail["check"] == {"result": "pass", "errors": []}
+    assert detail["check"] == {"result": "pass", "errors": [], "tidied": {}}
     assert set(detail["tokens"]) == {"input_tokens", "output_tokens", "cache_read", "cache_write"}
     assert [step["node"] for step in detail["timings"]] == ["supervisor", "facts_check"]
     assert "trace_id" in detail
@@ -299,14 +299,16 @@ def test_each_tool_round_publishes_a_status_to_the_room_and_marks_the_turn(
     assert "turn_status" not in room
 
 
-def test_a_status_the_channel_refuses_never_fails_the_turn(
+def test_a_status_the_channel_refuses_still_marks_the_turn_and_never_fails_it(
     aws: Aws, context: LambdaContext, monkeypatch: pytest.MonkeyPatch, published: Published
 ) -> None:
     published.status = 500
-    reading_model(aws, monkeypatch, [])
+    seen: list[Any] = []
+    reading_model(aws, monkeypatch, seen)
     customer_says("¿cómo va mi aclaración?")
 
     result = handler(aws.stream(), context)
 
     assert result == {"batchItemFailures": []}
     assert [reply.text for reply in replies(aws)] == ["Listo."]
+    assert seen == [None, "cases"]

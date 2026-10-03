@@ -80,12 +80,19 @@ export interface ChatMessage {
   sentAt: string;
   createdAt: string | null;
   delivery: Delivery;
+  input?: Tap;
 }
 
 export interface TurnStatus {
   messageId: string;
   round: number;
   status: string | null;
+  at: number;
+}
+
+export interface Tap {
+  ask_id: string;
+  option: string;
 }
 
 export interface Conversation {
@@ -106,8 +113,8 @@ export interface StatusEvent {
 export type Action =
   | { type: "loaded"; roomId: string | null; messages: ServerMessage[]; turn?: TurnStatus | null }
   | { type: "received"; message: ServerMessage }
-  | { type: "status"; event: StatusEvent }
-  | { type: "sending"; roomId: string; messageId: string; text: string; sentAt: string }
+  | { type: "status"; event: StatusEvent; at: number }
+  | { type: "sending"; roomId: string; messageId: string; text: string; sentAt: string; input?: Tap }
   | { type: "confirmed"; message: ServerMessage }
   | { type: "failed"; messageId: string }
   | { type: "discarded"; messageId: string };
@@ -281,7 +288,7 @@ export function reduce(state: Conversation, action: Action): Conversation {
       const last = visibleMessages(state).at(-1);
       if (last?.messageId !== event.message_id || last.senderType !== "customer") return state;
       if (state.turn?.messageId === event.message_id && state.turn.round > event.round) return state;
-      return { ...state, turn: { messageId: event.message_id, round: event.round, status: event.status } };
+      return { ...state, turn: { messageId: event.message_id, round: event.round, status: event.status, at: action.at } };
     }
     case "received":
     case "confirmed":
@@ -300,6 +307,7 @@ export function reduce(state: Conversation, action: Action): Conversation {
             sentAt: action.sentAt,
             createdAt: null,
             delivery: "pending",
+            ...(action.input ? { input: action.input } : {}),
           },
         ]),
         roomId: state.roomId ?? action.roomId,
@@ -316,14 +324,16 @@ export function reduce(state: Conversation, action: Action): Conversation {
   }
 }
 
-export function currentStatus(state: Conversation): string | null {
+export function liveTurn(state: Conversation, now: number): TurnStatus | null {
   const last = visibleMessages(state).at(-1);
-  return last && state.turn?.messageId === last.messageId && last.senderType === "customer" ? state.turn.status : null;
+  const { turn } = state;
+  if (!turn || last?.messageId !== turn.messageId || last.senderType !== "customer") return null;
+  return now - turn.at < THINKING_CAP_MS ? turn : null;
 }
 
-export function turnInProgress(state: Conversation): boolean {
-  const last = visibleMessages(state).at(-1);
-  return last !== undefined && last.senderType === "customer" && state.turn?.messageId === last.messageId;
+export function turnLeft(state: Conversation, now: number): number {
+  const turn = liveTurn(state, now);
+  return turn ? turn.at + THINKING_CAP_MS - now : 0;
 }
 
 export function openAsk(messages: readonly ChatMessage[]): ChatMessage | null {

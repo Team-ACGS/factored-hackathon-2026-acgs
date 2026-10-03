@@ -12,6 +12,7 @@ export interface Profile {
   language: Locale | null;
   setup_completed: boolean;
   given_name?: string;
+  bank_phone?: string;
 }
 
 export interface Card {

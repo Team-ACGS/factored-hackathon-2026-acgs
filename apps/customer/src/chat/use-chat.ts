@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 
-import {
-  currentStatus,
-  emptyConversation,
-  reduce,
-  turnInProgress,
-  visibleMessages,
-  type ChatMessage,
-} from "./conversation";
-import type { Tap } from "./api";
+import { emptyConversation, reduce, visibleMessages, type ChatMessage, type Tap } from "./conversation";
 import { idTime, mintId } from "./clock";
 import { subscribeToRooms } from "./realtime";
 import { api, clock } from "./services";
@@ -30,14 +22,16 @@ export function useChat(customerId: string) {
       try {
         unsubscribe = await subscribeToRooms(customerId, {
           onMessage: (message) => dispatch({ type: "received", message }),
-          onStatus: (event) => dispatch({ type: "status", event }),
+          onStatus: (event) => dispatch({ type: "status", event, at: clock.now() }),
           onError: () => active && setProblem("live"),
         });
         if (!active) return unsubscribe();
         const requestedAt = Date.now();
         const latest = await api.latestRoom();
         clock.sync(latest.server_time, requestedAt, Date.now());
-        const turn = latest.turn ? { messageId: latest.turn.message_id, round: 0, status: latest.turn.status } : null;
+        const turn = latest.turn
+          ? { messageId: latest.turn.message_id, round: 0, status: latest.turn.status, at: clock.now() }
+          : null;
         if (active) dispatch({ type: "loaded", roomId: latest.room?.room_id ?? null, messages: latest.messages, turn });
       } catch {
         if (active) setProblem("load");
@@ -52,7 +46,7 @@ export function useChat(customerId: string) {
   }, [customerId, attempt]);
 
   const deliver = useCallback(async (roomId: string, messageId: string, text: string, input?: Tap) => {
-    dispatch({ type: "sending", roomId, messageId, text, sentAt: new Date(idTime(messageId)).toISOString() });
+    dispatch({ type: "sending", roomId, messageId, text, sentAt: new Date(idTime(messageId)).toISOString(), input });
     try {
       const message = await api.send({ room_id: roomId, message_id: messageId, text, ...(input ? { input } : {}) });
       dispatch({ type: "confirmed", message });
@@ -72,19 +66,18 @@ export function useChat(customerId: string) {
   const retry = useCallback(
     (message: ChatMessage) => {
       if (clock.now() - idTime(message.messageId) < SAME_ID_RETRY_WINDOW_MS) {
-        return deliver(message.roomId, message.messageId, message.text);
+        return deliver(message.roomId, message.messageId, message.text, message.input);
       }
       dispatch({ type: "discarded", messageId: message.messageId });
-      return deliver(message.roomId, mintId(clock), message.text);
+      return deliver(message.roomId, mintId(clock), message.text, message.input);
     },
     [deliver],
   );
 
   return {
     loaded: state.loaded,
+    state,
     messages: visibleMessages(state),
-    status: currentStatus(state),
-    inTurn: turnInProgress(state),
     problem,
     send,
     retry,

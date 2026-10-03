@@ -133,7 +133,7 @@ export const en = {
   "help.noClaims": "You have no open claims.",
   "help.need": "Need help?",
   "help.claraTitle": "Clara, your assistant",
-  "help.claraText": "She helps you with charges you don't recognize, your claims or your card. If needed, she puts you through to a person at the bank.",
+  "help.claraText": "She helps you look into charges you don't recognize, your claims and your cards, with your account's data.",
   "help.talkToClara": "Talk to Clara",
   "help.phoneTitle": "{bank} line",
   "help.phoneText": "24 hours, every day.",

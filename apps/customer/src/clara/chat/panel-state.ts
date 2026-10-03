@@ -80,9 +80,9 @@ export function shownView(state: PanelState, views: readonly PanelView[]): Panel
 
 export type PanelMode = "hero" | "docked" | "searching";
 
-export function panelMode(shown: PanelView | null, thinking: boolean): PanelMode {
+export function panelMode(shown: PanelView | null, thinking: boolean, asking: boolean): PanelMode {
   if (thinking) return "searching";
-  return shown ? "docked" : "hero";
+  return shown || asking ? "docked" : "hero";
 }
 
 export function entityMode(mode: PanelMode): EntityMode {

@@ -18,9 +18,11 @@ from core.access import AccessDenied, Pool, Principal, customer_session
 from core.accounts import Accounts, public_transaction
 from core.cases import Cases, case_code, case_type, stage
 from core.customers import read_customer
+from core.facts.values import Channel
 from core.ids import InvalidId, format_instant, parse_uuid7, uuid7_time
 from core.ingestion import MAX_CLOCK_SKEW, ContractViolation, Duplicate, Ingestion, UnknownCard, check
 from core.observability import logger, metrics, tracer
+from core.policies import policy_facts
 from crud.catalog import COUNTRIES, LANGUAGES
 from crud.cursor import InvalidCursor, decode_cursor, encode_cursor
 from crud.generator import Claim, Score, generate, manual_transaction
@@ -81,6 +83,10 @@ def _profile(customer: dict[str, Any]) -> dict[str, Any]:
     }
     if customer.get("given_name") is not None:
         profile["given_name"] = customer["given_name"]
+    if customer["country"] in policy_facts():
+        phone = policy_facts()[customer["country"]].figure("channels.phone")
+        if isinstance(phone, Channel):
+            profile["bank_phone"] = phone.value
     return profile
 
 

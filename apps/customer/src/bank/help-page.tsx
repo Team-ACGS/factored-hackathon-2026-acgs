@@ -21,6 +21,7 @@ export function HelpPage({ claimId }: { claimId: string | undefined }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { data: cases } = useSuspenseQuery(bankQueries.cases());
+  const { data: profile } = useSuspenseQuery(bankQueries.profile());
   const claims = cases.filter(isOpen);
 
   return (
@@ -59,7 +60,7 @@ export function HelpPage({ claimId }: { claimId: string | undefined }) {
             </span>
             <h3 className="font-semibold">{t("help.phoneTitle", { bank: brand.name })}</h3>
             <p className="text-ink-2">{t("help.phoneText")}</p>
-            <span className="font-mono text-[17px] select-all">{brand.phone}</span>
+            {profile.bank_phone && <span className="font-mono text-[17px] select-all">{profile.bank_phone}</span>}
           </div>
         </div>
       </section>

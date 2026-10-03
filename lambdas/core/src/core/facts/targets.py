@@ -2,9 +2,10 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from core.facts.parts import Ask, View
-from core.facts.values import Fact, FactIds, Json, Ledger, Merchant, Period, Ref, Refs, Trace
+from core.facts.values import Count, Fact, FactIds, Json, Ledger, Merchant, Period, Ref, Refs, Trace
 
 MAX_VIEW_ITEMS = 25
+SHOWN_ROWS = 5
 MIN_OPTIONS = 2
 MAX_OPTIONS = 5
 SHOW_LIMIT = 25
@@ -106,7 +107,23 @@ def _which_one(facts: list[Fact], ledger: Ledger) -> list[Option]:
         options.append(option)
     if len(kinds) > 1:
         raise Unfit("ask_options_mixed", facts[-1].id)
+    for fact in facts:
+        if _matched(fact, ledger) > len(options):
+            raise Unfit("ask_options_partial", fact.id)
     return options
+
+
+def _matched(row: Fact, ledger: Ledger) -> int:
+    for fact in ledger.facts.values():
+        ids, count = fact.fields.get("ids"), fact.fields.get("count")
+        if (
+            fact.kind == "movements"
+            and isinstance(ids, FactIds)
+            and row.id in ids.values
+            and isinstance(count, Count)
+        ):
+            return count.value
+    return 0
 
 
 def _read(tool: str, argument: str, item: Json) -> Json:

@@ -9,7 +9,7 @@ from core.turn import run_turn
 from demo import DEMO, NOW, RECORDINGS, demo_turn_message, policy_index
 from harness import Aws
 
-EXPECTED = {
+EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
     "sonnet-4-6": {
         "cards_pt": (
             "composed",
@@ -26,12 +26,12 @@ EXPECTED = {
             "composed",
             (
                 (
-                    "Tu aclaración CLR-2026-182061 por el cargo en Primax está actualmente en revisión, "
-                    "abierta el 14 de septiembre."
+                    "Tu aclaración CLR-2026-182061 sobre el cargo de S/\xa0127.80 en Primax está actualmente "
+                    "en revisión, con el proceso iniciado hoy."
                 ),
                 (
-                    "El banco tiene un plazo de 10 días hábiles para responderte desde que la revisión "
-                    "comenzó. No puedo prometerte una fecha exacta, pero ese es el plazo máximo del proceso."
+                    "El banco revisa tu caso y responde dentro de 10 días hábiles. El resultado depende del "
+                    "proceso de revisión en curso."
                 ),
             ),
             ("case",),
@@ -40,35 +40,30 @@ EXPECTED = {
             "composed",
             (
                 (
-                    "Sua contestação CLR-2026-862021 referente a uma cobrança de R$\xa0197,26 em Pão de "
-                    "Açúcar está atualmente em análise, com revisão iniciada hoje. O banco tem até 8 dias "
-                    "úteis para concluir a análise."
+                    "Sua contestação CLR-2026-862021, referente a uma cobrança de R$\xa0197,26 no Pão de "
+                    "Açúcar no seu cartão final 6400, está em análise desde hoje. O banco tem 8 dias úteis "
+                    "para concluir a análise."
                 ),
             ),
             ("case",),
         ),
         "charge_pt": (
-            "composed",
+            "repaired",
             (
                 (
-                    "Encontrei 13 movimentações do Ipiranga nos últimos meses, todas feitas na loja em "
-                    "Curitiba, na categoria de transporte. A mais recente, em 18 de setembro às 20:23, é de "
-                    "R$\xa0144,77 com seu cartão final 4237 e ainda está pendente. Qual delas você gostaria "
-                    "de saber mais?"
+                    "Há 13 movimentações do Ipiranga no período de 22 de agosto a 20 de setembro. Qual delas "
+                    "você quer saber mais? Me informe a data ou o valor para eu identificar a certa."
                 ),
             ),
-            (
-                "movements",
-                "which_one",
-            ),
+            ("movements",),
         ),
         "movements_es": (
             "composed",
             (
                 (
-                    "En ese período encontré 216 movimientos en tus tarjetas. Los más recientes incluyen un "
-                    "cargo en Cineplanet con tu tarjeta terminada en 9739, otro en Tambo+ con tu tarjeta "
-                    "terminada en 9739 y uno en Starbucks con tu tarjeta terminada en 6720."
+                    "Encontré 216 movimientos del 20 de julio al 20 de septiembre, en tus 3 tarjetas. Los "
+                    "más recientes incluyen un cargo en Cineplanet con tu tarjeta terminada en 9739, uno en "
+                    "Tambo+ y otro en Starbucks."
                 ),
             ),
             ("movements",),
@@ -77,10 +72,10 @@ EXPECTED = {
             "composed",
             (
                 (
-                    "Este mes gastaste S/\xa02,091.60 en Primax, comparado con S/\xa0949.50 el mes pasado. "
-                    "Eso es S/\xa01,142.10 más que el mes anterior."
+                    "Este mes gastaste S/\xa02,091.60 en Primax, S/\xa01,142.10 más que el mes pasado, "
+                    "cuando el total fue S/\xa0949.50."
                 ),
-                "En total hay 18 movimientos en ese período, repartidos entre tus tarjetas.",
+                "En total hay 18 movimientos en el período del 1 de agosto al 20 de septiembre.",
             ),
             ("movements",),
         ),
@@ -88,11 +83,10 @@ EXPECTED = {
             "composed",
             (
                 (
-                    "Este mês você gastou R$\xa01.456,06 no Ipiranga em 5 compras, enquanto no mês passado o "
-                    "total foi R$\xa01.601,37. Ou seja, você gastou R$\xa0145,31 menos em comparação ao mês "
-                    "anterior."
+                    "Este mês você gastou R$\xa01.456,06 no Ipiranga, considerando 5 compras, incluindo uma "
+                    "cobrança pendente de R$\xa0301,00. No mês passado, o total foi R$\xa01.601,37, então "
+                    "você gastou R$\xa0145,31 a menos este mês."
                 ),
-                "Há uma cobrança de R$\xa0301,00 com status pendente na movimentação mais recente.",
             ),
             ("movements",),
         ),
@@ -100,9 +94,9 @@ EXPECTED = {
             "composed",
             (
                 (
-                    "Tienes 2 tarjetas de crédito con movimientos este mes. Tu tarjeta terminada en 9454 "
-                    "tiene 25 movimientos y tu tarjeta terminada en 3229 tiene 19 movimientos. ¿De cuál "
-                    "quieres ver los movimientos?"
+                    "Tienes 2 tarjetas de crédito Visa activas. ¿Cuál te interesa? Tu tarjeta terminada en "
+                    "9454 tiene 25 movimientos este mes, y tu tarjeta terminada en 3229 tiene 19 "
+                    "movimientos."
                 ),
             ),
             ("which_one",),
@@ -111,29 +105,25 @@ EXPECTED = {
     "haiku-4-5": {
         "cards_pt": (
             "composed",
-            ("Você tem 2 cartões de crédito de crédito e 1 cartão de débito.",),
+            ("Você tem 2 cartões de crédito e 1 cartão de débito. Aqui estão todos com seu status atual.",),
             ("cards",),
         ),
         "case_es": (
             "composed",
             (
                 (
-                    "Tu aclaración CLR-2026-182061 por S/\xa0127.80 está en revisión. El banco te responde "
-                    "dentro de 10 días hábiles. Cuando se resuelva, te diremos el resultado del análisis."
+                    "Tu caso CLR-2026-182061 está en revisión. El banco revisa tu aclaración y te responde "
+                    "dentro de 10 días hábiles."
                 ),
             ),
             ("case",),
         ),
         "case_pt": (
-            "repaired",
+            "composed",
             (
                 (
-                    "Sua contestação CLR-2026-862021 está em análise. O banco analisa contestações dentro do "
-                    "prazo de 8 dias úteis."
-                ),
-                (
-                    "Não tenho informações sobre o que acontece após a análise. O que posso te mostrar é o "
-                    "status atual da sua contestação."
+                    "Seu caso CLR-2026-862021 está em análise desde hoje. O banco analisa a contestação e "
+                    "responde dentro de 8 dias úteis."
                 ),
             ),
             ("case",),
@@ -142,22 +132,24 @@ EXPECTED = {
             "composed",
             (
                 (
-                    "Você tem 13 movimentações em Ipiranga nos últimos dias. A mais recente, de R$\xa0144,77 "
-                    "na loja, está pendente desde 18 de setembro às 20:23 em Curitiba."
+                    "A Ipiranga é um lugar de abastecimento onde você faz compras regulares. Você tem 33 "
+                    "compras lá em nossos registros, com valor típico de R$\xa0238,46."
                 ),
                 (
-                    "É um abastecimento comum para você: você faz aproximadamente 31 compras lá, e esta é "
-                    "menor que o seu valor típico."
+                    "Você tem compras recentes no Ipiranga em nossas bases de dados. Qual delas você "
+                    "gostaria de conferir? Ou, se preferir, posso ver detalhes sobre uma compra específica "
+                    "com a data e o valor que você mencionar."
                 ),
             ),
-            ("movements",),
+            ("history",),
         ),
         "movements_es": (
             "repaired",
             (
                 (
-                    "En ese período tienes 216 movimientos. Aquí están los más recientes: compras en "
-                    "Cineplanet, Tambo+, Starbucks, Starbucks y Cabify, entre muchas otras."
+                    "En los últimos meses tienes 212 movimientos registradas. Las más recientes incluyen una "
+                    "compra en Cineplanet en tienda, una en Tambo+ en tienda, una en Starbucks en tienda, "
+                    "otra en Starbucks en tienda y un viaje con Cabify en la app."
                 ),
             ),
             ("movements",),
@@ -166,19 +158,18 @@ EXPECTED = {
             "composed",
             (
                 (
-                    "Este mes gastaste S/\xa02,091.60 en Primax, que es S/\xa01,142.10 más que en el mes "
-                    "anterior, cuando gastaste S/\xa0949.50."
+                    "Este mes gastaste S/\xa02,091.60 en Primax, mientras que el mes pasado fueron "
+                    "S/\xa0949.50. Esto significa que gastaste S/\xa01,142.10 más que el mes anterior."
                 ),
-                "En el período actual tienes 12 compras registradas en ese comercio.",
             ),
             ("movements",),
         ),
         "spend_pt": (
-            "repaired",
+            "composed",
             (
                 (
-                    "Neste mês você gastou R$\xa01.456,06 no Ipiranga com 5 compras, comparado a "
-                    "R$\xa01.601,37 no mês passado. Você gastou R$\xa0145,31 a menos."
+                    "Este mês no Ipiranga você gastou R$\xa01.456,06, que é R$\xa0145,31 a menos do que no "
+                    "mês passado, quando o total foi R$\xa01.601,37."
                 ),
             ),
             (),
@@ -187,8 +178,9 @@ EXPECTED = {
             "repaired",
             (
                 (
-                    "Tu tarjeta terminada en 9454 tuvo 25 movimientos en el período del 1 al 20 de "
-                    "septiembre. Entre ellos están compras en Plaza Vea, Primax y Cabify."
+                    "Tienes 25 movimientos en tu tarjeta terminada en 9454 en el período del 1 al 20 de "
+                    "septiembre. Aquí ves los últimos: una compra rechazada en Plaza Vea, un cargo pendiente "
+                    "de Primax en Trujillo, y cargos aprobados en transporte y comida."
                 ),
             ),
             ("movements",),
