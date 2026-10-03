@@ -18,7 +18,9 @@ os.environ.update(ENVIRONMENT)
 
 LIVE_BEDROCK = os.environ.get("CLARA_LIVE_BEDROCK") == "1"
 PASSTHROUGH: "DefaultConfig | None" = (
-    {"core": {"passthrough": {"services": ["bedrock-runtime"]}}} if LIVE_BEDROCK else None
+    {"core": {"passthrough": {"urls": [r"https://bedrock-runtime\.[a-z0-9-]+\.amazonaws\.com/.*"]}}}
+    if LIVE_BEDROCK
+    else None
 )
 
 
