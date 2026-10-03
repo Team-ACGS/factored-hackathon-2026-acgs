@@ -148,3 +148,42 @@ def test_latest_room_is_the_most_recent_one(messaging: Messaging) -> None:
 
 def test_latest_room_is_none_for_a_new_customer(messaging: Messaging) -> None:
     assert messaging.latest_room(CUSTOMER) is None
+
+
+def test_a_reply_keeps_its_parts_and_audit_fields_and_publishes_only_the_parts(messaging: Messaging) -> None:
+    question = message(uuid7(), uuid7())
+    messaging.send(question)
+    citation = {"chunk_id": "c1", "title": "Doc", "page": 4, "url": "https://docs.test/doc.pdf#page=4"}
+    say = {"type": "say", "text": "S/ 10.00", "facts": ["f6"], "citations": [citation]}
+    fact = {
+        "id": "f6",
+        "kind": "spend",
+        "fields": {"count": {"type": "count", "value": 3, "noun": "purchase"}},
+    }
+    answer = reply_to(
+        question,
+        "assistant",
+        "S/ 10.00",
+        datetime.now(UTC),
+        parts=(say,),
+        facts=(fact,),
+        draft=({"type": "say", "text": "{f6.total}"},),
+        source="composed",
+    )
+
+    messaging.write(answer)
+
+    stored = messaging.stored(CUSTOMER, answer.message_key)
+    assert stored == answer
+    assert stored.public() == {**answer.public(), "parts": [say]}
+    assert {"facts", "draft", "source"}.isdisjoint(stored.public())
+
+
+def test_a_message_without_parts_publishes_its_text_only(messaging: Messaging) -> None:
+    sent = message(uuid7(), uuid7())
+    messaging.send(sent)
+
+    stored = messaging.stored(CUSTOMER, sent.message_key)
+
+    assert stored is not None
+    assert "parts" not in stored.public()

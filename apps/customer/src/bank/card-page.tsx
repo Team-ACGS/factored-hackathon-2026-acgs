@@ -5,11 +5,11 @@ import { ChevronLeft, Loader2, Search } from "lucide-react";
 import { useState } from "react";
 
 import { FormError } from "../auth/field";
-import { cardLock, claimForTransaction } from "../clara/overlay";
+import { claimForTransaction, isBlocked } from "../clara/overlay";
 import { useClaraSession } from "../clara/store";
 import { useI18n } from "../i18n";
 import { pillButton, textLink } from "./buttons";
-import { materialOf, useLockTime } from "./card-display";
+import { materialOf } from "./card-display";
 import { CardFace, CardUsage } from "./card-face";
 import { cardTypeKey, labelOf } from "./labels";
 import { entriesOf, findTransaction, isPending } from "./ledger";
@@ -32,7 +32,6 @@ export function CardPage({ productId, transactionId }: { productId: string; tran
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const session = useClaraSession();
-  const lockTime = useLockTime();
   const { data: cards } = useSuspenseQuery(bankQueries.cards());
   const ledger = useSuspenseInfiniteQuery(bankQueries.ledger(productId));
   const [filter, setFilter] = useState<MovementFilter>("all");
@@ -43,7 +42,7 @@ export function CardPage({ productId, transactionId }: { productId: string; tran
   const card = ledger.data.pages[0]?.card;
   if (!card) return null;
   const entries = entriesOf(ledger.data);
-  const lock = cardLock(card, session);
+  const blocked = isBlocked(card);
   const filtering = isFiltering(filter, query);
   const visible = entries.filter((entry) => matches(entry, filter, query));
   const today = dayKey(new Date().toISOString());
@@ -80,20 +79,16 @@ export function CardPage({ productId, transactionId }: { productId: string; tran
       </Link>
 
       <section className="grid items-center gap-7 min-[821px]:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
-        <CardFace card={card} material={materialOf(cards, productId)} lock={lock} className="max-w-80 min-[821px]:max-w-none" />
+        <CardFace card={card} material={materialOf(cards, productId)} className="max-w-80 min-[821px]:max-w-none" />
         <div className="grid min-w-0 gap-3.5">
           <h1 className="text-[clamp(28px,4.6vw,36px)] leading-[1.1] font-semibold tracking-tight">{t(cardTypeKey(card))}</h1>
           <span
             className={cn(
               "inline-flex w-fit items-center gap-1.5 text-[13.5px] font-semibold text-ok before:size-2 before:rounded-full before:bg-current",
-              lock.blocked && "text-danger",
+              blocked && "text-danger",
             )}
           >
-            {!lock.blocked
-              ? t("card.active")
-              : lock.since
-                ? t("card.blockedSince", { time: lockTime(lock.since) })
-                : t("card.blocked")}
+            {blocked ? t("card.blocked") : t("card.active")}
           </span>
           <CardUsage card={card} className="max-w-[420px]" />
         </div>

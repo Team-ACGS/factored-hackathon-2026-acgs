@@ -11,8 +11,9 @@ from aws_lambda_powertools.utilities.data_classes.dynamo_db_stream_event import 
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from core.access import customer_session
-from core.messaging import Message, Messaging, reply_to
+from core.messaging import Message, Messaging, reply_key, reply_to
 from core.observability import annotate_origin, logger, metrics, trace_id, tracer
+from core.turn import run_turn
 
 if TYPE_CHECKING:
     from mypy_boto3_events import EventBridgeClient
@@ -54,19 +55,49 @@ def answer(record: DynamoDBRecord) -> None:
         metrics.add_metric(name="TurnsSkippedDelegated", unit=MetricUnit.Count, value=1)
         return
 
-    reply, created = messaging.write(reply_to(message, "assistant", message.text, datetime.now(UTC)))
-    _turn_completed(message, reply)
-    logger.info("turn completed", reply_id=reply.message_id, first_write=created)
+    stored = messaging.stored(message.customer_id, reply_key(message))
+    if stored is not None:
+        _turn_completed(message, stored, {"route": "replayed", "source": stored.source})
+        logger.info("skipped, reply already stored", reply_id=stored.message_id)
+        metrics.add_metric(name="TurnsReplayed", unit=MetricUnit.Count, value=1)
+        return
+
+    messaging.take_turn(message, datetime.now(UTC))
+    try:
+        history = messaging.history(message.customer_id, message.room_id)
+        turn = run_turn(message, history, datetime.now(UTC))
+        answer = turn.reply
+        reply, created = messaging.write(
+            reply_to(
+                message,
+                "assistant",
+                answer.text,
+                datetime.now(UTC),
+                answer.parts,
+                answer.facts,
+                answer.draft,
+                answer.source,
+            )
+        )
+        summary = turn.summary()
+        _turn_completed(message, reply, summary)
+    finally:
+        messaging.release_turn(message)
+    logger.info("turn completed", reply_id=reply.message_id, first_write=created, **summary)
     metrics.add_metric(name="TurnsCompleted", unit=MetricUnit.Count, value=1)
+    metrics.add_metric(name="TurnMilliseconds", unit=MetricUnit.Milliseconds, value=turn.duration_ms)
+    if answer.source == "fallback":
+        metrics.add_metric(name="TurnsFallback", unit=MetricUnit.Count, value=1)
 
 
-def _turn_completed(message: Message, reply: Message) -> None:
+def _turn_completed(message: Message, reply: Message, summary: dict[str, Any]) -> None:
     detail = {
         "customer_id": message.customer_id,
         "room_id": message.room_id,
         "message_id": message.message_id,
         "reply_message_id": reply.message_id,
         "trace_id": trace_id(),
+        **summary,
     }
     response = _events.put_events(
         Entries=[

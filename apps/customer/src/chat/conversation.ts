@@ -1,6 +1,8 @@
 export type SenderType = "customer" | "assistant" | "agent";
 export type Delivery = "pending" | "sent" | "failed";
 
+export const THINKING_CAP_MS = 30_000;
+
 export interface ServerMessage {
   room_id: string;
   message_id: string;
@@ -8,6 +10,19 @@ export interface ServerMessage {
   text: string;
   sent_at: string;
   created_at: string;
+  parts?: unknown;
+}
+
+export interface Citation {
+  chunkId: string;
+  title: string;
+  page: number | null;
+  url: string | null;
+}
+
+export interface Say {
+  text: string;
+  citations: Citation[];
 }
 
 export interface ChatMessage {
@@ -15,6 +30,7 @@ export interface ChatMessage {
   messageId: string;
   senderType: SenderType;
   text: string;
+  says: Say[];
   sentAt: string;
   createdAt: string | null;
   delivery: Delivery;
@@ -48,12 +64,50 @@ export function isServerMessage(value: unknown): value is ServerMessage {
   );
 }
 
+function record(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
+}
+
+function citationOf(value: unknown): Citation | null {
+  const fields = record(value);
+  if (!fields || typeof fields.chunk_id !== "string" || typeof fields.title !== "string") return null;
+  return {
+    chunkId: fields.chunk_id,
+    title: fields.title,
+    page: typeof fields.page === "number" ? fields.page : null,
+    url: typeof fields.url === "string" && fields.url.startsWith("https://") ? fields.url : null,
+  };
+}
+
+export function saysOf(message: Pick<ServerMessage, "text" | "parts">): Say[] {
+  if (!Array.isArray(message.parts)) {
+    return message.text
+      .split(/\n{2,}/)
+      .filter((text) => text.trim() !== "")
+      .map((text) => ({ text, citations: [] }));
+  }
+  return message.parts.flatMap((part): Say[] => {
+    const fields = record(part);
+    if (!fields || fields.type !== "say" || typeof fields.text !== "string") return [];
+    const citations = Array.isArray(fields.citations) ? fields.citations.map(citationOf) : [];
+    return [{ text: fields.text, citations: citations.filter((citation) => citation !== null) }];
+  });
+}
+
+export function thinkingLeft(messages: readonly ChatMessage[], now: number): number {
+  const last = messages.at(-1);
+  if (!last || last.senderType !== "customer" || last.delivery === "failed") return 0;
+  const sent = Date.parse(last.sentAt);
+  return Math.max(0, sent + THINKING_CAP_MS - Math.max(now, sent));
+}
+
 function fromServer(message: ServerMessage): ChatMessage {
   return {
     roomId: message.room_id,
     messageId: message.message_id,
     senderType: message.sender_type,
     text: message.text,
+    says: saysOf(message),
     sentAt: message.sent_at,
     createdAt: message.created_at,
     delivery: "sent",
@@ -87,6 +141,7 @@ export function reduce(state: Conversation, action: Action): Conversation {
             messageId: action.messageId,
             senderType: "customer",
             text: action.text,
+            says: [],
             sentAt: action.sentAt,
             createdAt: null,
             delivery: "pending",

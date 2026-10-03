@@ -73,7 +73,7 @@ variable "policy_min_similarity" {
 }
 
 variable "bedrock_inference_profile_id" {
-  description = "Cross-region inference profile chatbot invokes. Sonnet 5 is only served through a profile, never on demand."
+  description = "Cross-region inference profile chatbot invokes for Claude; the role may invoke the profile and the models it routes to."
   type        = string
 }
 

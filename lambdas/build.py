@@ -9,11 +9,16 @@ ROOT = Path(__file__).parent
 DIST = ROOT / "dist"
 
 
+DEFAULT_PLATFORM = "x86_64-manylinux2014"
+AMAZON_LINUX_2023 = "x86_64-manylinux_2_28"
+
+
 @dataclass(frozen=True)
 class Function:
     project: str
     packages: tuple[str, ...]
     entries: dict[str, str]
+    platform: str = DEFAULT_PLATFORM
 
 
 FUNCTIONS = {
@@ -22,7 +27,9 @@ FUNCTIONS = {
     "chat-notifier": Function(
         "clara-chat-notifier", ("core", "chat_notifier"), {"handler.py": "chat_notifier.handler"}
     ),
-    "chatbot": Function("clara-chatbot", ("core", "chatbot"), {"handler.py": "chatbot.handler"}),
+    "chatbot": Function(
+        "clara-chatbot", ("core", "chatbot"), {"handler.py": "chatbot.handler"}, AMAZON_LINUX_2023
+    ),
     "auth-post-confirmation": Function(
         "clara-auth", ("core", "auth"), {"post_confirmation.py": "auth.post_confirmation"}
     ),
@@ -75,7 +82,7 @@ def build(name: str, function: Function) -> None:
             "--python-version",
             "3.12",
             "--python-platform",
-            "x86_64-manylinux2014",
+            function.platform,
             "--only-binary",
             ":all:",
             "--requirement",

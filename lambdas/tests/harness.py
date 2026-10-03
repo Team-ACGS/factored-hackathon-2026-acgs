@@ -3,6 +3,7 @@ import secrets
 import time
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 import boto3
@@ -39,6 +40,7 @@ ENVIRONMENT = {
     "STAFF_POOL_ID": STAFF_POOL_ID,
     "EVENT_BUS_NAME": "clara-test",
     "EVENT_SOURCE": "clara.chatbot",
+    "BEDROCK_MODEL_ID": "us.anthropic.claude-sonnet-4-6",
     "REALTIME_HTTP_URL": "https://realtime.test/event",
     "REALTIME_NAMESPACE": "rooms",
 }
@@ -138,3 +140,43 @@ class Aws:
 
     def message_items(self) -> list[dict[str, Any]]:
         return self.messages.scan()["Items"]
+
+
+@dataclass(frozen=True)
+class DemoAccount:
+    customer_id: str
+    country: str
+    cards: list[dict[str, Any]]
+    transactions: list[dict[str, Any]]
+    claim: dict[str, Any] | None
+
+
+def demo_account(
+    aws: Aws,
+    customer_id: str,
+    country: str,
+    language: str,
+    anchor: datetime,
+    given_name: str | None = "Ana",
+) -> DemoAccount:
+    from crud.catalog import COUNTRIES
+    from crud.generator import Claim, generate
+
+    account = generate(Claim(customer_id, COUNTRIES[country], anchor))
+    customer: dict[str, Any] = {
+        "customer_id": customer_id,
+        "email": f"{customer_id}@example.com",
+        "created_at": "2026-01-01T00:00:00.000Z",
+        "country": country,
+        "language": language,
+    }
+    if given_name:
+        customer["given_name"] = given_name
+    aws.customers.put_item(Item=customer)
+    for card in account.cards:
+        aws.products.put_item(Item=card)
+    for item in account.transactions:
+        aws.transactions.put_item(Item=item)
+    if account.claim:
+        aws.complaints.put_item(Item=account.claim)
+    return DemoAccount(customer_id, country, account.cards, account.transactions, account.claim)

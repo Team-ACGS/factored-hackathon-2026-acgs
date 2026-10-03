@@ -1,7 +1,6 @@
 import { formatMoney } from "../bank/format";
 import type { Transaction } from "../bank/types";
 import type { Locale, Translate } from "../i18n/locale";
-import type { Input } from "./chat/state";
 
 export type TopicCharge = Pick<
   Transaction,
@@ -38,20 +37,5 @@ export function topicMessage(topic: Topic, t: Translate, locale: Locale): string
       });
     case "text":
       return topic.text;
-  }
-}
-
-export function topicInput(topic: Topic): Input {
-  switch (topic.kind) {
-    case "unrecognized":
-      return { type: "flow", flow: "unrecognized" };
-    case "cards":
-      return { type: "flow", flow: "cards" };
-    case "claim":
-      return { type: "claims", claimId: topic.claim_id };
-    case "charge":
-      return { type: "charge", productId: topic.charge.product_id, transactionId: topic.charge.transaction_id };
-    case "text":
-      return { type: "text", text: topic.text };
   }
 }
