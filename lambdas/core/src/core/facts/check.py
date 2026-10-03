@@ -40,6 +40,13 @@ DIGITS = re.compile(r"\d+")
 NOUN_LINKS = frozenset({"de", "do", "da", "of"})
 WORD_BEFORE = re.compile(r"(?<!\w)(\w+)\s+$")
 CONTEXT_CHARS = 30
+NOTHING = re.compile(r"(?!)")
+MISSING_PREPOSITION = {
+    "pt-BR": re.compile(
+        r"(?<!sobre )(?<!Sobre )\b[Qq]ua(?:l|is) (?:delas|deles|dessas|desses) (?:você|voce) "
+        r"(?:quer|gostaria de) saber\b"
+    ),
+}
 DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
 
@@ -98,34 +105,39 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
     text, periods = _drop_prepositions(text, ledger, (Period,), PERIOD_PREPOSITIONS[locale])
     text, dates = _drop_prepositions(text, ledger, (Day, Instant), DATE_PREPOSITIONS[locale])
     text, dashes = DASH.subn(", ", text)
+    text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
     edits = {
         "number_word": numbers,
         "doubled_noun": nouns,
         "period_preposition": periods,
         "date_preposition": dates,
         "dash": dashes,
+        "grammar": grammar,
     }
     return text, {kind: count for kind, count in edits.items() if count}
 
 
+def _with_preposition(match: re.Match[str]) -> str:
+    asked = match.group(0)
+    return ("Sobre q" if asked[0] == "Q" else "sobre q") + asked[1:]
+
+
 def _counts_as_references(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
-    counts = [
-        (f"{{{fact.id}.{name}}}", value)
-        for fact in ledger.facts.values()
-        for name, value in fact.fields.items()
-        if isinstance(value, Count) and value.value > 1
-    ]
+    by_noun: dict[str, list[tuple[str, Count]]] = {}
+    for fact in ledger.facts.values():
+        for name, value in fact.fields.items():
+            if isinstance(value, Count):
+                by_noun.setdefault(value.noun, []).append((f"{{{fact.id}.{name}}}", value))
+    only = {noun: found[0] for noun, found in by_noun.items() if len(found) == 1}
     folded = fold(text)
     swaps = []
     for match in number_words(locale).finditer(folded):
         number = NUMBER_VALUES[locale].get(match.group(0))
-        for reference, count in counts:
-            if count.value != number:
-                continue
-            noun = fold(NOUNS.get(count.noun, {}).get(locale, ("", ""))[1])
-            following = re.compile(r"\s+" + r"\s+".join(map(re.escape, noun.split())) + r"(?!\w)")
-            after = following.match(folded, match.end()) if noun else None
-            if after:
+        for noun, (reference, count) in only.items():
+            plural = fold(NOUNS.get(noun, {}).get(locale, ("", ""))[1])
+            following = re.compile(r"\s+" + r"\s+".join(map(re.escape, plural.split())) + r"(?!\w)")
+            after = following.match(folded, match.end()) if plural else None
+            if after and count.value == number:
                 swaps.append((match.start(), after.end(), reference))
                 break
     for start, end, reference in reversed(swaps):

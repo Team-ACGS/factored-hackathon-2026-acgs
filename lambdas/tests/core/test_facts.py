@@ -844,6 +844,30 @@ def test_a_number_word_naming_a_counted_noun_becomes_its_reference() -> None:
     assert tidy("Tienes cuatro tarjetas.", book, "es") == ("Tienes cuatro tarjetas.", {})
 
 
+def test_a_portuguese_question_about_one_of_several_gets_its_preposition() -> None:
+    book = ledger()
+
+    assert tidy("Qual delas você quer saber mais?", book, "pt-BR") == (
+        "Sobre qual delas você quer saber mais?",
+        {"grammar": 1},
+    )
+    assert tidy("Sobre qual delas você quer saber mais?", book, "pt-BR") == (
+        "Sobre qual delas você quer saber mais?",
+        {},
+    )
+    assert tidy("Qual delas você quer entender melhor?", book, "pt-BR")[1] == {}
+
+
+def test_a_number_word_stays_for_the_check_when_several_counts_share_its_noun() -> None:
+    book = ledger()
+    book.add("movements", {"count": Count(2, "movement")})
+    book.add("movements", {"count": Count(5, "movement")})
+
+    text = "Encontré dos movimientos."
+    assert tidy(text, book, "es") == (text, {})
+    assert [error.code for error in check([Say(text)], book, "es")] == ["number_word_outside_reference"]
+
+
 def test_a_preposition_before_a_date_reference_is_dropped_in_spanish_and_portuguese() -> None:
     book = ledger()
     book.add("day", {"date": Day(date(2026, 9, 18))})
