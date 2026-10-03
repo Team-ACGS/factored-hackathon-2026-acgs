@@ -392,7 +392,7 @@ source: 0019_open_mode_graph
 
 ## 2026-10-03: the open-mode turn is a LangGraph graph that must call a tool every step
 
-- Decision: `core.graphs.open_mode` runs `supervisor` (Sonnet 4.6 through `langchain-aws` Converse, effort low, `tool_choice` any, and `reply` forced on the last step or once the tool budget is spent), `tools` (our own node, calls one at a time), `facts_check` (one repair), `fallback` (templates from the facts the tools read, says only) and `finalize`; budgets are 4 steps, 8 tool calls, 12 s with each Bedrock call's read timeout taken from the time left and one retry on throttling, and 40,000 input tokens per turn; any exception inside the graph ends in the fallback and is counted as `TurnsCrashed`.
+- Decision: `core.graphs.open_mode` runs `supervisor` (the selected model profile through `langchain-aws` Converse, `tool_choice` any, and `reply` forced on the last step or once the tool budget is spent), `tools` (our own node, calls one at a time), `facts_check` (one repair), `fallback` (templates from the facts the tools read, says only) and `finalize`; budgets are 4 steps, 8 tool calls, 12 s with each Bedrock call's read timeout taken from the time left and one retry on throttling, and 40,000 input tokens per turn; any exception inside the graph ends in the fallback and is counted as `TurnsCrashed`.
 - Alternatives rejected: LangGraph's `ToolNode` (parallel calls on threads, and the `core.access` cache is not thread safe); free text as the answer (the parts would have to be parsed); letting an exception retry the record (four paid runs, then the DLQ and a frozen chat).
 - Reason: every step ends in a tool call, so the answer arrives typed and checkable, and every path, including a crash, ends in a reply.
 - Debt created: the input cap comes from four demo turns (9.6k to 10.2k tokens, worst 19.7k with a repair).
@@ -410,9 +410,9 @@ source: 0019_open_mode_graph
 
 ## 2026-10-03: the prompt caches one prefix, and recorded turns freeze every request
 
-- Decision: the request is ordered tool schemas (fixed order), the fixed system prompt in `core/graphs/system.md`, one `cachePoint`, then the turn's context (name, locale, today, cards, last 3 exchanges); the four demo turns of the real model are recorded in `lambdas/tests/core/recordings/`, and a replay test asserts the same rendered answer and byte-identical requests.
+- Decision: the request is ordered tool schemas (fixed order), the profile's versioned system prompt (`core/graphs/prompts/system.v2.md`), one `cachePoint`, then the turn's context (name, locale, today, cards, last 3 exchanges); the four demo turns are recorded from the real model per profile in `lambdas/tests/core/recordings/<profile key>/`, and a replay test over every declared profile asserts the same rendered answer and byte-identical requests, failing for a profile without recordings.
 - Alternatives rejected: a second cache point at the end of the messages (it would cache within a turn but put volatile content before a point); scripted responses only (they cannot show what the real model does with the prompt).
-- Reason: the 3.6k-token prefix is read from the cache on every call, and any prompt or schema change shows up as a failing replay that forces a new recording.
+- Reason: on Sonnet 4.6 the 3.6k-token prefix is read from the cache on every call; Haiku 4.5 needs 4,096 tokens before the point, so it caches nothing and its row says so; any prompt or schema change shows up as a failing replay that forces a new recording.
 - Debt created: none.
 - Revisit when: a turn regularly takes more than two steps, where the second cache point pays.
 - Source: 0019_open_mode_graph
@@ -433,4 +433,13 @@ source: 0019_open_mode_graph
 - Reason: `/var/task` is read-only, so without shipped bytecode every cold start compiles langchain, langgraph, pydantic and botocore.
 - Debt created: none.
 - Revisit when: the unzipped bundle (187 MB) nears 250 MB, or cold starts on `prd` exceed the target.
+- Source: 0019_open_mode_graph
+
+## 2026-10-03: the model is a profile row selected by the inference profile id
+
+- Decision: `core/graphs/profiles.toml` (versioned) holds one row per model, keyed by the Bedrock inference profile id: name, prompt file, max output, effort and thinking, the cache minimum prefix, and prices per million tokens (input, output, cache read, cache write) with source and date; `bedrock_inference_profile_id` in Terraform stays the single selector and reaches `chatbot` as `BEDROCK_MODEL_ID`, which resolves its row at import, so an id without a row fails the cold start; the graph and tools receive the profile, never a model id; `turn.completed` carries the model, the prompt version and the turn's cost. Rows: Sonnet 4.6 (default, effort low) and Haiku 4.5 (no effort parameter; its 4,096-token cache minimum is above the prefix). Both use `system.v2`; neither needs a variant.
+- Alternatives rejected: a model constant in code; a default row for unknown ids (a typo would run a model nobody priced); prices from list rates (the `us.` profiles are billed at the regional cross-region rate, 10% above global).
+- Reason: adding a model is adding a row and recording its demo turns, and every turn's cost is known from the same table.
+- Debt created: prices are read by hand from the AWS Price List API on 2026-10-03.
+- Revisit when: AWS changes Bedrock prices, or a row's model changes its options.
 - Source: 0019_open_mode_graph

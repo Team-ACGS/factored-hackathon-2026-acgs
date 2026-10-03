@@ -1,7 +1,6 @@
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from importlib.resources import files
 from typing import Any
 
 from core.answers import SAY_KEYS
@@ -34,8 +33,9 @@ DESCRIPTIONS = {
     "merchant_history": "How the customer usually buys at one merchant over the last 1 to 3 months: count, "
     "first and last date, typical amount.",
     "spend_summary": "Total spent (approved and pending purchases) in a period, optionally at one merchant "
-    "or on one card, and optionally compared with a second period: `total`, `compare_total`, `delta` "
-    "(absolute) and `direction`. Use it for any 'how much did I spend' question; never add amounts "
+    "or on one card, and optionally compared with a second period in the same call (`compare_period`): "
+    "`total`, `compare_total`, `delta` (absolute) and `direction`. "
+    "Use it for any 'how much did I spend' question; never add amounts "
     "yourself. Periods are ISO dates in the customer's timezone; 'this month' runs from the first day of "
     "the month to today, 'last month' is the whole previous month.",
     "recurring_charges": "Charges that repeat monthly or weekly (subscriptions) on the customer's cards.",
@@ -61,8 +61,6 @@ SAY_KEY_DESCRIPTION = (
     "category. no_statements: they ask for a statement or an export. no_payments: they ask about "
     "payments, minimum payment, due dates or debt."
 )
-
-SYSTEM = files("core.graphs").joinpath("system.md").read_text(encoding="utf-8").strip()
 
 
 def schema(model_schema: Mapping[str, Any]) -> dict[str, Any]:

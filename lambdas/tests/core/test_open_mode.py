@@ -14,7 +14,8 @@ from core.countries import zone
 from core.facts.render import format_money
 from core.graphs import open_mode
 from core.graphs.open_mode import INPUT_TOKEN_CAP, MAX_STEPS, MAX_TOOL_CALLS, TURN_SECONDS
-from core.graphs.prompt import CONTEXT_FIELDS, SYSTEM
+from core.graphs.profiles import profiles
+from core.graphs.prompt import CONTEXT_FIELDS
 from core.messaging import Message, customer_message
 from core.policies import chunk_id, policy_facts
 from core.retrieval import NON_FILTERABLE, ChunkRecord, PolicySearch, VectorRetriever
@@ -28,6 +29,7 @@ THIS_MONTH = {"from": "2026-09-01", "to": "2026-09-20"}
 LAST_MONTH = {"from": "2026-08-01", "to": "2026-08-31"}
 PRIMAX = {"merchant": "Primax", "period": THIS_MONTH, "compare_period": LAST_MONTH}
 SPEND = "f6"
+DEFAULT = profiles()[0]
 CHUNK = chunk_id("pe-dispute-lifecycle", 2, policy_facts()["PE"].version, 3, 1)
 
 
@@ -57,7 +59,7 @@ def says(text: str) -> Message:
 def turn(
     model: FakeConverse, text: str = "¿Cuánto gasté en Primax este mes vs el pasado?", **options: Any
 ) -> Turn:
-    return run_turn(says(text), [], NOW, clients=model.client, **options)
+    return run_turn(says(text), [], NOW, profile=DEFAULT, clients=model.client, **options)
 
 
 def spent(account: DemoAccount, start: str, end: str) -> Decimal:
@@ -301,7 +303,7 @@ def test_nothing_volatile_sits_before_the_cache_point(aws: Aws) -> None:
     turn(first)
     sent = NOW + timedelta(days=3)
     message = customer_message(other, uuid7(), uuid7(int(sent.timestamp() * 1000)), "oi", sent)
-    run_turn(message, [], sent + timedelta(seconds=1), clients=second.client)
+    run_turn(message, [], sent + timedelta(seconds=1), profile=DEFAULT, clients=second.client)
 
     prefixes = {_cached_prefix(request) for request in first.requests + second.requests}
     assert len(prefixes) == 1
@@ -312,7 +314,7 @@ def test_nothing_volatile_sits_before_the_cache_point(aws: Aws) -> None:
     for request in first.requests + second.requests:
         system = request["system"]
         assert [list(block) for block in system] == [["text"], ["cachePoint"], ["text"]]
-        assert system[0]["text"] == SYSTEM
+        assert system[0]["text"] == DEFAULT.system_prompt
 
 
 def _cached_prefix(request: dict[str, Any]) -> str:
@@ -353,7 +355,7 @@ def test_the_last_three_exchanges_are_in_the_context(account: DemoAccount) -> No
     message = customer_message(CUSTOMER, room, uuid7(int(NOW.timestamp() * 1000)), "y ahora?", NOW)
     model = FakeConverse([reply("Listo.")])
 
-    run_turn(message, [*history, message], NOW, clients=model.client)
+    run_turn(message, [*history, message], NOW, profile=DEFAULT, clients=model.client)
 
     context = json.loads(model.requests[0]["system"][2]["text"].split("\n", 2)[2])
     assert [entry["text"] for entry in context["exchanges"]] == [f"pregunta {index}" for index in range(2, 8)]

@@ -20,7 +20,8 @@ from core.answers import SayKey
 from core.facts import Part, Say, check, fallback
 from core.facts.values import Ledger
 from core.graphs.model import Clients, bedrock_clients, chat_model
-from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, SYSTEM, Context, tool_result, tool_specs
+from core.graphs.profiles import ModelProfile, profile_for
+from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, Context, tool_result, tool_specs
 from core.observability import logger, metrics
 from core.replies import Reply, Source, compose
 from core.tools import TOOLS, ToolContext, call
@@ -85,9 +86,9 @@ class OpenModeRun:
     context: Context
     ledger: Ledger
     tools: ToolContext
+    profile: ModelProfile
     clients: Clients = bedrock_clients
     clock: Callable[[], float] = time.monotonic
-    model_id: str | None = None
     started: float = 0.0
     model_steps: int = 0
     tool_calls: int = 0
@@ -101,7 +102,8 @@ class OpenModeRun:
         return TURN_SECONDS - (self.clock() - self.started)
 
     def system(self) -> SystemMessage:
-        return SystemMessage(content=[{"type": "text", "text": SYSTEM}, CACHE_POINT, self.context.block()])
+        prompt = {"type": "text", "text": self.profile.system_prompt}
+        return SystemMessage(content=[prompt, CACHE_POINT, self.context.block()])
 
 
 class State(TypedDict, total=False):
@@ -238,13 +240,15 @@ def _exhausted(run: OpenModeRun) -> Exhausted | None:
 
 
 @cache
-def _bound(client: "BedrockRuntimeClient", model_id: str | None, forced: bool) -> Runnable[Any, BaseMessage]:
-    return chat_model(client, model_id).bind_tools(tool_specs(), tool_choice=REPLY if forced else "any")
+def _bound(client: "BedrockRuntimeClient", model_id: str, forced: bool) -> Runnable[Any, BaseMessage]:
+    return chat_model(client, profile_for(model_id)).bind_tools(
+        tool_specs(), tool_choice=REPLY if forced else "any"
+    )
 
 
 def _invoke(run: OpenModeRun, messages: list[BaseMessage], forced: bool) -> AIMessage:
     for attempt in range(MODEL_ATTEMPTS):
-        model = _bound(run.clients(run.remaining()), run.model_id, forced)
+        model = _bound(run.clients(run.remaining()), run.profile.id, forced)
         try:
             message = model.invoke([run.system(), *messages])
         except ClientError as error:

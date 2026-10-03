@@ -48,7 +48,7 @@ The design sessions behind these entries are summarized in `docs/tasks/_drafts/a
 - Revisit when: measured cost or latency per turn is too high (move extraction to Haiku 4.5).
 - Source: setup
 - Amended by: 0013_policy_search, 2026-10-01: embeddings are the one exception, with Cohere Embed Multilingual v3 for `search_policies` (entry of that date).
-- Amended by: 0019_open_mode_graph, 2026-10-03: Sonnet 4.6 instead of Sonnet 5, which this account cannot invoke (applied quota of 0 tokens per minute, liftable only through AWS Sales); moving back is one `apply` of `bedrock_inference_profile_id`.
+- Amended by: 0019_open_mode_graph, 2026-10-03: Sonnet 4.6 instead of Sonnet 5, which this account cannot invoke (applied quota of 0 tokens per minute, liftable only through AWS Sales); the model is a row of `lambdas/core/src/core/graphs/profiles.toml` (Sonnet 4.6 default, Haiku 4.5) selected by `bedrock_inference_profile_id`, so changing it is one `apply` of a recorded row.
 
 ## 2026-09-27: Infra and delivery follow the auvral pattern
 
@@ -132,6 +132,7 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-09-29 | A failed background refetch after an add or a setup is silent (a focus refetch can briefly hide an add in flight; cards can stay empty after setup) | when a customer reports a missing row or card |
 | assistant | 2026-10-03 | The input token cap (40,000 per turn) comes from four demo turns | when C measures turns at scale |
 | assistant | 2026-10-03 | A "not me" or "lost card" answers with the bank's phone, not the block ask | when B4 turns a floor hit into the `block_card` ask |
+| assistant | 2026-10-03 | Model prices in `profiles.toml` are copied by hand from the AWS Price List API | when AWS changes Bedrock prices |
 | assistant | 2026-10-03 | The Clara button counts every high-score charge (no reviewed list) | when B4 asks about a flagged charge in the chat |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |

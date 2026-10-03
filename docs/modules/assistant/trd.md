@@ -22,7 +22,8 @@ The story path (asks, rules, writes, handoff) is the B4 design in `docs/tasks/_d
 ## The turn: budgets, latency and packaging
 
 - Budgets of `open_mode`: 4 supervisor steps (the last one must call `reply`), 8 tool calls, 12 s per turn with every Bedrock call bounded by the time left, and 40,000 cumulative input tokens; a check failure gets one repair, then the template from what the tools read; any exception inside the graph ends in that template too.
-- Measured locally against Sonnet 4.6 on 2026-10-03 (four demo turns, es and pt-BR, moto accounts): 4.7 s to 7.2 s per turn, two model calls of 2.2 s to 3.9 s each, about 10k input tokens per turn of which 7.2k read from the cache; the cached prefix (tool schemas and the fixed prompt) is 3.6k tokens.
+- Models: rows of `core/graphs/profiles.toml`, selected by `BEDROCK_MODEL_ID`; prompt `prompts/system.v2.md`.
+- Measured locally on 2026-10-03 (four demo turns, es and pt-BR, moto accounts, `system.v2`): Sonnet 4.6, 4.9 s to 9.1 s per turn, $0.014 to $0.023, 7.4k of about 10k input tokens read from the cache, every answer composed on the first try; Haiku 4.5, 3.5 s to 5.1 s, $0.012 to $0.018, nothing cached (prefix under its 4,096 minimum), one repair (a month name), weaker wording ("dentro 10 días hábiles").
 - `chatbot` bundle: 187 MB unzipped, 59 MB zipped (deployed through S3), built for Amazon Linux 2023 wheels with precompiled bytecode; the graph's imports add 0.6 s to 0.7 s of init locally; 2048 MB.
 - Cold and warm latency of the real turn on `prd`: measured after the merge (task notes).
 
@@ -46,7 +47,7 @@ Jobs and listeners: `chatbot` consumes the `messages` stream, only inserts with 
 - DynamoDB tables `customers`, `products`, `transactions` (PK `customer_id`), read and written through `role-customer` via STS AssumeRole with a `customer_id` session tag; `crud` setup seeds them per demo customer, a seed from the dataset is not built.
 - DynamoDB table `complaints` (PK `customer_id`, GSI by area and priority): this table is the case record, historical and new; this module reads it through Q5 and writes to it only through the `A2 create complaint` and `A3 withdraw complaint` tools, which call the cases module's write code inside the shared `lambdas/core` package (the same code path `lambdas/crud` uses), never another lambda.
 - models: the injection detector and intent router (multilingual e5 + logistic regression), loaded as versioned S3 artifacts; serving is not in `infra/` yet.
-- Bedrock Claude Sonnet 4.6 (`us.anthropic.claude-sonnet-4-6` inference profile, effort low, Converse through `langchain-aws`) as the graph's supervisor, and Cohere Embed v4 (`cohere.embed-v4:0`, 1024 dimensions) only to embed `search_policies` queries; no Titan, Grok or Haiku unless a measured need is shown.
+- Bedrock Claude Sonnet 4.6 (`us.anthropic.claude-sonnet-4-6`, the default profile row) or another row of `profiles.toml`, Converse through `langchain-aws`, as the graph's supervisor, and Cohere Embed v4 (`cohere.embed-v4:0`, 1024 dimensions) only to embed `search_policies` queries; no Titan, Grok or Haiku unless a measured need is shown.
 - messaging: the reply is written as an ordinary message (`sender_type = assistant`) through the messaging code in `lambdas/core`, assuming `role-customer` with the stream record's `customer_id`; `chat-notifier` pushes it. On handoff the room is marked delegated and Clara stays silent.
 - Observability: every lambda uses AWS Lambda Powertools for Python (Logger, Metrics, Tracer); the block-card and create-complaint writes are idempotent through conditional writes on deterministic ids; CloudWatch Logs (structured JSON) and EMF metrics in namespaces `Clara/Backend` and `Clara/Assistant`; X-Ray active tracing, and `chatbot` annotates each record with the message's `origin_trace_id` (messaging `trd.md`, Latency and tracing).
 - EventBridge bus `clara-prd`: `lambdas/chatbot` calls PutEvents once at the end of every turn with ids and a `trace_id` only, never message text; events flow through Firehose to S3. Analysis of these events and the offline LLM judge are deferred.
@@ -60,7 +61,7 @@ Jobs and listeners: `chatbot` consumes the `messages` stream, only inserts with 
 
 ## Configuration
 
-- `chatbot`: `EVENT_BUS_NAME` (`clara-prd`) and `EVENT_SOURCE` (`clara.chatbot`) for `turn.completed`, `ROLE_CUSTOMER_ARN`, the table names, `BEDROCK_MODEL_ID` (the inference profile id), and for `search_policies` `POLICY_INDEX_ARN`, `POLICY_EMBEDDING_MODEL_ID`, `POLICY_DOCS_DOMAIN` and `POLICY_MIN_SIMILARITY`, a JSON map of one cut per document language (`es`, `pt`, `en`), validated by Terraform and by the code (set in `infra/environments/prd/locals.tf`, tuned by `tune-policies`).
+- `chatbot`: `EVENT_BUS_NAME` (`clara-prd`) and `EVENT_SOURCE` (`clara.chatbot`) for `turn.completed`, `ROLE_CUSTOMER_ARN`, the table names, `BEDROCK_MODEL_ID` (the inference profile id; it must have a row in `profiles.toml`), and for `search_policies` `POLICY_INDEX_ARN`, `POLICY_EMBEDDING_MODEL_ID`, `POLICY_DOCS_DOMAIN` and `POLICY_MIN_SIMILARITY`, a JSON map of one cut per document language (`es`, `pt`, `en`), validated by Terraform and by the code (set in `infra/environments/prd/locals.tf`, tuned by `tune-policies`).
 - `crud`: `ROLE_CUSTOMER_ARN`, the pool ids and the table names from Terraform's request environment.
 - `apps/customer`: the `VITE_` variables of the `customer-prd` Actions environment, baked in at build time.
 - Metrics namespace `Clara/Assistant` (and the shared `Clara/Backend`) for EMF metrics.

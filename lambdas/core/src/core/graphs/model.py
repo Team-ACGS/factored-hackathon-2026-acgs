@@ -1,5 +1,4 @@
 import math
-import os
 from collections.abc import Callable
 from functools import cache
 from typing import TYPE_CHECKING, Any
@@ -8,11 +7,11 @@ import boto3
 from botocore.config import Config
 from langchain_aws import ChatBedrockConverse
 
+from core.graphs.profiles import ModelProfile
+
 if TYPE_CHECKING:
     from mypy_boto3_bedrock_runtime import BedrockRuntimeClient
 
-MAX_OUTPUT_TOKENS = 1024
-EFFORT = "low"
 CONNECT_SECONDS = 1.0
 
 Clients = Callable[[float], "BedrockRuntimeClient"]
@@ -36,13 +35,14 @@ def bedrock_clients(remaining: float) -> "BedrockRuntimeClient":
     return deadline_client(read_seconds(remaining))
 
 
-def chat_model(client: "BedrockRuntimeClient", model_id: str | None = None) -> ChatBedrockConverse:
+def chat_model(client: "BedrockRuntimeClient", profile: ModelProfile) -> ChatBedrockConverse:
     options: dict[str, Any] = {
-        "model": model_id or os.environ["BEDROCK_MODEL_ID"],
+        "model": profile.id,
         "client": client,
         "bedrock_client": client,
         "provider": "anthropic",
-        "max_tokens": MAX_OUTPUT_TOKENS,
-        "additional_model_request_fields": {"output_config": {"effort": EFFORT}},
+        "max_tokens": profile.max_output_tokens,
     }
+    if profile.request_fields():
+        options["additional_model_request_fields"] = profile.request_fields()
     return ChatBedrockConverse(**options)

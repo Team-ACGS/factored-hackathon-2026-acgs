@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import boto3
 import pytest
@@ -84,6 +85,8 @@ def test_the_turn_event_carries_ids_and_measures_and_never_the_text(
     assert detail["message_id"] == message.message_id
     assert detail["reply_message_id"] == str(successor(uuid.UUID(message.message_id)))
     assert detail["route"] == "open_mode"
+    assert (detail["model"], detail["prompt"]) == ("us.anthropic.claude-sonnet-4-6", "system.v2")
+    assert Decimal(detail["cost_usd"]) > 0
     assert detail["steps"] == 1
     assert detail["check"] == {"result": "pass", "errors": []}
     assert set(detail["tokens"]) == {"input_tokens", "output_tokens", "cache_read", "cache_write"}

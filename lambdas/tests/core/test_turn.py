@@ -6,6 +6,7 @@ import pytest
 from clara_testing.converse import FakeConverse
 from core.answers import REFUSALS
 from core.facts.fallback import TEMPLATES
+from core.graphs.profiles import profiles
 from core.messaging import customer_message
 from core.turn import run_turn
 from harness import Aws, demo_account, uuid7
@@ -54,7 +55,7 @@ def test_a_floor_hit_answers_with_the_safety_template_of_the_country_without_the
     model = FakeConverse([])
     message = customer_message(CUSTOMER, uuid7(), uuid7(int(NOW.timestamp() * 1000)), text, NOW)
 
-    result = run_turn(message, [], NOW, clients=model.client)
+    result = run_turn(message, [], NOW, profile=profiles()[0], clients=model.client)
 
     assert result.reply.text == expected
     assert result.reply.source == "safety"
@@ -69,7 +70,7 @@ def test_a_customer_without_a_finished_setup_gets_the_unavailable_answer(aws: Aw
     model = FakeConverse([])
     message = customer_message(CUSTOMER, uuid7(), uuid7(int(NOW.timestamp() * 1000)), "hola", NOW)
 
-    result = run_turn(message, [], NOW, clients=model.client)
+    result = run_turn(message, [], NOW, profile=profiles()[0], clients=model.client)
 
     assert result.reply.source == "fallback"
     assert model.requests == []
