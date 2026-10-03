@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-03
-source: 0019_open_mode_graph
+source: 0020_rich_parts
 ---
 
 # assistant: architecture and debt
@@ -305,6 +305,7 @@ source: 0019_open_mode_graph
 - Revisit when: the measured check failure rate (C) points at a word list.
 - Source: 0012_data_tools
 - Amended by: 0019_open_mode_graph, 2026-10-03: a stored say carries `citations` as objects (`chunk_id`, `title`, `page`, `url`) filled by code from the ledger.
+- Amended by: 0020_rich_parts, 2026-10-03: the model names view items and ask options by fact id; code resolves them to entity ids on the wire (2026-10-03 entry below).
 
 ## 2026-10-01: a charge is found across the customer's cards with a bounded BatchGetItem
 
@@ -443,3 +444,66 @@ source: 0019_open_mode_graph
 - Debt created: prices are read by hand from the AWS Price List API on 2026-10-03.
 - Revisit when: AWS changes Bedrock prices, or a row's model changes its options.
 - Source: 0019_open_mode_graph
+
+## 2026-10-03: views and asks are named by fact id and resolved to entities by code
+
+- Decision: the `reply` tool takes one `view` and one `ask`, each `{type, facts}`. `core.facts.targets` says which facts fit which view (movements, cards, card, movement, charge, history, case) and which facts can be options; it resolves them to `product_id` and `transaction_id` (the card of every row read is kept in the ledger, so histories, series and similar charges carry it) or `complaint_id`. `core.replies` renders Clara's readings (a charge's explanation, reasons and habit, a history's count and typical amount, a list's count and period) and the option labels in the customer's locale; the reads behind each option stay in the private `draft`.
+- Alternatives rejected: entity ids from the model (it would copy ids it never read); the client computing readings from rows (two sources of truth for one sentence).
+- Reason: the model never handles an id or a value, and the client renders bank rows plus readings the server already checked.
+- Debt created: none.
+- Revisit when: B4 adds write asks.
+- Source: 0020_rich_parts
+
+## 2026-10-03: only read-only asks exist, and a tap is resolved from Clara's latest message
+
+- Decision: `core.rules.allowed_asks` allows `which_one` (two to five charges or cards, all of one kind, never fewer than the search matched) and `show` (the rows behind a spend, a case's charge or a card, never next to a view), and neither right after a tap of the same kind; write asks cannot be produced. A tap carries `{ask_id, option}`: it is valid only when `ask_id` is Clara's latest message and the option is in its stored ask; the turn then runs the option's stored read by code and the model answers from it. Anything else is free text.
+- Alternatives rejected: a separate `propose_action` step (the ask travels inside `reply` and is checked with it); the open ask copied onto `rooms` (a second copy of what the message already holds).
+- Reason: the ask mechanism and its bar exist and are tested before anything can write (B4).
+- Debt created: none.
+- Revisit when: B4 adds `block_card`, `open_claim` and `talk_to_person`.
+- Source: 0020_rich_parts
+
+## 2026-10-03: the model is shown five rows of a search and told how many it was not
+
+- Decision: a tool result shows at most five movement rows; when more matched, it carries `rows_shown`, `rows_not_shown` (against the full match count) and a note. Two check rules hold the line: `unseen_rows_claim` ("todas feitas", "all of them" when a search matched more than five) and `ask_options_partial` (a `which_one` over some of more matching charges). A tap's context uses the same cut.
+- Alternatives rejected: sending all 25 rows (18k input tokens and slow turns); the prompt alone (Sonnet generalized over unseen rows on every run).
+- Reason: the view lists every row; the prose speaks only of what was read.
+- Debt created: `unseen_rows_claim` knows listed phrasings of "all" only.
+- Revisit when: C finds generalizations the list misses.
+- Source: 0020_rich_parts
+
+## 2026-10-03: code tidies a reply before the check, and counts every edit
+
+- Decision: before the check, `tidy` drops a noun doubled after a count (the whole noun tail, "de crédito"), turns a number word into a count's reference when exactly one count carries that noun and value, drops prepositions before a date or period reference, replaces em and en dashes, moves a citation written after its period into the sentence, and adds "Sobre" to the pt-BR "qual delas ... quer saber". `turn.completed` carries the edits per kind in `check.tidied`.
+- Alternatives rejected: a repair per slip (2 to 4 s each, and the repaired draft can slip again); silent rewrites (the repair rate would read cleaner than the model is); dropping a `show` sent with a view (tried: the prose kept offering it).
+- Reason: these slips have one right fix that changes no value, and the check still runs on the result.
+- Debt created: the patterns are lists per locale; a new slip needs a new pattern.
+- Revisit when: C measures `check.tidied` at scale.
+- Source: 0020_rich_parts
+
+## 2026-10-03: dates carry their article, comparisons their preposition, and promise talk is a speech rule
+
+- Decision: a standalone date renders "el 27 de septiembre" / "em 27 de setembro" (not inside periods, and not after a preposition the model wrote), times "a las 21:38" / "às 20:23"; pt-BR `direction` renders "a mais" / "a menos"; channels read "por internet" / "pela internet"; a rendered sentence starts with a capital; the cards fact counts cards by type. The check adds `promise_talk` (promises and remarks on what Clara cannot tell) and catches sentences about the money's fate and refund nouns under `money_promise`.
+- Alternatives rejected: leaving them to the prompt (B1's prd session and the recordings showed each one).
+- Reason: wording the code renders is wording the code can make right in three languages.
+- Debt created: none.
+- Revisit when: a fourth locale is added.
+- Source: 0020_rich_parts
+
+## 2026-10-03: Clara's panel is restored as 0011 designed it, over the bank's cache
+
+- Decision: the chat has two columns again: the panel shows the latest view (or one reopened by a "Ver ..." reference), its figure docks while content shows and an ask is open and shrinks to a dot while she reads, the status shows in the panel head and the conversation, and on a phone the panel is a drawer that opens on a new view or ask. Views read rows from the cached ledger pages before any GET, and cases from `/crud/cases`; drill-down is client-side. "Cómo lo sé" shows only the cited documents, deduplicated by title and page.
+- Alternatives rejected: one column with inline cards (the 0011 design is the bar); the client deriving claims (removed with `clara/claims.ts` and `clara/seeded.ts`).
+- Reason: Clara's answers show the bank's own data as the bank shows it, with nothing the client invents.
+- Debt created: none.
+- Revisit when: B4 restores the story views.
+- Source: 0020_rich_parts
+
+## 2026-10-03: the bank's phone reaches the client through the profile
+
+- Decision: `GET /crud/profile` returns `bank_phone`, the country's `channels.phone` from `policy_facts.toml`, and Help shows it; the client's fixed phone is gone.
+- Alternatives rejected: a phone per country in the client (a second source the documents and the safety template do not share).
+- Reason: one source for every phone the customer reads.
+- Debt created: none.
+- Revisit when: the bank offers more than one line per country.
+- Source: 0020_rich_parts

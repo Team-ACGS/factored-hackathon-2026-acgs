@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-03
-source: 0019_open_mode_graph
+source: 0020_rich_parts
 ---
 
 # assistant: database
@@ -18,9 +18,9 @@ Status: `customers`, `products` and `transactions` are written and read by `crud
 | Table | Owner module | Relationship |
 |---|---|---|
 | `customers`, `products`, `transactions` (PK `customer_id`) | seeded per demo customer by `crud` setup (profile on `customers`, cards, transactions); `infra/` defines the tables and identity owns the IAM roles that gate them | `crud` writes them for the customer app; the tools read them only through the `core` read models, with credentials scoped to one `customer_id` |
-| `complaints` (PK `customer_id`, GSI by area and priority) | cases | The case record; `case_status` reads it through `core.cases`; `crud` setup writes the seeded claim through the same module |
+| `complaints` (PK `customer_id`, GSI by area and priority) | cases | The case record; `case_status` reads it and `crud` serves it to the customer (`GET /crud/cases`), both through `core.cases`; `crud` setup writes the seeded claim through the same module |
 | S3 Vectors index `policies` (one vector per document excerpt) | data (`build-policies`) | `search_policies` queries it with the country as a filter; the excerpt's text, lineage and figures come back in the vector metadata, so no bucket is read |
-| `rooms` / `messages` | messaging | Triggered by new customer messages on the `messages` stream; reads the room to skip one delegated to a human, takes and clears the room's turn mark, reads the 6 messages before the one it answers, and writes its reply (with `parts`, `facts`, `draft`, `source`) through the messaging code in `lambdas/core`, the only writer of `messages` |
+| `rooms` / `messages` | messaging | Triggered by new customer messages on the `messages` stream; reads the room to skip one delegated to a human, takes and clears the room's turn mark and sets its status per tool round, reads the 6 messages before the one it answers (the open ask is Clara's latest message there), and writes its reply (with `parts`, `facts`, `draft`, `source`) through the messaging code in `lambdas/core`, the only writer of `messages` |
 
 ## Invariants kept in code
 
@@ -37,6 +37,7 @@ Status: `customers`, `products` and `transactions` are written and read by `crud
 - A ref the customer does not own is `not_found`, never an error that tells it exists.
 - A tool returns facts only; a value the model may say is a renderable fact read from a table or the merchant lexicon, never a raw tool argument echoed back.
 - Tools never read the clock: customer, country, language and now come from the caller's context.
+- A reply's public `parts` carry entity ids and Clara's readings rendered by code, never facts; the reads behind each ask option live only in the stored `draft`, and a tap is resolved from it, never from the client's text.
 - Every write carries an idempotency key so a retry cannot block a card or open a case twice (`docs/product/02-technical-flows.md`, "Writes with confirmation and read-back").
 - A card already `Blocked` is never blocked again; the engine opens a case and hands off instead (`hackathon/docs/domain/triage.md`).
 

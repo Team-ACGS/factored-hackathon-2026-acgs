@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-03
-source: 0019_open_mode_graph
+source: 0020_rich_parts
 ---
 
 # Architecture and Debt Record
@@ -134,6 +134,8 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-10-03 | A "not me" or "lost card" answers with the bank's phone, not the block ask | when B4 turns a floor hit into the `block_card` ask |
 | assistant | 2026-10-03 | Model prices in `profiles.toml` are copied by hand from the AWS Price List API | when AWS changes Bedrock prices |
 | assistant | 2026-10-03 | The Clara button counts every high-score charge (no reviewed list) | when B4 asks about a flagged charge in the chat |
+| assistant | 2026-10-03 | `unseen_rows_claim` knows listed phrasings of "all" only | when C finds generalizations the list misses |
+| assistant | 2026-10-03 | The tidy patterns before the check are lists per locale | when C measures `check.tidied` at scale |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |
 | identity | 2026-09-29 | The credentials cache of `core.access` and its resources are not thread safe | when a handler runs work on threads |

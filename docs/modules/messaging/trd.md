@@ -1,11 +1,11 @@
 ---
 updated: 2026-10-03
-source: 0019_open_mode_graph
+source: 0020_rich_parts
 ---
 
 # Messaging: technical
 
-Status: built for customers (task 0003); agent sending comes with the support app. The customer chat talks to it through `apps/customer/src/chat/live.ts` (task 0019); Clara's replies carry `parts`.
+Status: built for customers (task 0003); agent sending comes with the support app. The customer chat talks to it through `apps/customer/src/chat/live.ts` (task 0019); Clara's replies carry `parts`, taps carry `input`, and `chatbot` publishes status events (task 0020).
 
 ## Structure
 
@@ -13,15 +13,17 @@ Status: built for customers (task 0003); agent sending comes with the support ap
 |---|---|
 | `lambdas/messages` | API lambda behind `/messages/*`. Accepts only `customers` pool tokens (403 otherwise) and assumes `role-customer` tagged with the token's `sub`. |
 | `lambdas/chat_notifier` | Consumer of the `messages` stream (inserts): publishes each new message to its room's AppSync Events channel. It can read the stream and publish, nothing else. |
-| `core.messaging` in `lambdas/core` | The only code that writes `messages` and `rooms`: validates ids and text, derives reply ids, conditional writes, the room's turn mark, and the bounded read of the messages before a given one. |
-| AppSync Events API `clara-prd` | Namespace `rooms`, one channel per room: `/rooms/{customer_id}/{room_id}`. Publishing is IAM only (SigV4 from `chat-notifier`). Subscribing takes a Cognito token; the namespace's `onSubscribe` handler (`infra/stacks/backend/handlers/rooms.js`) rejects a customer whose `sub` differs from the `customer_id` segment and lets staff tokens through; the customer app subscribes to `/rooms/{sub}/*`. |
+| `core.messaging` in `lambdas/core` | The only code that writes `messages` and `rooms`: validates ids, text and a tap's `input`, derives reply ids, conditional writes, the room's turn mark and its status, and the bounded read of the messages before a given one. |
+| `core.realtime` in `lambdas/core` | The one AppSync Events publisher (SigV4 with the caller's own role), used by `chat-notifier` (5 s, default retries) and `chatbot` (0.5 s, no retries). |
+| AppSync Events API `clara-prd` | Namespace `rooms`, one channel per room: `/rooms/{customer_id}/{room_id}`. Publishing is IAM only (SigV4 from `chat-notifier` for messages and `chatbot` for status events). Subscribing takes a Cognito token; the namespace's `onSubscribe` handler (`infra/stacks/backend/handlers/rooms.js`) rejects a customer whose `sub` differs from the `customer_id` segment and lets staff tokens through; the customer app subscribes to `/rooms/{sub}/*`. |
 
 ## Endpoints owned
 
-- `POST /messages`: send a message with a client-minted `room_id` and `message_id`; creates the room with the first message; 201 when stored, 200 with the stored message on a retry, 400 when the id is more than 2 minutes from server time or the text is empty or over 2000 characters.
-- `GET /messages/rooms/latest`: the customer's latest room, its whole history in order, and `server_time` for the client clock.
+- `POST /messages`: send a message with a client-minted `room_id` and `message_id`, and for a tap an `input` with exactly `ask_id` (a UUIDv7) and `option` (1 to 80 characters), stored and never returned; creates the room with the first message; 201 when stored, 200 with the stored message on a retry, 400 when the id is more than 2 minutes from server time, the text is empty or over 2000 characters, or `input` has another shape.
+- `GET /messages/rooms/latest`: the customer's latest room, its whole history in order, the turn in progress (`turn`: `message_id` and its latest `status`, while the mark is fresh) and `server_time` for the client clock.
 
-A message's public shape adds `parts` when Clara wrote it (`say` parts with their citations); `facts`, `draft` and `source` stay on the item and are never returned or published.
+A message's public shape adds `parts` when Clara wrote it (`say` with its citations, `view` with entity ids and readings, `ask` with options); `facts`, `draft`, `source` and `input` stay on the item and are never returned or published.
+A status event on the room's channel is `{type: "status", id: "<message_id>#<round>", room_id, message_id, round, status}`, where `status` is a key (`cards`, `movements`, `cases`, `memory`, `policies`) the client maps to text.
 
 No generated API spec yet.
 
@@ -46,7 +48,7 @@ Jobs and listeners:
 ## Configuration
 
 - `messages`: `TABLE_ROOMS`, `TABLE_MESSAGES`, `ROLE_CUSTOMER_ARN`, `CUSTOMERS_POOL_ID`, `STAFF_POOL_ID`.
-- `chat-notifier`: `REALTIME_HTTP_URL`, `REALTIME_NAMESPACE`.
+- `chat-notifier` and `chatbot`: `REALTIME_HTTP_URL`, `REALTIME_NAMESPACE`.
 
 ## Latency and tracing
 
@@ -65,5 +67,5 @@ Only the id travels, never text.
 ## Testing
 
 - `lambdas/tests/` on moto: `core/test_messaging.py`, `messages/`, `chat_notifier/`, and `test_round_trip.py`, which sends through the API, replays the stream into `chatbot` and `chat-notifier`, and checks retries, order and the absence of a loop.
-- `apps/customer/src/chat/*.test.ts`: the conversation reducer (pending, sent, dedupe by `message_id`), the API retries and the clock.
+- `apps/customer/src/chat/*.test.ts`: the conversation reducer (pending, sent, dedupe by `message_id`, statuses dropped after the reply or 30 s without news, a tap's input kept for retry), the API retries and the clock.
 - Commands: `docs/TRD.md`, Verification targets.

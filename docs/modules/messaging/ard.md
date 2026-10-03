@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-03
-source: 0019_open_mode_graph
+source: 0020_rich_parts
 ---
 
 # Messaging: architecture decisions and debt
@@ -141,3 +141,30 @@ Status: built for customers (task 0003).
 - Debt created: none.
 - Revisit when: a second writer of Clara's messages appears (the watcher, B5).
 - Source: 0019_open_mode_graph
+
+## 2026-10-03: what Clara is checking travels as ephemeral status events, and its latest key on the turn mark
+
+- Decision: per tool round `chatbot` sets `turn_status` on the room (only while it holds the mark) and then publishes one event to the room's channel with its own role, keyed by the round's first tool family, id `<message_id>#<round>`; the publish has a 0.5 s budget and no retries, and neither step can fail or delay the turn beyond it. `GET /messages/rooms/latest` returns the fresh mark as `turn`. The client shows the latest round's key, drops it when the reply arrives or 30 s pass without news, and ignores a status for any message but the latest customer one.
+- Alternatives rejected: status as messages (stored and filtered forever); a client guess from the send time alone (B1's 30 s window, which a reload could not correct).
+- Reason: the customer sees what Clara reads while she reads it, a reload shows the same, and nothing is left to clean up.
+- Debt created: none.
+- Revisit when: the turn streams its `say` (each round would then also carry text).
+- Source: 0020_rich_parts
+
+## 2026-10-03: one AppSync publisher in core
+
+- Decision: `core.realtime.Publisher` signs with the caller's own credentials and takes a total timeout and retry policy; `chat-notifier` keeps 5 s with urllib3's retries, `chatbot` uses 0.5 s without. `chatbot` gains `realtime_publish` and the realtime env.
+- Alternatives rejected: a second publisher in `chatbot`; publishing status through `chat-notifier` (it only sees stored messages).
+- Reason: one signer and one wire shape for every event on a room's channel.
+- Debt created: none.
+- Revisit when: a third publisher appears.
+- Source: 0020_rich_parts
+
+## 2026-10-03: a tap is an ordinary message with a validated `input`
+
+- Decision: `POST /messages` accepts `input` with exactly `ask_id` (UUIDv7) and `option` (1 to 80 characters), stores it on the message and never returns or publishes it; the API stays send and latest room only, and the turn decides whether the tap is still valid.
+- Alternatives rejected: an endpoint per action; validating the ask in the API (it would read the room's history on every send).
+- Reason: every input is a message, so the turn stays the only reader of asks and the transcript shows what the customer chose.
+- Debt created: none.
+- Revisit when: B4 adds confirmations that write.
+- Source: 0020_rich_parts
