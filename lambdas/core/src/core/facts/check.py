@@ -40,6 +40,7 @@ DIGITS = re.compile(r"\d+")
 NOUN_LINKS = frozenset({"de", "do", "da", "of"})
 WORD_BEFORE = re.compile(r"(?<!\w)(\w+)\s+$")
 CONTEXT_CHARS = 30
+CITATION_AFTER_END = re.compile(r"\s*([.!?])\s*(\[p:[^\[\]\s]+\])")
 NOTHING = re.compile(r"(?!)")
 MISSING_PREPOSITION = {
     "pt-BR": re.compile(
@@ -100,6 +101,7 @@ def check(
 
 
 def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
+    text, citations = CITATION_AFTER_END.subn(r" \2\1", text)
     text, numbers = _counts_as_references(text, ledger, locale)
     text, nouns = _drop_doubled_nouns(text, ledger, locale)
     text, periods = _drop_prepositions(text, ledger, (Period,), PERIOD_PREPOSITIONS[locale])
@@ -113,6 +115,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
         "date_preposition": dates,
         "dash": dashes,
         "grammar": grammar,
+        "citation_placement": citations,
     }
     return text, {kind: count for kind, count in edits.items() if count}
 

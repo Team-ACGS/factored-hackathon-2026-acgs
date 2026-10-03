@@ -844,6 +844,21 @@ def test_a_number_word_naming_a_counted_noun_becomes_its_reference() -> None:
     assert tidy("Tienes cuatro tarjetas.", book, "es") == ("Tienes cuatro tarjetas.", {})
 
 
+def test_a_citation_written_after_the_period_moves_into_its_sentence() -> None:
+    book = with_chunk(ledger())
+    text = "La revisión toma {p1.figures.claims.review_time}. [p:pe-dispute-lifecycle-v1-f1-s3-c2] Listo."
+
+    fixed, edits = tidy(text, book, "es")
+
+    assert (
+        fixed
+        == "La revisión toma {p1.figures.claims.review_time} [p:pe-dispute-lifecycle-v1-f1-s3-c2]. Listo."
+    )
+    assert edits == {"citation_placement": 1}
+    assert check([Say(fixed)], book, "es") == []
+    assert [error.code for error in check([Say(text)], book, "es")] == ["uncited_policy_reference"]
+
+
 def test_a_portuguese_question_about_one_of_several_gets_its_preposition() -> None:
     book = ledger()
 
@@ -886,3 +901,15 @@ def test_a_rendered_sentence_starts_with_a_capital() -> None:
     [said] = render([Say("{f1.period} gastaste poco. ¿todo bien? sí.")], book, "es")
 
     assert said["text"] == "Del 1 al 30 de septiembre gastaste poco. ¿todo bien? Sí."
+
+
+def test_a_comparison_direction_reads_with_its_preposition_in_portuguese() -> None:
+    book = ledger()
+    book.add("spend", {"delta": Money(Decimal("145.31"), "BRL"), "direction": Label("direction", "less")})
+
+    assert render_text("Você gastou {f1.delta} {f1.direction} do que no mês passado.", book, "pt-BR") == (
+        f"Você gastou R${NB}145,31 a menos do que no mês passado."
+    )
+    assert render_text("Gastaste {f1.delta} {f1.direction} que el mes pasado.", book, "es") == (
+        f"Gastaste {format_money(Decimal('145.31'), 'BRL', 'es')} menos que el mes pasado."
+    )

@@ -233,8 +233,8 @@ LABELS: dict[str, dict[str, dict[str, str]]] = {
         "weekly": {"es": "semanal", "pt-BR": "semanal", "en": "weekly"},
     },
     "direction": {
-        "more": {"es": "más", "pt-BR": "mais", "en": "more"},
-        "less": {"es": "menos", "pt-BR": "menos", "en": "less"},
+        "more": {"es": "más", "pt-BR": "a mais", "en": "more"},
+        "less": {"es": "menos", "pt-BR": "a menos", "en": "less"},
         "same": {"es": "lo mismo", "pt-BR": "o mesmo", "en": "the same"},
     },
     "counted": {

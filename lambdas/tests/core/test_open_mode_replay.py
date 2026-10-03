@@ -13,17 +13,23 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
     "sonnet-4-6": {
         "cards_pt": (
             "composed",
-            ("Você tem 3 cartões, sendo 2 cartões de crédito e 1 cartão de débito. Todos estão ativos.",),
+            (
+                (
+                    "Você tem 3 cartões: 2 cartões de crédito e 1 cartão de débito. Seu cartão final 2338 e "
+                    "seu cartão final 6913 são de crédito, e seu cartão final 3530 é de débito. Todos estão "
+                    "ativos."
+                ),
+            ),
             ("cards",),
         ),
         "case_es": (
             "composed",
             (
                 (
-                    "Tu aclaración CLR-2026-182061 sobre un cargo de S/\xa0127.80 en Primax con tu tarjeta "
-                    "terminada en 4141 está actualmente en revisión desde hoy."
+                    "Tu aclaración CLR-2026-182061 sobre el cargo de S/\xa0127.80 en Primax está en revisión "
+                    "desde hoy."
                 ),
-                "El banco revisa la aclaración y responde dentro de 10 días hábiles.",
+                "El banco revisa tu aclaración y responde en un plazo de 10 días hábiles.",
             ),
             ("case",),
         ),
@@ -31,10 +37,10 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Sua contestação CLR-2026-862021, referente à cobrança de R$\xa0197,26 em Pão de Açúcar "
-                    "no seu cartão final 6400, está com o estágio em análise desde hoje."
+                    "Sua contestação CLR-2026-862021, referente à cobrança de R$\xa0197,26 em Pão de Açúcar, "
+                    "está em análise desde hoje."
                 ),
-                "O banco analisa a contestação em até 8 dias úteis.",
+                "O banco analisa a contestação em até 8 dias úteis após o início da análise.",
             ),
             ("case",),
         ),
@@ -42,10 +48,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "repaired",
             (
                 (
-                    "Encontrei 13 movimentações de Ipiranga de 22 de agosto a 20 de setembro. A mais recente "
-                    "foi em 18 de setembro às 20:23 no valor de R$\xa0144,77 com status pendente, feita na "
-                    "loja em Curitiba. Você quer saber mais sobre alguma em específico? Me informe a data ou "
-                    "o valor."
+                    "Há 13 movimentações de Ipiranga no período de 22 de agosto a 20 de setembro. Sobre qual "
+                    "delas você quer saber mais? Me informe a data ou o valor para eu identificar a certa."
                 ),
             ),
             ("movements",),
@@ -55,9 +59,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             (
                 (
                     "Encontré 216 movimientos en ese período. Los más recientes incluyen un cargo en "
-                    "Cineplanet con tu tarjeta terminada en 9739, uno en Tambo+ con tu tarjeta terminada en "
-                    "9739, y compras en Starbucks con tu tarjeta terminada en 6720 y tu tarjeta terminada en "
-                    "5073."
+                    "Cineplanet ayer a las 20:26, uno en Tambo+ ayer a las 15:21 y compras en Starbucks y "
+                    "Starbucks ayer a las 10:11."
                 ),
             ),
             ("movements",),
@@ -66,10 +69,10 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Este mes llevas S/\xa02,091.60 en Primax, S/\xa01,142.10 más que el mes pasado cuando "
-                    "gastaste S/\xa0949.50."
+                    "Este mes llevas S/\xa02,091.60 en Primax, S/\xa01,142.10 más que el mes pasado, cuando "
+                    "gastaste S/\xa0949.50. En total tienes 18 movimientos en el período del 1 de agosto al "
+                    "20 de septiembre."
                 ),
-                "En total hay 18 movimientos en el período del 1 de agosto al 20 de septiembre.",
             ),
             ("movements",),
         ),
@@ -77,10 +80,10 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Este mês você gastou R$\xa01.456,06 no Ipiranga, um valor menos em R$\xa0145,31 "
-                    "comparado com o mês passado, quando o total foi R$\xa01.601,37."
+                    "Este mês você gastou R$\xa01.456,06 no Ipiranga, com 5 compras. No mês passado o total "
+                    "foi R$\xa01.601,37."
                 ),
-                "Ao todo foram 14 movimentações no período de 1 de agosto a 20 de setembro.",
+                "Você gastou R$\xa0145,31 a menos do que no mês passado.",
             ),
             ("movements",),
         ),
@@ -88,10 +91,9 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    'Tienes 61 movimientos este mes en tus tarjetas, pero noto que mencionas tu "Visa": '
-                    "cuéntame, ¿te refieres a tu tarjeta de crédito terminada en 9454 o a tu tarjeta de "
-                    "crédito terminada en 3229? También tienes una tarjeta de débito terminada en 1898 si "
-                    "fuera esa."
+                    "Tienes 61 movimientos este mes en tus tarjetas. Noto que tienes 2 tarjetas de crédito: "
+                    "tu tarjeta terminada en 9454 y tu tarjeta terminada en 3229. ¿Sobre cuál quieres ver "
+                    "los movimientos?"
                 ),
             ),
             ("which_one",),
@@ -100,15 +102,20 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
     "haiku-4-5": {
         "cards_pt": (
             "composed",
-            ("Você tem 3 cartões: 2 cartões de crédito e 1 cartão de débito. Todos estão ativos.",),
+            (
+                (
+                    "Você tem 3 cartões: 2 cartões de crédito e 1 cartão de débito. Seus cartões de crédito "
+                    "são final 2338 e final 6913, e o de débito é final 3530. Todos estão ativo."
+                ),
+            ),
             ("cards",),
         ),
         "case_es": (
             "composed",
             (
                 (
-                    "Tu caso CLR-2026-182061 sobre el cargo de S/\xa0127.80 en Primax está en revisión. El "
-                    "banco revisa tu aclaración y te responde dentro de 10 días hábiles."
+                    "Tu aclaración CLR-2026-182061 está en revisión. El banco te responde dentro de 10 días "
+                    "hábiles."
                 ),
             ),
             ("case",),
@@ -117,31 +124,32 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Sua contestação do débito de R$\xa0197,26 em Pão de Açúcar no seu cartão final 6400 "
-                    "está em análise. O banco analisa a contestação e responde dentro do prazo de 8 dias "
-                    "úteis."
+                    "Sua contestação CLR-2026-862021 está em análise. O banco analisa a sua contestação e "
+                    "responde dentro 8 dias úteis."
                 ),
             ),
             ("case",),
         ),
         "charge_pt": (
-            "repaired",
+            "composed",
             (
                 (
-                    "São cobranças no Ipiranga, um posto de combustível. Você tem 33 compras dessas compras "
-                    "nos últimos meses, com um valor típico de R$\xa0238,46. Qual é a data ou o valor da "
-                    "cobrança que você quer entender?"
+                    "São cobranças de combustível na Ipiranga, um posto de gasolina. Você tem 33 compras "
+                    "nesse lugar de 21 de junho a 20 de setembro, com valor típico de R$\xa0238,46."
+                ),
+                (
+                    "As mais recentes foram em 18 de setembro às 20:23, em 16 de setembro às 21:35 e em 16 "
+                    "de setembro às 14:43. Quer ver mais detalhes sobre alguma delas?"
                 ),
             ),
-            ("movements",),
+            ("history",),
         ),
         "movements_es": (
             "repaired",
             (
                 (
-                    "En ese período tienes 216 movimientos. Aquí están las más recientes: Cineplanet por "
-                    "S/\xa055.90, Tambo+ por S/\xa015.60, Starbucks por S/\xa014.10, Starbucks por "
-                    "S/\xa027.90 y Cabify por S/\xa041.70."
+                    "Tienes 216 movimientos en este período. Las más recientes incluyen compras en "
+                    "Cineplanet, Tambo+, Starbucks y Cabify."
                 ),
             ),
             ("movements",),
@@ -150,10 +158,9 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Este mes gastaste S/\xa02,091.60 en Primax, mientras que el mes pasado gastaste "
-                    "S/\xa0949.50, es decir S/\xa01,142.10 más."
+                    "Este mes gastaste S/\xa02,091.60 en Primax, S/\xa01,142.10 más que el mes pasado cuando "
+                    "gastaste S/\xa0949.50."
                 ),
-                "He encontrado 18 movimientos en Primax durante este período.",
             ),
             ("movements",),
         ),
@@ -161,10 +168,9 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Este mês você gastou R$\xa01.456,06 no Ipiranga, enquanto no mês passado gastou "
-                    "R$\xa01.601,37. Você gastou R$\xa0145,31 a menos este mês."
+                    "Você gastou R$\xa0145,31 a menos no Ipiranga este mês em relação ao mês passado. Este "
+                    "mês foram 5 compras, totalizando R$\xa01.456,06."
                 ),
-                "Você fez 5 compras neste período.",
             ),
             ("movements",),
         ),
@@ -172,10 +178,9 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "repaired",
             (
                 (
-                    "Tu tarjeta terminada en 9454 tiene 25 movimientos del 1 al 20 de septiembre. Aquí ves "
-                    "los más recientes: una compra rechazada el 17 de septiembre a las 20:20 en Plaza Vea, "
-                    "un pago pendiente el 17 de septiembre a las 17:49 en Primax, y compras aprobadas en "
-                    "Cabify y Rappi."
+                    "Tu tarjeta terminada en 9454 tuvo 25 movimientos del 1 al 20 de septiembre. Aquí están "
+                    "los más recientes: una compra en Plaza Vea que fue rechazada, una en Primax que está "
+                    "pendiente, y otras aprobadas en Cabify y Rappi."
                 ),
             ),
             ("movements",),
