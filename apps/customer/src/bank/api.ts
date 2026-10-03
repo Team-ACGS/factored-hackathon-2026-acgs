@@ -1,5 +1,5 @@
 import type { Http } from "../api/http";
-import type { Card, CardPage, Country, NewTransaction, Profile, Setup, Transaction } from "./types";
+import type { Card, CardPage, Case, Country, NewTransaction, Profile, Setup, Transaction } from "./types";
 import type { Locale } from "../i18n/locale";
 
 export function createBankApi(http: Http) {
@@ -16,6 +16,10 @@ export function createBankApi(http: Http) {
 
     async cards(): Promise<Card[]> {
       return ((await http.request("GET", "/crud/cards")) as { cards: Card[] }).cards;
+    },
+
+    async cases(): Promise<Case[]> {
+      return ((await http.request("GET", "/crud/cases")) as { cases: Case[] }).cases;
     },
 
     async card(productId: string, cursor: string | null = null): Promise<CardPage> {

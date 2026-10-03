@@ -5,7 +5,10 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from core.countries import zone
 from core.facts.catalog import (
+    ARTICLE_DROPPED_AFTER,
+    CLOCK_AT,
     COUNTRY_NAMES,
+    DATE_ARTICLE,
     DECIMAL_COMMA_COUNTRIES,
     LABELS,
     LAST4,
@@ -49,6 +52,7 @@ from core.facts.values import (
 
 REFERENCE = re.compile(r"\{([fp]\d+)\.([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\}")
 CITATION = re.compile(r"\[p:([^\[\]\s]+)\]")
+PREVIOUS_WORD = re.compile(r"(\w+)\s+$")
 
 
 class TraceOnly(ValueError):
@@ -74,40 +78,42 @@ def format_money(amount: Decimal, currency: str, locale: str) -> str:
     return f"{sign}{symbol}{gap}{number}"
 
 
-def format_date(day: date, ledger: Ledger, locale: str, relative: bool = True) -> str:
+def format_date(day: date, ledger: Ledger, locale: str, standalone: bool = True, article: bool = True) -> str:
     today = ledger.today
-    if relative and day == today:
+    if standalone and day == today:
         return RELATIVE_DAYS[locale][0]
-    if relative and day == today - timedelta(days=1):
+    if standalone and day == today - timedelta(days=1):
         return RELATIVE_DAYS[locale][1]
     month = MONTHS[locale][day.month - 1]
     if locale == "en":
         text = f"{month} {day.day}"
         return text if day.year == today.year else f"{text}, {day.year}"
     text = f"{day.day} de {month}"
-    return text if day.year == today.year else f"{text} de {day.year}"
+    text = text if day.year == today.year else f"{text} de {day.year}"
+    return DATE_ARTICLE[locale] + text if standalone and article else text
 
 
-def format_datetime(instant: datetime, ledger: Ledger, locale: str) -> str:
+def format_datetime(instant: datetime, ledger: Ledger, locale: str, article: bool = True) -> str:
     local = instant.astimezone(zone(ledger.country))
     if locale == "en":
         clock = f"{(local.hour - 1) % 12 + 1}:{local.minute:02d} {'AM' if local.hour < 12 else 'PM'}"
     else:
         clock = f"{local.hour:02d}:{local.minute:02d}"
-    return f"{format_date(local.date(), ledger, locale)}, {clock}"
+    at = CLOCK_AT[locale][0 if local.hour == 1 else 1]
+    return f"{format_date(local.date(), ledger, locale, article=article)} {at} {clock}"
 
 
 def format_period(start: date, end: date, ledger: Ledger, locale: str) -> str:
     if start == end:
-        return format_date(start, ledger, locale, relative=False)
+        return format_date(start, ledger, locale, standalone=False)
     same_month = (start.year, start.month) == (end.year, end.month)
-    last = format_date(end, ledger, locale, relative=False)
+    last = format_date(end, ledger, locale, standalone=False)
     if locale == "en":
         if same_month:
             month, _, rest = last.partition(" ")
             return f"{month} {start.day} to {rest}"
-        return f"{format_date(start, ledger, locale, relative=False)} to {last}"
-    first = str(start.day) if same_month else format_date(start, ledger, locale, relative=False)
+        return f"{format_date(start, ledger, locale, standalone=False)} to {last}"
+    first = str(start.day) if same_month else format_date(start, ledger, locale, standalone=False)
     if locale == "es":
         return f"del {first} al {last}"
     return f"de {first} a {last}"
@@ -146,14 +152,14 @@ def label(domain: str, value: str, locale: str) -> str:
     return LABELS.get(domain, {}).get(value, {}).get(locale, value)
 
 
-def render_value(value: Value, ledger: Ledger, locale: str) -> str:
+def render_value(value: Value, ledger: Ledger, locale: str, article: bool = True) -> str:
     match value:
         case Money(amount, currency):
             return format_money(amount, currency, locale)
         case Day(day):
-            return format_date(day, ledger, locale)
+            return format_date(day, ledger, locale, article=article)
         case Instant(instant):
-            return format_datetime(instant, ledger, locale)
+            return format_datetime(instant, ledger, locale, article=article)
         case Period(start, end):
             return format_period(start, end, ledger, locale)
         case Count(count, noun):
@@ -192,7 +198,9 @@ def render_text(text: str, ledger: Ledger, locale: str) -> str:
         value = resolve(ledger, match.group(1), match.group(2))
         if value is None:
             raise KeyError(match.group(0))
-        return render_value(value, ledger, locale)
+        before = PREVIOUS_WORD.search(match.string, 0, match.start())
+        article = before is None or before.group(1).lower() not in ARTICLE_DROPPED_AFTER[locale]
+        return render_value(value, ledger, locale, article)
 
     without_citations = re.sub(r"\s*" + CITATION.pattern, "", text)
     return REFERENCE.sub(replace, without_citations)

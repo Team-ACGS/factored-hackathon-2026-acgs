@@ -29,6 +29,10 @@ DEMO = {
     "case_es": ("PE", "es", "¿cuándo me devuelven la plata de mi aclaración?"),
     "spend_pt": ("BR", "pt-BR", "Quanto gastei no Ipiranga este mês comparado com o mês passado?"),
     "case_pt": ("BR", "pt-BR", "quando vou receber o dinheiro da minha contestação?"),
+    "movements_es": ("PE", "es", "transacciones de los últimos 2 meses"),
+    "visa_es": ("PE", "es", "movimientos de mi Visa de septiembre"),
+    "cards_pt": ("BR", "pt-BR", "quais são os meus cartões?"),
+    "charge_pt": ("BR", "pt-BR", "o que é essa cobrança do Ipiranga?"),
 }
 
 

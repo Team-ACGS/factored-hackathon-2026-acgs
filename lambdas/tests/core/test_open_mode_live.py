@@ -41,12 +41,15 @@ def write_transcript(folder: Path, name: str, question: str, result: Turn) -> No
         "",
         f"Clara ({summary['source']}, {summary['duration_ms']} ms):",
         "",
-        *[f"> {part['text']}" for part in result.reply.parts],
+        *[
+            f"> {part['text']}" if part["type"] == "say" else f"[{json.dumps(part, ensure_ascii=False)}]"
+            for part in result.reply.parts
+        ],
         "",
         "```json",
         json.dumps(
             {
-                "citations": [c for part in result.reply.parts for c in part["citations"]],
+                "citations": [c for part in result.reply.parts for c in part.get("citations", [])],
                 "draft": list(result.reply.draft),
                 **summary,
             },
@@ -91,3 +94,38 @@ def test_a_case_question_states_the_case_and_cites_the_bank_s_process(
     kinds = {fact["kind"] for fact in result.reply.facts}
     assert {"case", "policy_chunk"} <= kinds
     assert any(part["citations"] for part in result.reply.parts)
+
+
+def parts_of(result: Turn, kind: str) -> list[dict[str, Any]]:
+    return [part for part in result.reply.parts if part["type"] == kind]
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["movements_es", "visa_es"])
+def test_a_long_movements_question_is_composed_with_the_movements_view_or_a_choice(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, name, profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    views = [part["view"] for part in parts_of(result, "view")]
+    asks = [part["ask"] for part in parts_of(result, "ask")]
+    assert views == ["movements"] or asks == ["which_one"]
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+def test_a_cards_question_shows_the_cards_view(aws: Aws, profile: ModelProfile) -> None:
+    result, _ = live_turn(aws, "cards_pt", profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    assert [part["view"] for part in parts_of(result, "view")] == ["cards"]
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+def test_a_single_charge_question_shows_a_charge_or_asks_which_one(aws: Aws, profile: ModelProfile) -> None:
+    result, _ = live_turn(aws, "charge_pt", profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    views = [part["view"] for part in parts_of(result, "view")]
+    asks = [part["ask"] for part in parts_of(result, "ask")]
+    assert set(views) & {"charge", "movement", "movements"} or asks == ["which_one"]

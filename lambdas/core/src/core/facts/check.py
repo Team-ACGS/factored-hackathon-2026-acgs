@@ -6,6 +6,7 @@ from functools import cache
 
 from core.facts.catalog import (
     CARDINALS,
+    COUNT_NOUNS,
     DATE_HOMONYMS,
     DATE_WORDS,
     FORBIDDEN,
@@ -13,12 +14,14 @@ from core.facts.catalog import (
     MONTHS,
     NUMBER_HOMONYMS,
     ORDINALS,
+    PERIOD_PREPOSITIONS,
     WEEKDAYS,
 )
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.parts import Ask, Part, Say, View
 from core.facts.render import CITATION, REFERENCE, is_renderable, render_value, resolve
-from core.facts.values import Channel, Count, Json, Ledger, Money, Percent, Url
+from core.facts.targets import Unfit, ask_options, view_items
+from core.facts.values import Channel, Count, Json, Ledger, Money, Percent, Period, Url
 
 POLICY_FIGURES = (Count, Money, Percent, Channel, Url)
 SENTENCE_END = re.compile(r"[.!?]+(?=\s|$)")
@@ -30,6 +33,10 @@ URL = re.compile(
 )
 PHONE = re.compile(r"\+?\d[\d\s().-]{6,}\d")
 DIGITS = re.compile(r"\d+")
+NEXT_WORD = re.compile(r"\s+(\w+)")
+WORD_BEFORE = re.compile(r"(?<!\w)(\w+)\s+$")
+CONTEXT_CHARS = 30
+DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
 
 
@@ -40,6 +47,7 @@ class CheckError:
     span: tuple[int, int]
     text: str
     instruction: str
+    context: str = ""
 
     def to_dict(self) -> Json:
         return {
@@ -50,19 +58,64 @@ class CheckError:
             "instruction": self.instruction,
         }
 
+    def to_repair(self) -> Json:
+        repair = {"code": self.code, "text": self.text, "instruction": self.instruction}
+        return {**repair, "in": self.context} if self.context else repair
 
-def check(parts: Sequence[Part], ledger: Ledger, locale: str) -> list[CheckError]:
-    refs = ledger.refs()
+
+def check(
+    parts: Sequence[Part], ledger: Ledger, locale: str, allowed_asks: frozenset[str] = frozenset()
+) -> list[CheckError]:
     errors: list[CheckError] = []
     for index, part in enumerate(parts):
         match part:
             case Say(text):
                 errors.extend(_SayCheck(index, text, ledger, locale).run())
-            case View(_, ids):
-                errors.extend(_error("view_id_unknown", index, (0, 0), id_) for id_ in ids if id_ not in refs)
-            case Ask(_, target) if target is not None and target not in refs:
-                errors.append(_error("ask_target_unknown", index, (0, 0), target))
+            case View():
+                try:
+                    view_items(part, ledger)
+                except Unfit as unfit:
+                    errors.append(_error(unfit.code, index, (0, 0), unfit.fact_id))
+            case Ask(ask) if ask not in allowed_asks:
+                errors.append(_error("ask_not_allowed", index, (0, 0), ask))
+            case Ask("show") if any(isinstance(other, View) for other in parts):
+                errors.append(_error("show_with_view", index, (0, 0), "show"))
+            case Ask():
+                try:
+                    ask_options(part, ledger)
+                except Unfit as unfit:
+                    errors.append(_error(unfit.code, index, (0, 0), unfit.fact_id))
     return sorted(errors, key=lambda error: (error.part, error.span))
+
+
+def tidy(text: str, ledger: Ledger, locale: str) -> str:
+    return DASH.sub(
+        ", ", _drop_period_prepositions(_drop_doubled_nouns(text, ledger, locale), ledger, locale)
+    )
+
+
+def _drop_period_prepositions(text: str, ledger: Ledger, locale: str) -> str:
+    cuts = []
+    for match in REFERENCE.finditer(text):
+        before = WORD_BEFORE.search(text, 0, match.start())
+        is_period = isinstance(resolve(ledger, match.group(1), match.group(2)), Period)
+        if is_period and before and fold(before.group(1)) in PERIOD_PREPOSITIONS[locale]:
+            cuts.append(before.span())
+    for start, end in reversed(cuts):
+        text = text[:start] + text[end:]
+    return text
+
+
+def _drop_doubled_nouns(text: str, ledger: Ledger, locale: str) -> str:
+    cuts = []
+    for match in REFERENCE.finditer(text):
+        following = NEXT_WORD.match(text, match.end())
+        counted = isinstance(resolve(ledger, match.group(1), match.group(2)), Count)
+        if counted and following and fold(following.group(1)) in _count_nouns(locale):
+            cuts.append(following.span())
+    for start, end in reversed(cuts):
+        text = text[:start] + text[end:]
+    return text
 
 
 def fold(text: str) -> str:
@@ -104,6 +157,11 @@ def number_words(locale: str) -> re.Pattern[str]:
 @cache
 def number_homonyms(locale: str) -> tuple[re.Pattern[str], ...]:
     return tuple(re.compile(r"(?<![a-z0-9])" + pattern) for pattern in NUMBER_HOMONYMS[locale])
+
+
+@cache
+def _count_nouns(locale: str) -> frozenset[str]:
+    return frozenset(fold(word) for word in COUNT_NOUNS[locale].split())
 
 
 @cache
@@ -150,11 +208,18 @@ class _SayCheck:
                 self._report("unresolved_reference", match.span())
             elif not is_renderable(value):
                 self._report("trace_only_reference", match.span())
+            elif isinstance(value, Count):
+                self._noun_after(match.end())
             self._mask(match.span())
         for match in CITATION.finditer(self.original):
             if match.group(1) not in self.chunks:
                 self._report("unknown_citation", match.span())
             self._mask(match.span())
+
+    def _noun_after(self, end: int) -> None:
+        following = NEXT_WORD.match(self.original, end)
+        if following and fold(following.group(1)) in _count_nouns(self.locale):
+            self._report("noun_after_count", following.span(1))
 
     def _citations_per_sentence(self) -> None:
         chunk_of = {fact.id: chunk_id for chunk_id, fact in self.chunks.items()}
@@ -214,7 +279,11 @@ class _SayCheck:
                 self._mask(match.span())
 
     def _report(self, code: str, span: tuple[int, int]) -> None:
-        self.errors.append(_error(code, self.part, span, self.original[span[0] : span[1]]))
+        start, end = span
+        around = self.original[max(0, start - CONTEXT_CHARS) : end + CONTEXT_CHARS]
+        self.errors.append(
+            CheckError(code, self.part, span, self.original[start:end], INSTRUCTIONS[code], around)
+        )
 
     def _mask(self, span: tuple[int, int]) -> None:
         for position in range(*span):

@@ -1,13 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { claimOf } from "./claims";
 import { cardAt, purchase } from "./fixtures";
-import { claimForTransaction, flaggedCharges, isBlocked, openClaims } from "./overlay";
+import { flaggedCharges, isBlocked } from "./overlay";
 import { createClaraSession, memoryStorage } from "./session";
 
-const debit = cardAt("Tarjeta Débito");
 const credit = cardAt("Tarjeta Crédito", Date.now(), { product_number: "**** 4821" });
-const seeded = claimOf(purchase(debit, 10), "2026-08-23T15:00:00.000Z");
 
 function opened(storage = memoryStorage(), customerId = "customer-a") {
   const session = createClaraSession(storage);
@@ -18,28 +15,21 @@ function opened(storage = memoryStorage(), customerId = "customer-a") {
 describe("clara session", () => {
   it("survives a reload of the same customer and is separate per customer", () => {
     const { session, storage } = opened();
-    session.resolveSeeded(seeded);
+    session.startTopic({ kind: "cards" });
 
-    expect(opened(storage).session.current().seeded).toEqual(seeded);
-    expect(opened(storage, "customer-b").session.current().seeded).toBeUndefined();
-  });
-
-  it("remembers across a reload that no seeded claim exists", () => {
-    const { session, storage } = opened();
-    session.resolveSeeded(null);
-
-    expect(opened(storage).session.current().seeded).toBeNull();
+    expect(opened(storage).session.current().topic).toEqual({ kind: "cards" });
+    expect(opened(storage, "customer-b").session.current().topic).toBeNull();
   });
 
   it("forgets every customer on sign-out", () => {
     const { session, storage } = opened();
-    session.resolveSeeded(seeded);
+    session.startTopic({ kind: "unrecognized" });
     opened(storage, "customer-b").session.startTopic({ kind: "cards" });
     storage.setItem("clara.locale", "es");
 
     session.clear();
 
-    expect(session.current().seeded).toBeUndefined();
+    expect(session.current().topic).toBeNull();
     expect(Array.from({ length: storage.length }, (_, index) => storage.key(index))).toEqual(["clara.locale"]);
   });
 
@@ -68,9 +58,9 @@ describe("clara session", () => {
     };
     const { session } = opened(storage);
 
-    session.resolveSeeded(seeded);
+    session.startTopic({ kind: "cards" });
 
-    expect(session.current().seeded).toEqual(seeded);
+    expect(session.current().topic).toEqual({ kind: "cards" });
   });
 });
 
@@ -78,14 +68,6 @@ describe("bank overlay", () => {
   it("shows a card blocked only when the bank blocked it", () => {
     expect(isBlocked({ ...credit, product_status: "Blocked" })).toBe(true);
     expect(isBlocked(credit)).toBe(false);
-  });
-
-  it("marks the movement of the seeded claim", () => {
-    const { session } = opened();
-    session.resolveSeeded(seeded);
-
-    expect(claimForTransaction(seeded.transaction_id, session.current())).toEqual(seeded);
-    expect(openClaims(session.current())).toEqual([seeded]);
   });
 });
 

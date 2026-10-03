@@ -16,7 +16,6 @@ import { useId, useState, type FormEvent } from "react";
 
 import { applyProfileLanguage } from "../app/profile-language";
 import { FormError } from "../auth/field";
-import { resolveSeededClaim } from "../clara/services";
 import { localeStore, useI18n } from "../i18n";
 import { isLocale, languageNames, locales } from "../i18n/locale";
 import { formatMoney } from "./format";
@@ -49,7 +48,6 @@ function SetupForm({ onCreated }: { onCreated: (cases: PlantedCase[]) => void })
     if (!outcome) return;
     if (outcome.cases) onCreated(outcome.cases);
     await applyProfileLanguage(outcome.profile);
-    await resolveSeededClaim(queryClient, outcome.profile);
   }
 
   const busy = setup.isPending;

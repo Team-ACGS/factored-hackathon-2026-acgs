@@ -1,10 +1,9 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 
-import { claimForTransaction } from "../clara/overlay";
-import { useClaraSession } from "../clara/store";
 import { useI18n } from "../i18n";
+import { caseOfTransaction } from "./cases";
 import { textLink } from "./buttons";
 import { materialOf, useCardName } from "./card-display";
 import { CardFace, CardUsage } from "./card-face";
@@ -26,7 +25,7 @@ interface HomePageProps {
 export function HomePage({ productId, transactionId }: HomePageProps) {
   const { locale, t } = useI18n();
   const navigate = useNavigate();
-  const session = useClaraSession();
+  const cases = useQuery(bankQueries.cases()).data ?? [];
   const cardName = useCardName();
   const { data: cards } = useSuspenseQuery(bankQueries.cards());
   const byId = new Map(cards.map((card) => [card.product_id, card]));
@@ -87,7 +86,7 @@ export function HomePage({ productId, transactionId }: HomePageProps) {
                       <MovementContent
                         entry={entry}
                         meta={meta}
-                        inClaim={claimForTransaction(entry.transaction_id, session) !== undefined}
+                        inClaim={caseOfTransaction(cases, entry.transaction_id) !== undefined}
                       />
                     );
                     return isPending(entry) ? (

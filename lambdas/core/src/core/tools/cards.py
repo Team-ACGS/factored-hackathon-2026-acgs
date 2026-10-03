@@ -40,6 +40,8 @@ def list_cards(context: ToolContext, ledger: Ledger, args: ListCardsInput) -> li
         "cards",
         {
             "count": Count(len(rows), "card"),
+            "credit": Count(sum(card.type == "credit" for card in cards), "credit_card"),
+            "debit": Count(sum(card.type == "debit" for card in cards), "debit_card"),
             "ids": FactIds(tuple(row.id for row in rows)),
             "truncated": Flag(len(cards) > MAX_CARDS_LISTED),
         },

@@ -86,10 +86,12 @@ def search_movements(context: ToolContext, ledger: Ledger, args: SearchMovements
     page = matched[offset : offset + args.limit]
     more = offset + len(page) < len(matched)
     by_id = {card.product_id: card for card in cards}
+    locate(ledger, page)
     facts = [ledger.add("movement", movement_fields(row, by_id.get(row.product_id))) for row in page]
     aggregate = ledger.add(
         "movements",
         {
+            **chosen_card(args.card_ref, cards),
             "count": Count(len(matched), "movement"),
             "ids": FactIds(tuple(fact.id for fact in facts)),
             "truncated": Flag(more or scan_truncated),
@@ -121,6 +123,7 @@ def merchant_history(context: ToolContext, ledger: Ledger, args: MerchantHistory
             },
         )
         return [fact.id]
+    locate(ledger, bought)
     ids = []
     for currency, group in sorted(_by_currency(bought).items()):
         group.sort(key=lambda row: row.at)
@@ -161,6 +164,7 @@ def spend_summary(context: ToolContext, ledger: Ledger, args: SpendSummaryInput)
         rows = [row for row in current if row.currency == currency]
         total = sum((row.amount for row in rows), Decimal(0))
         fields: dict[str, Value | None] = {
+            **chosen_card(args.card_ref, cards),
             "period": Period(start, end),
             "total": Money(total, currency),
             "count": Count(len(rows), "purchase"),
@@ -188,6 +192,7 @@ def recurring_charges(context: ToolContext, ledger: Ledger, args: RecurringCharg
     cards = reader.cards_for(args.card_ref)
     rows, scan_truncated = reader.movements(cards, context.window_start, context.today)
     by_id = {card.product_id: card for card in cards}
+    locate(ledger, rows)
     series = sorted(
         (found for found in _series(rows, context) if found is not None),
         key=lambda found: found[2][-1].at,
@@ -206,6 +211,17 @@ def recurring_charges(context: ToolContext, ledger: Ledger, args: RecurringCharg
         },
     )
     return [*(fact.id for fact in facts), aggregate.id]
+
+
+def locate(ledger: Ledger, rows: list[Movement]) -> None:
+    for row in rows:
+        ledger.locate(row.transaction_id, row.product_id)
+
+
+def chosen_card(card_ref: str | None, cards: list[Card]) -> dict[str, Value | None]:
+    if card_ref is None or len(cards) != 1:
+        return {}
+    return {"card_ref": Ref("card", card_ref), "last4": Last4(cards[0].last4)}
 
 
 def cadence_of(days: list[date]) -> str | None:

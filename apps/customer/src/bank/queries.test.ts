@@ -39,6 +39,7 @@ function world() {
     profile: vi.fn<BankApi["profile"]>(),
     setup: vi.fn<BankApi["setup"]>(),
     cards: vi.fn<BankApi["cards"]>(),
+    cases: vi.fn<BankApi["cases"]>(),
     card: vi.fn<BankApi["card"]>(),
     transaction: vi.fn<BankApi["transaction"]>(),
     add: vi.fn<BankApi["add"]>(),
@@ -113,6 +114,21 @@ describe("bank queries", () => {
 
     expect(api.card).toHaveBeenCalledTimes(1);
     expect(api.cards).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads a view's row from the cached ledger page before asking for it", async () => {
+    const { api, client, queries, watchLedger } = world();
+    await watchLedger([page(["a", "b"], null)]);
+    api.transaction.mockResolvedValue(row("z"));
+
+    const cached = new QueryObserver(client, queries.row(client, "card-1", "b"));
+    const missing = new QueryObserver(client, queries.row(client, "card-1", "z"));
+    cached.subscribe(() => undefined);
+    missing.subscribe(() => undefined);
+
+    expect(cached.getCurrentResult().data?.transaction_id).toBe("b");
+    await vi.waitFor(() => expect(missing.getCurrentResult().data?.transaction_id).toBe("z"));
+    expect(api.transaction.mock.calls).toEqual([["card-1", "z"]]);
   });
 
   it("asks once when a read fails, leaving retries to the http client", async () => {

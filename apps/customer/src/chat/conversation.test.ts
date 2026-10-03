@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  askOf,
+  currentStatus,
   emptyConversation,
+  openAsk,
   reduce,
   saysOf,
+  sourcesOf,
   thinkingLeft,
+  turnInProgress,
   THINKING_CAP_MS,
   visibleMessages,
   type Action,
   type Conversation,
   type ServerMessage,
+  type StatusEvent,
+  viewOf,
 } from "./conversation";
 
 const room = "0199a0b0-0000-7000-8000-000000000001";
@@ -100,7 +107,7 @@ describe("clara's parts", () => {
   it("renders each say with its sources and skips parts it does not know", () => {
     const parts = [
       { type: "say", text: "Tu aclaración está en revisión.", facts: ["f6"], citations: [] },
-      { type: "view", view: "movements", ids: ["t1"] },
+      { type: "view", view: "movements", items: [{ product_id: "p1", transaction_id: "t1" }] },
       { type: "say", text: "La revisión toma hasta diez días.", facts: ["p1"], citations: [citation] },
     ];
     const [message] = visibleMessages(run({ type: "loaded", roomId: room, messages: [server("m-002", { sender_type: "assistant", parts })] }));
@@ -147,5 +154,96 @@ describe("clara thinking", () => {
 
     expect(thinkingLeft(visibleMessages(answered), sent)).toBe(0);
     expect(thinkingLeft(visibleMessages(failed), sent)).toBe(0);
+  });
+});
+
+describe("clara's views and asks", () => {
+  it("reads the rows, cards and cases of a view with the readings Clara rendered", () => {
+    const movements = viewOf({
+      parts: [
+        { type: "view", view: "movements", items: [{ product_id: "p1", transaction_id: "t1" }], readings: { count: "32 movimientos", odd: 3 } },
+      ],
+    });
+    const cards = viewOf({ parts: [{ type: "view", view: "cards", items: [{ product_id: "p1" }, { product_id: "p2" }] }] });
+    const cases = viewOf({ parts: [{ type: "view", view: "case", items: [{ complaint_id: "c1" }] }] });
+
+    expect(movements).toEqual({
+      kind: "movements",
+      rows: [{ productId: "p1", transactionId: "t1" }],
+      cards: [],
+      cases: [],
+      readings: { count: "32 movimientos" },
+    });
+    expect(cards?.cards).toEqual(["p1", "p2"]);
+    expect(cases?.cases).toEqual(["c1"]);
+    expect(viewOf({ parts: [{ type: "view", view: "ledger", items: [] }] })).toBeNull();
+  });
+
+  it("reads an ask's options and ignores asks it does not know", () => {
+    const parts = [
+      { type: "ask", ask: "block_card", options: [{ id: "p1", label: "Bloquear" }] },
+      { type: "ask", ask: "which_one", prompt: "¿Cuál es?", options: [{ id: "t1", label: "Primax · S/ 120.00" }, { id: 4 }] },
+    ];
+
+    expect(askOf({ parts })).toEqual({ kind: "which_one", prompt: "¿Cuál es?", options: [{ id: "t1", label: "Primax · S/ 120.00" }] });
+  });
+
+  it("keeps the ask open only while it is Clara's latest message", () => {
+    const ask = { type: "ask", ask: "show", options: [{ id: "movements", label: "Ver esos movimientos" }] };
+    const asked = run({ type: "loaded", roomId: room, messages: [server("m-001"), server("m-002", { sender_type: "assistant", parts: [ask] })] });
+    const tapped = reduce(asked, sending("m-003"));
+
+    expect(openAsk(visibleMessages(asked))?.messageId).toBe("m-002");
+    expect(openAsk(visibleMessages(tapped))).toBeNull();
+  });
+
+  it("dedupes the sources of an answer by document and page", () => {
+    const source = { chunkId: "a", title: "Ciclo de una aclaración", page: 4, url: "https://docs.test/a.pdf#page=4" };
+    const says = [
+      { text: "Uno.", citations: [source, { ...source, chunkId: "b" }] },
+      { text: "Dos.", citations: [{ ...source, chunkId: "c", page: 5 }] },
+    ];
+
+    expect(sourcesOf(says).map((citation) => citation.chunkId)).toEqual(["a", "c"]);
+  });
+});
+
+describe("clara's status", () => {
+  const event = (round: number, status: string, id = "m-001"): StatusEvent => ({
+    type: "status",
+    room_id: room,
+    message_id: id,
+    round,
+    status,
+  });
+  const asked = () => run({ type: "loaded", roomId: room, messages: [server("m-001")] });
+
+  it("shows the latest round's status while the turn runs", () => {
+    const state = [event(1, "movements"), event(2, "policies"), event(1, "cards")].reduce(
+      (current, item) => reduce(current, { type: "status", event: item }),
+      asked(),
+    );
+
+    expect(currentStatus(state)).toBe("policies");
+  });
+
+  it("drops a status that arrives after the reply or for another message", () => {
+    const answered = reduce(asked(), { type: "received", message: server("m-002", { sender_type: "assistant" }) });
+
+    expect(currentStatus(reduce(answered, { type: "status", event: event(1, "movements") }))).toBeNull();
+    expect(currentStatus(reduce(asked(), { type: "status", event: event(1, "movements", "m-000") }))).toBeNull();
+  });
+
+  it("shows the status of a turn already running when the chat reloads, until the reply", () => {
+    const reloaded = run({
+      type: "loaded",
+      roomId: room,
+      messages: [server("m-001")],
+      turn: { messageId: "m-001", round: 0, status: "cases" },
+    });
+    const answered = reduce(reloaded, { type: "received", message: server("m-002", { sender_type: "assistant" }) });
+
+    expect([currentStatus(reloaded), turnInProgress(reloaded)]).toEqual(["cases", true]);
+    expect([currentStatus(answered), turnInProgress(answered)]).toEqual([null, false]);
   });
 });

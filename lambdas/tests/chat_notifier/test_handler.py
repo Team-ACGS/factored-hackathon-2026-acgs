@@ -9,6 +9,7 @@ import pytest
 from chat_notifier import handler as notifier
 from core.messaging import Message, Messaging, customer_message
 from core.observability import tracer
+from core.realtime import Publisher
 from harness import Aws, LambdaContext, uuid7
 
 CUSTOMER = "c0ffee00-0000-4000-8000-000000000001"
@@ -38,7 +39,7 @@ class FakeHttp:
 @pytest.fixture
 def http(monkeypatch: pytest.MonkeyPatch) -> FakeHttp:
     fake = FakeHttp()
-    publisher = notifier.Publisher("https://realtime.test/event", "us-east-1", boto3.Session(), fake)  # type: ignore[arg-type]
+    publisher = Publisher("https://realtime.test/event", "us-east-1", boto3.Session(), fake, 5.0)  # type: ignore[arg-type]
     monkeypatch.setattr(notifier, "_publisher", publisher)
     return fake
 

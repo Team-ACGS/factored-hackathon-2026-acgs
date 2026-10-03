@@ -13,17 +13,21 @@ from langchain_core.messages.tool import ToolCall
 from langchain_core.runnables import Runnable
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from core import answers
 from core.answers import SayKey
-from core.facts import Part, Say, check, fallback
+from core.facts import Ask, Part, Say, View, check, fallback
+from core.facts.check import tidy
+from core.facts.parts import AskType, ViewType
+from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS
 from core.facts.values import Ledger
 from core.graphs.model import Clients, bedrock_clients, chat_model
 from core.graphs.profiles import ModelProfile, profile_for
 from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, Context, tool_result, tool_specs
 from core.observability import logger, metrics
 from core.replies import Reply, Source, compose
+from core.rules import TurnState, allowed_asks
 from core.tools import TOOLS, ToolContext, call
 
 if TYPE_CHECKING:
@@ -34,6 +38,7 @@ MAX_TOOL_CALLS = 8
 TURN_SECONDS = 12.0
 INPUT_TOKEN_CAP = 40_000
 MIN_CALL_SECONDS = 2.0
+MODEL_ROWS = 5
 MODEL_ATTEMPTS = 2
 RECURSION_LIMIT = 4 * MAX_STEPS + 4
 RETRYABLE = frozenset(
@@ -54,10 +59,29 @@ class ModelUnavailable(Exception):
     pass
 
 
+class ViewArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    type: ViewType
+    facts: tuple[str, ...] = Field(min_length=1, max_length=MAX_VIEW_ITEMS)
+
+
+class AskArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    type: AskType
+    facts: tuple[str, ...] = Field(min_length=1, max_length=MAX_OPTIONS)
+
+
 class ReplyArgs(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     say: tuple[str, ...] | None = Field(None, min_length=1, max_length=MAX_SAYS)
     say_key: SayKey | None = None
+    view: ViewArgs | None = None
+    ask: AskArgs | None = None
+
+    @field_validator("say", mode="before")
+    @classmethod
+    def one_paragraph(cls, value: object) -> object:
+        return [value] if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def one_kind(self) -> "ReplyArgs":
@@ -89,7 +113,10 @@ class OpenModeRun:
     profile: ModelProfile
     clients: Clients = bedrock_clients
     clock: Callable[[], float] = time.monotonic
+    state: TurnState = field(default_factory=TurnState)
+    on_status: Callable[[str, int], None] | None = None
     started: float = 0.0
+    rounds: int = 0
     model_steps: int = 0
     tool_calls: int = 0
     repairs: int = 0
@@ -154,7 +181,20 @@ def tools(state: State, runtime: Runtime[OpenModeRun]) -> State:
     run = runtime.context
     last = state["messages"][-1]
     assert isinstance(last, AIMessage)
+    run.rounds += 1
+    _announce(run, [call["name"] for call in last.tool_calls if call["name"] in TOOLS])
     return {"messages": [_run_tool(run, tool_call) for tool_call in last.tool_calls], "next": "supervisor"}
+
+
+def _announce(run: OpenModeRun, names: list[str]) -> None:
+    if run.on_status is None or not names:
+        return
+    started = run.clock()
+    try:
+        run.on_status(TOOLS[names[0]].family, run.rounds)
+    except Exception:
+        logger.exception("status not published")
+    run.metrics.steps.append({"node": "status", "ms": round((run.clock() - started) * 1000)})
 
 
 def facts_check(state: State, runtime: Runtime[OpenModeRun]) -> State:
@@ -181,8 +221,10 @@ def fallback_answer(state: State, runtime: Runtime[OpenModeRun]) -> State:
 
 
 def _from_what_was_read(run: OpenModeRun) -> list[Part]:
-    read = Ledger(run.ledger.country, run.ledger.now, {i: run.ledger.facts[i] for i in run.tool_facts})
-    return [part for part in fallback("answer", read, run.context.locale) if isinstance(part, Say)]
+    facts = {fact_id: run.ledger.facts[fact_id] for fact_id in run.tool_facts}
+    return fallback(
+        "answer", Ledger(run.ledger.country, run.ledger.now, facts, run.ledger.owners), run.context.locale
+    )
 
 
 def finalize(state: State, runtime: Runtime[OpenModeRun]) -> State:
@@ -275,7 +317,7 @@ def _run_tool(run: OpenModeRun, tool_call: ToolCall) -> ToolMessage:
     result = call(name, tool_call["args"], run.tools, run.ledger)
     run.tool_calls += 1
     run.tool_facts.extend(result.ids)
-    facts = run.ledger.payload(result.ids)
+    facts = run.ledger.payload(_shown(run.ledger, result.ids))
     error = next((fact for fact in facts if fact["kind"] == "error"), None)
     outcome = str(error["fields"]["error"]["value"]) if error else "ok"
     run.metrics.tools.append(
@@ -288,6 +330,12 @@ def _run_tool(run: OpenModeRun, tool_call: ToolCall) -> ToolMessage:
     return ToolMessage(
         content=tool_result(facts), tool_call_id=tool_call_id, status="error" if error else "success"
     )
+
+
+def _shown(ledger: Ledger, ids: tuple[str, ...]) -> list[str]:
+    rows = [fact_id for fact_id in ids if ledger.facts[fact_id].kind == "movement"]
+    hidden = set(rows[MODEL_ROWS:])
+    return [fact_id for fact_id in ids if fact_id not in hidden]
 
 
 def _refused(run: OpenModeRun, name: str, tool_call_id: str, outcome: str, detail: str) -> ToolMessage:
@@ -310,11 +358,15 @@ def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source
         parts = answers.say_key(args.say_key, run.ledger, locale)
         source: Source = "say_key"
     else:
-        parts = [Say(text) for text in args.say or ()]
+        parts = [Say(tidy(text, run.ledger, locale)) for text in args.say or ()]
         source = "repaired" if run.repairs else "composed"
-    errors = check(parts, run.ledger, locale)
+    if args.view is not None:
+        parts.append(View(args.view.type, args.view.facts))
+    if args.ask is not None:
+        parts.append(Ask(args.ask.type, args.ask.facts))
+    errors = check(parts, run.ledger, locale, allowed_asks(run.state, run.ledger))
     return (
         parts,
         source,
-        [{"code": error.code, "text": error.text, "instruction": error.instruction} for error in errors],
+        [error.to_repair() for error in errors],
     )

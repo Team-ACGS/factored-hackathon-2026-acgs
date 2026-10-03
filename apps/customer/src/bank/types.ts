@@ -44,6 +44,23 @@ export interface Transaction {
   fraud_score: string | null;
 }
 
+export type CaseType = "fraud" | "claim" | "service";
+export type CaseStage = "opened" | "assigned" | "in_review" | "resolved" | "closed";
+
+export interface Case {
+  complaint_id: string;
+  case_id: string;
+  type: CaseType;
+  stage: CaseStage;
+  creation_date: string;
+  assignment_date?: string | null;
+  first_response_date?: string | null;
+  resolution_date?: string | null;
+  closing_date?: string | null;
+  transaction_id?: string | null;
+  product_id?: string | null;
+}
+
 export interface PlantedCase {
   kind: CaseKind;
   transaction: Transaction;

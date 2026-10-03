@@ -32,3 +32,9 @@ export function MovementPill({ status, inClaim = false, showApproved = false }: 
     </span>
   );
 }
+
+export function MovementNote({ status, inClaim = false }: { status: TransactionStatus; inClaim?: boolean }) {
+  const { t } = useI18n();
+  if (!inClaim && status === "Approved") return null;
+  return <small className="text-xs font-medium text-ink-3">{t(inClaim ? "pill.claim" : `pill.${status}`)}</small>;
+}

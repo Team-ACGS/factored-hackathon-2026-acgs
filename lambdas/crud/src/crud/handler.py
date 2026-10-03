@@ -16,6 +16,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from core.access import AccessDenied, Pool, Principal, customer_session
 from core.accounts import Accounts, public_transaction
+from core.cases import Cases, case_code, case_type, stage
 from core.customers import read_customer
 from core.ids import InvalidId, format_instant, parse_uuid7, uuid7_time
 from core.ingestion import MAX_CLOCK_SKEW, ContractViolation, Duplicate, Ingestion, UnknownCard, check
@@ -27,6 +28,7 @@ from crud.store import CustomerNotFound, SetupAlreadyCompleted, Store
 
 SERVICE = "crud"
 PAGE_SIZE = 20
+MAX_CASES = 100
 SUFFIX_ATTEMPTS = 20
 
 app = APIGatewayRestResolver(cors=CORSConfig(allow_origin="*", max_age=300))
@@ -149,6 +151,25 @@ def list_cards() -> dict[str, Any]:
     principal = _customer()
     accounts = Accounts.from_dynamodb(customer_session(principal.subject, SERVICE).dynamodb)
     return {"cards": accounts.cards(principal.subject)}
+
+
+@app.get("/crud/cases")
+@tracer.capture_method(capture_response=False)
+def list_cases() -> dict[str, Any]:
+    principal = _customer()
+    cases = Cases.from_dynamodb(customer_session(principal.subject, SERVICE).dynamodb)
+    items, _ = cases.cases(principal.subject, MAX_CASES)
+    items.sort(key=lambda item: str(item.get("creation_date") or ""), reverse=True)
+    return {"cases": [_case(item) for item in items]}
+
+
+def _case(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **item,
+        "case_id": case_code(str(item["complaint_id"]), str(item.get("creation_date") or "")),
+        "type": case_type(item.get("area")),
+        "stage": stage(item),
+    }
 
 
 @app.get("/crud/cards/<product_id>")

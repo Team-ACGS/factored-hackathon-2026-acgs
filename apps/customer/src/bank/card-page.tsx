@@ -1,13 +1,13 @@
 import { cn } from "@clara/ui/lib/cn";
-import { useQueryClient, useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseInfiniteQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, Loader2, Search } from "lucide-react";
 import { useState } from "react";
 
 import { FormError } from "../auth/field";
-import { claimForTransaction, isBlocked } from "../clara/overlay";
-import { useClaraSession } from "../clara/store";
+import { isBlocked } from "../clara/overlay";
 import { useI18n } from "../i18n";
+import { caseOfTransaction } from "./cases";
 import { pillButton, textLink } from "./buttons";
 import { materialOf } from "./card-display";
 import { CardFace, CardUsage } from "./card-face";
@@ -31,7 +31,7 @@ export function CardPage({ productId, transactionId }: { productId: string; tran
   const { locale, t } = useI18n();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const session = useClaraSession();
+  const cases = useQuery(bankQueries.cases()).data ?? [];
   const { data: cards } = useSuspenseQuery(bankQueries.cards());
   const ledger = useSuspenseInfiniteQuery(bankQueries.ledger(productId));
   const [filter, setFilter] = useState<MovementFilter>("all");
@@ -150,7 +150,7 @@ export function CardPage({ productId, transactionId }: { productId: string; tran
                       <MovementContent
                         entry={entry}
                         meta={meta}
-                        inClaim={claimForTransaction(entry.transaction_id, session) !== undefined}
+                        inClaim={caseOfTransaction(cases, entry.transaction_id) !== undefined}
                       />
                     );
                     return isPending(entry) ? (

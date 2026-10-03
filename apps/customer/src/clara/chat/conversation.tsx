@@ -1,21 +1,34 @@
 import { ClaraEntity, ClaraGlyph } from "@clara/ui/components/clara-entity";
-import { AlertCircle, FileText, Loader2, UserRound } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { cn } from "@clara/ui/lib/cn";
+import { AlertCircle, ArrowUpRight, ChevronDown, FileText, Loader2, UserRound } from "lucide-react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 import { brand } from "../../bank/brand";
-import type { ChatMessage, Citation, Say } from "../../chat/conversation";
+import { sourcesOf, type ChatMessage, type Citation } from "../../chat/conversation";
 import type { LiveChat } from "../../chat/live";
 import { useI18n } from "../../i18n";
+import { useViewMeta } from "./meta";
+import type { PanelView } from "./panel-state";
+import { useStatusText } from "./status";
 
-export function Conversation({ chat, typing }: { chat: LiveChat; typing: boolean }) {
+interface ConversationProps {
+  chat: LiveChat;
+  typing: boolean;
+  views: readonly PanelView[];
+  current: string | null;
+  onReference: (id: string) => void;
+}
+
+export function Conversation({ chat, typing, views, current, onReference }: ConversationProps) {
   const { t } = useI18n();
   const scroller = useRef<HTMLDivElement>(null);
   const empty = chat.loaded && chat.messages.length === 0;
+  const status = useStatusText(chat.status);
 
   useEffect(() => {
     const element = scroller.current;
     if (element) element.scrollTop = element.scrollHeight;
-  }, [chat.messages, chat.thinking]);
+  }, [chat.messages, chat.thinking, chat.status]);
 
   return (
     <div ref={scroller} className="min-h-0 flex-1 scroll-smooth overflow-y-auto px-4 pt-6 pb-6 sm:px-5">
@@ -34,7 +47,7 @@ export function Conversation({ chat, typing }: { chat: LiveChat; typing: boolean
           </div>
         )}
         {empty && (
-          <div className="chat-rise grid flex-1 content-center justify-items-center gap-4 pb-10 text-center">
+          <div className="chat-rise grid flex-1 content-center justify-items-center gap-4 pb-10 text-center min-[901px]:hidden">
             <ClaraEntity state={typing ? "escucha" : "hola"} motion="idle" className="size-[112px]" />
             <p className="max-w-[360px] font-serif text-[19px] leading-[1.45] text-balance">
               {t("clara.chat.heroText", { bank: brand.name })}
@@ -42,14 +55,23 @@ export function Conversation({ chat, typing }: { chat: LiveChat; typing: boolean
           </div>
         )}
         {chat.messages.map((message) => (
-          <MessageRow key={message.messageId} message={message} onRetry={() => chat.retry(message.messageId)} />
+          <MessageRow
+            key={message.messageId}
+            message={message}
+            view={views.find((view) => view.id === message.messageId) ?? null}
+            current={current === message.messageId}
+            onRetry={() => chat.retry(message.messageId)}
+            onReference={() => onReference(message.messageId)}
+          />
         ))}
         {chat.thinking && (
           <div className="chat-rise flex items-center gap-3 text-[14.5px]" role="status">
             <span className="chat-spin-glyph relative grid size-[26px] flex-none place-items-center">
               <ClaraGlyph />
             </span>
-            <span className="chat-shimmer">{t("clara.chat.thinking")}</span>
+            <span key={status} className="chat-shimmer chat-rise">
+              {status}
+            </span>
             <span className="chat-dots inline-flex gap-1" aria-hidden>
               <i />
               <i />
@@ -62,7 +84,15 @@ export function Conversation({ chat, typing }: { chat: LiveChat; typing: boolean
   );
 }
 
-function MessageRow({ message, onRetry }: { message: ChatMessage; onRetry: () => void }) {
+interface MessageRowProps {
+  message: ChatMessage;
+  view: PanelView | null;
+  current: boolean;
+  onRetry: () => void;
+  onReference: () => void;
+}
+
+function MessageRow({ message, view, current, onRetry, onReference }: MessageRowProps) {
   const { t } = useI18n();
   switch (message.senderType) {
     case "customer":
@@ -94,27 +124,75 @@ function MessageRow({ message, onRetry }: { message: ChatMessage; onRetry: () =>
           </div>
         </div>
       );
-    case "assistant":
+    case "assistant": {
+      const sources = sourcesOf(message.says);
       return (
         <div className="chat-msg grid grid-cols-[26px_minmax(0,1fr)] items-start gap-3">
           <ClaraGlyph />
-          <div className="grid min-w-0 gap-3">
+          <div className="grid min-w-0 justify-items-start gap-3">
             {message.says.map((say, index) => (
-              <SayBlock key={index} say={say} />
+              <p key={index} className="font-serif text-[17px] leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere]">
+                {say.text}
+              </p>
             ))}
+            {view && (
+              <Suspense fallback={null}>
+                <Reference view={view} current={current} asking={message.ask !== null} onOpen={onReference} />
+              </Suspense>
+            )}
+            {sources.length > 0 && <HowIKnow sources={sources} />}
           </div>
         </div>
       );
+    }
   }
 }
 
-function SayBlock({ say }: { say: Say }) {
+function Reference({ view, current, asking, onOpen }: { view: PanelView; current: boolean; asking: boolean; onOpen: () => void }) {
+  const { t } = useI18n();
+  const meta = useViewMeta(view.spec);
+  const button = (
+    <button
+      type="button"
+      className={cn(
+        "flex h-[30px] w-fit items-center gap-1.5 rounded-full border border-[#d6e4f7] bg-[#edf4fd] pr-3 pl-2.5 text-[13px] font-semibold text-[#2f67b5] transition-colors hover:bg-[#dfeafb]",
+        current && "min-[901px]:hidden",
+      )}
+      onClick={onOpen}
+    >
+      <ArrowUpRight className="size-[15px]" aria-hidden />
+      {meta.label}
+    </button>
+  );
+  if (!current) return button;
   return (
-    <div className="grid gap-2.5">
-      <p className="font-serif text-[17px] leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere]">{say.text}</p>
-      {say.citations.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {say.citations.map((citation) => (
+    <>
+      {button}
+      <span className="flex h-[30px] w-fit items-center gap-1.5 text-[13px] font-medium text-ink-2 max-[900px]:hidden">
+        <i className="chat-ref-dot size-2 flex-none rounded-full bg-[#4c8fe6]" aria-hidden />
+        {t(asking ? "clara.chat.hint.answer" : "clara.chat.hint.current")}
+      </span>
+    </>
+  );
+}
+
+function HowIKnow({ sources }: { sources: readonly Citation[] }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="grid justify-items-start gap-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        className="flex h-[30px] items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-ink"
+        onClick={() => setOpen((shown) => !shown)}
+      >
+        {t("clara.chat.howIKnow")}
+        <ChevronDown className={cn("size-4 transition-transform duration-200", open && "rotate-180")} aria-hidden />
+      </button>
+      {open && (
+        <div className="chat-rise flex flex-wrap gap-2">
+          {sources.map((citation) => (
             <SourceChip key={citation.chunkId} citation={citation} />
           ))}
         </div>

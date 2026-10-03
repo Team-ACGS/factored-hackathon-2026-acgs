@@ -4,13 +4,20 @@ import { isServerMessage, type ServerMessage } from "./conversation";
 export interface LatestRoom {
   room: { room_id: string; created_at: string } | null;
   messages: ServerMessage[];
+  turn?: { message_id: string; status: string | null } | null;
   server_time: string;
+}
+
+export interface Tap {
+  ask_id: string;
+  option: string;
 }
 
 export interface NewMessage {
   room_id: string;
   message_id: string;
   text: string;
+  input?: Tap;
 }
 
 export function createChatApi(http: Http) {

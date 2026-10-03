@@ -6,8 +6,21 @@ from decimal import Decimal
 
 import pytest
 
-from core.facts import Ask, Ledger, Say, View, check, fallback, parse_parts, render, render_text, render_value
+from core.facts import (
+    Ask,
+    Ledger,
+    Part,
+    Say,
+    View,
+    check,
+    fallback,
+    parse_parts,
+    render,
+    render_text,
+    render_value,
+)
 from core.facts.catalog import LABELS, LOCALES, NOUNS, STATUS_LABELS
+from core.facts.check import tidy
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.render import format_money
 from core.facts.values import (
@@ -39,6 +52,8 @@ from core.facts.values import (
     Url,
     Value,
 )
+from core.replies import compose
+from core.rules import TurnState, allowed_asks
 from crud.catalog import COUNTRIES, SUSPICIOUS_POOL
 
 NOW = datetime(2026, 10, 1, 15, 0, tzinfo=UTC)
@@ -101,24 +116,39 @@ def test_money_rounds_half_up_and_groups_like_intl(
 @pytest.mark.parametrize(
     ("value", "rendered"),
     [
-        (Day(date(2026, 9, 17)), {"es": "17 de septiembre", "pt-BR": "17 de setembro", "en": "September 17"}),
+        (
+            Day(date(2026, 9, 17)),
+            {"es": "el 17 de septiembre", "pt-BR": "em 17 de setembro", "en": "September 17"},
+        ),
         (Day(date(2026, 10, 1)), {"es": "hoy", "pt-BR": "hoje", "en": "today"}),
         (Day(date(2026, 9, 30)), {"es": "ayer", "pt-BR": "ontem", "en": "yesterday"}),
         (
             Day(date(2025, 12, 24)),
-            {"es": "24 de diciembre de 2025", "pt-BR": "24 de dezembro de 2025", "en": "December 24, 2025"},
+            {
+                "es": "el 24 de diciembre de 2025",
+                "pt-BR": "em 24 de dezembro de 2025",
+                "en": "December 24, 2025",
+            },
         ),
         (
             Instant(datetime(2026, 9, 17, 20, 12, tzinfo=UTC)),
             {
-                "es": "17 de septiembre, 15:12",
-                "pt-BR": "17 de setembro, 15:12",
-                "en": "September 17, 3:12 PM",
+                "es": "el 17 de septiembre a las 15:12",
+                "pt-BR": "em 17 de setembro às 15:12",
+                "en": "September 17 at 3:12 PM",
+            },
+        ),
+        (
+            Instant(datetime(2026, 9, 17, 6, 5, tzinfo=UTC)),
+            {
+                "es": "el 17 de septiembre a la 01:05",
+                "pt-BR": "em 17 de setembro à 01:05",
+                "en": "September 17 at 1:05 AM",
             },
         ),
         (
             Instant(datetime(2026, 10, 1, 4, 30, tzinfo=UTC)),
-            {"es": "ayer, 23:30", "pt-BR": "ontem, 23:30", "en": "yesterday, 11:30 PM"},
+            {"es": "ayer a las 23:30", "pt-BR": "ontem às 23:30", "en": "yesterday at 11:30 PM"},
         ),
         (
             Period(date(2026, 9, 1), date(2026, 9, 30)),
@@ -349,6 +379,14 @@ def with_chunk(book: Ledger) -> Ledger:
         ("Te vamos a devolver el dinero.", "es", ["money_promise"]),
         ("Te devolveremos la compra.", "es", ["money_promise"]),
         ("Vamos devolver o valor.", "pt-BR", ["money_promise"]),
+        ("No sé la fecha del desembolso.", "es", ["money_promise"]),
+        ("La devolución se procesa luego.", "es", ["money_promise"]),
+        ("A devolução depende da análise.", "pt-BR", ["money_promise"]),
+        ("No sé cuándo llegará el dinero.", "es", ["money_promise"]),
+        ("Lo que ocurra con el dinero depende de la revisión.", "es", ["money_promise"]),
+        ("Não sei quando o dinheiro vai chegar.", "pt-BR", ["money_promise"]),
+        ("I cannot tell when the money will arrive.", "en", ["money_promise"]),
+        ("¿Cuánto dinero gastaste?", "es", []),
         ("You will get a refund.", "en", ["money_promise"]),
         ("Puedes hablar con un abogado.", "es", ["legal_term"]),
         ("La ley te protege.", "es", ["legal_term"]),
@@ -365,15 +403,100 @@ def test_the_check_only_reads_number_words_of_the_reply_locale() -> None:
     assert codes("Pagaste once.", locale="es") == ["number_word_outside_reference"]
 
 
-def test_views_and_asks_may_point_only_at_ids_returned_this_turn() -> None:
+def view_ledger() -> Ledger:
+    book = ledger()
+    for index, digits in ((1, "4141"), (2, "5555")):
+        book.add(
+            "card",
+            {
+                "card_ref": Ref("card", f"card-{index}"),
+                "type": Label("card_type", "credit"),
+                "last4": Last4(digits),
+            },
+        )
+    rows = [
+        book.add(
+            "movement",
+            {
+                "transaction_ref": Ref("transaction", f"tx-{index}"),
+                "card_ref": Ref("card", "card-1"),
+                "merchant": Merchant("Primax"),
+                "amount": Money(Decimal("120"), "PEN"),
+                "date": Instant(datetime(2026, 9, 27, 18, 0, tzinfo=UTC)),
+            },
+        )
+        for index in (1, 2)
+    ]
+    book.add("movements", {"count": Count(32, "movement"), "ids": FactIds(tuple(row.id for row in rows))})
+    book.locate("tx-7", "card-2")
+    book.add(
+        "merchant_history",
+        {
+            "merchant": Merchant("Primax"),
+            "count": Count(1, "purchase"),
+            "ids": Refs("transaction", ("tx-7",)),
+        },
+    )
+    book.add("merchant_history", {"merchant": Merchant("Tambo+"), "count": Count(0, "purchase")})
+    book.add(
+        "case",
+        {"case_ref": Ref("case", "case-1"), "transaction_ref": Ref("transaction", "tx-1")},
+    )
+    return book
+
+
+def check_codes(
+    parts: list[Part], book: Ledger, allowed: frozenset[str] = frozenset()
+) -> list[tuple[str, str]]:
+    return [(error.code, error.text) for error in check(parts, book, "es", allowed)]
+
+
+def test_a_view_shows_only_facts_returned_this_turn_that_fit_it() -> None:
+    book = view_ledger()
+
+    assert (
+        check_codes([View("movements", ("f5",)), View("cards", ("f1", "f2")), View("case", ("f8",))], book)
+        == []
+    )
+    assert check_codes([View("movements", ("f9",))], book) == [("view_fact_unknown", "f9")]
+    assert check_codes([View("charge", ("f3",))], book) == [("view_fact_unfit", "f3")]
+    assert check_codes([View("card", ("f1", "f2"))], book) == [("view_fact_unfit", "f2")]
+    assert check_codes([View("history", ("f7",))], book) == [("view_empty", "f7")]
+    assert check_codes([View("ledger", ("f5",))], book) == [("view_unknown", "ledger")]
+
+
+def test_an_ask_outside_allowed_asks_never_passes_the_check() -> None:
+    book = view_ledger()
+    allowed = allowed_asks(TurnState(), book)
+
+    assert allowed == {"which_one", "show"}
+    assert check_codes([Ask("which_one", ("f3", "f4"))], book, allowed) == []
+    assert check_codes([Ask("show", ("f8",))], book, allowed) == []
+    assert check_codes([Ask("block_card", ("f1",))], book, allowed) == [("ask_not_allowed", "block_card")]
+    assert check_codes([Ask("which_one", ("f3", "f4"))], book) == [("ask_not_allowed", "which_one")]
+    assert check_codes([Ask("which_one", ("f3",))], book, allowed) == [("ask_options_count", "f3")]
+    assert check_codes([Ask("which_one", ("f3", "f1"))], book, allowed) == [("ask_options_mixed", "f1")]
+    assert check_codes([Ask("which_one", ("f3", "f3"))], book, allowed) == [("ask_options_repeated", "f3")]
+    assert check_codes([Ask("show", ("f6",))], book, allowed) == [("ask_fact_unfit", "f6")]
+
+
+def test_allowed_asks_need_candidates_and_never_repeat_the_choice_just_made() -> None:
+    lone = ledger()
+    lone.add("card", {"card_ref": Ref("card", "card-1"), "last4": Last4("4141")})
+
+    assert allowed_asks(TurnState(), lone) == {"show"}
+    assert allowed_asks(TurnState("which_one"), view_ledger()) == {"show"}
+    assert allowed_asks(TurnState("show"), view_ledger()) == {"which_one"}
+    assert allowed_asks(TurnState(), ledger()) == frozenset()
+
+
+def test_a_count_reference_followed_by_its_noun_is_a_doubled_noun() -> None:
     book = spend_ledger()
 
-    assert check([View("movements", ("tx-1",)), Ask("block_card", "card-1")], book, "es") == []
-    errors = check([View("movements", ("tx-1", "tx-9")), Ask("block_card", "card-9")], book, "es")
-    assert [(error.code, error.text) for error in errors] == [
-        ("view_id_unknown", "tx-9"),
-        ("ask_target_unknown", "card-9"),
-    ]
+    assert codes("Hiciste {f1.count} compras en tu tarjeta.", book) == ["noun_after_count"]
+    assert codes("Tienes {f1.count} cargos.", book) == ["noun_after_count"]
+    assert codes("Hiciste {f1.count} en tu tarjeta.", book) == []
+    assert codes("Hiciste {f1.count}, compras pequeñas.", book) == []
 
 
 def test_check_errors_carry_the_span_and_a_repair_instruction_and_serialize() -> None:
@@ -397,8 +520,8 @@ def test_parts_parse_from_the_wire_and_render_every_reference() -> None:
                 "type": "say",
                 "text": "Gastaste {f1.total} en {f1.count} [p:pe-dispute-lifecycle-v1-f1-s3-c2].",
             },
-            {"type": "view", "view": "movements", "ids": ["tx-1"]},
-            {"type": "ask", "ask": "block_card", "target": "card-1"},
+            {"type": "view", "view": "movements", "facts": ["f2"]},
+            {"type": "ask", "ask": "show", "facts": ["f1"]},
         ]
     )
 
@@ -409,8 +532,8 @@ def test_parts_parse_from_the_wire_and_render_every_reference() -> None:
             "facts": ["f1"],
             "citations": ["pe-dispute-lifecycle-v1-f1-s3-c2"],
         },
-        {"type": "view", "view": "movements", "ids": ["tx-1"]},
-        {"type": "ask", "ask": "block_card", "target": "card-1"},
+        {"type": "view", "view": "movements", "facts": ["f2"]},
+        {"type": "ask", "ask": "show", "facts": ["f1"]},
     ]
 
 
@@ -427,7 +550,12 @@ def full_ledger() -> Ledger:
     )
     book.add("cards", {"count": Count(1, "card"), "ids": FactIds((card.id,))})
     row = book.add(
-        "movement", {"transaction_ref": Ref("transaction", "tx-1"), "merchant": Merchant("Primax")}
+        "movement",
+        {
+            "transaction_ref": Ref("transaction", "tx-1"),
+            "card_ref": Ref("card", "card-1"),
+            "merchant": Merchant("Primax"),
+        },
     )
     book.add(
         "movements",
@@ -501,10 +629,40 @@ def test_the_fallback_answers_from_the_same_ledger_and_passes_the_check(locale: 
     parts = fallback("answer", book, locale)
 
     assert check(parts, book, locale) == []
-    says = [part for part in render(parts, book, locale) if part["type"] == "say"]
-    assert len(says) == 16
+    reply = compose(parts, book, locale, "fallback")
+    says = [part for part in reply.parts if part["type"] == "say"]
+    assert len(says) == 13
     assert all("{" not in say["text"] for say in says)
-    assert {"type": "view", "view": "movements", "ids": ["tx-1"]} in render(parts, book, locale)
+    assert {
+        "type": "view",
+        "view": "movements",
+        "items": [{"product_id": "card-1", "transaction_id": "tx-1"}],
+    } in [{key: value for key, value in part.items() if key != "readings"} for part in reply.parts]
+
+
+def test_the_fallback_names_each_card_and_period_in_one_sentence_per_kind() -> None:
+    book = ledger()
+    for card, digits, count in (("card-1", "4141", 32), ("card-2", "5555", 27)):
+        book.add(
+            "movements",
+            {
+                "card_ref": Ref("card", card),
+                "last4": Last4(digits),
+                "count": Count(count, "movement"),
+                "ids": FactIds(()),
+                "period": Period(date(2026, 9, 1), date(2026, 9, 30)),
+            },
+        )
+    book.add("error", {"tool": Trace("search_movements"), "error": Trace("unavailable")})
+    book.add("error", {"tool": Trace("card_status"), "error": Trace("unavailable")})
+
+    reply = compose(fallback("answer", book, "es"), book, "es", "fallback")
+
+    assert [part["text"] for part in reply.parts] == [
+        "Encontré 32 movimientos en tu tarjeta terminada en 4141, del 1 al 30 de septiembre "
+        "y 27 movimientos en tu tarjeta terminada en 5555, del 1 al 30 de septiembre.",
+        "No pude revisar una parte de tu información ahora.",
+    ]
 
 
 @pytest.mark.parametrize("locale", LOCALES)
@@ -577,3 +735,42 @@ def test_policy_figures_render_in_the_customers_country(
     value: Value, country: str, locale: str, expected: str
 ) -> None:
     assert render_value(value, Ledger(country, NOW), locale) == expected
+
+
+def test_a_noun_doubled_after_a_count_and_dashes_are_tidied_before_the_check() -> None:
+    book = spend_ledger()
+
+    assert tidy("Gastaste {f1.total} \u2014 con {f1.count} \u2013 en total.", book, "es") == (
+        "Gastaste {f1.total}, con {f1.count}, en total."
+    )
+    assert tidy("Hiciste {f1.count} en {f1.period}.", book, "es") == "Hiciste {f1.count} {f1.period}."
+    fixed = tidy("Hiciste {f1.count} compras en {f1.merchant} y {f1.count}, compras pequeñas.", book, "es")
+
+    assert fixed == "Hiciste {f1.count} en {f1.merchant} y {f1.count}, compras pequeñas."
+    assert check([Say(fixed)], book, "es") == []
+
+
+def test_a_repair_error_carries_the_words_around_it() -> None:
+    text = "Tienes ambas tarjetas activas y quieres saber, ¿cuál de las dos quieres ver ahora mismo, Ana?"
+
+    [error] = check([Say(text)], ledger(), "es")
+
+    start = text.index(" dos ") + 1
+    assert error.to_repair() == {
+        "code": "number_word_outside_reference",
+        "text": "dos",
+        "instruction": error.instruction,
+        "in": text[start - 30 : start + 33],
+    }
+
+
+def test_a_date_after_a_preposition_renders_without_its_article() -> None:
+    book = ledger()
+    book.add("day", {"date": Day(date(2026, 9, 18)), "today": Day(date(2026, 10, 1))})
+
+    assert render_text("Pendente desde {f1.date}, a última foi {f1.date}.", book, "pt-BR") == (
+        "Pendente desde 18 de setembro, a última foi em 18 de setembro."
+    )
+    assert render_text("Desde {f1.date}, fue el {f1.date}; desde {f1.today}.", book, "es") == (
+        "Desde el 18 de septiembre, fue el 18 de septiembre; desde hoy."
+    )

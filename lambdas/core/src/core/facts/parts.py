@@ -1,8 +1,13 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, get_args
 
 from core.facts.values import Json
+
+ViewType = Literal["movements", "cards", "card", "movement", "charge", "history", "case"]
+AskType = Literal["which_one", "show"]
+VIEW_TYPES: tuple[str, ...] = get_args(ViewType)
+ASK_TYPES: tuple[str, ...] = get_args(AskType)
 
 
 class InvalidPart(ValueError):
@@ -20,19 +25,19 @@ class Say:
 @dataclass(frozen=True)
 class View:
     view: str
-    ids: tuple[str, ...]
+    facts: tuple[str, ...]
 
     def to_wire(self) -> Json:
-        return {"type": "view", "view": self.view, "ids": list(self.ids)}
+        return {"type": "view", "view": self.view, "facts": list(self.facts)}
 
 
 @dataclass(frozen=True)
 class Ask:
     ask: str
-    target: str | None = None
+    facts: tuple[str, ...]
 
     def to_wire(self) -> Json:
-        return {"type": "ask", "ask": self.ask, "target": self.target}
+        return {"type": "ask", "ask": self.ask, "facts": list(self.facts)}
 
 
 Part = Say | View | Ask
@@ -46,11 +51,10 @@ def _parse(item: Mapping[str, Any]) -> Part:
     kind = item.get("type")
     if kind == "say" and isinstance(item.get("text"), str):
         return Say(item["text"])
-    if kind == "view" and isinstance(item.get("view"), str) and _strings(item.get("ids")):
-        return View(item["view"], tuple(item["ids"]))
-    target = item.get("target")
-    if kind == "ask" and isinstance(item.get("ask"), str) and (target is None or isinstance(target, str)):
-        return Ask(item["ask"], target)
+    if kind == "view" and isinstance(item.get("view"), str) and _strings(item.get("facts")):
+        return View(item["view"], tuple(item["facts"]))
+    if kind == "ask" and isinstance(item.get("ask"), str) and _strings(item.get("facts")):
+        return Ask(item["ask"], tuple(item["facts"]))
     raise InvalidPart(f"not a say, view or ask part: {kind!r}")
 
 

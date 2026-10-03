@@ -1,18 +1,23 @@
 import json
 import uuid
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
+from typing import Any
 
 import boto3
 import pytest
 from aws_lambda_powertools.utilities.batch.exceptions import BatchProcessingError
 
+from chatbot import handler as chatbot
 from chatbot.handler import handler
-from clara_testing.converse import FakeConverse, reply
+from clara_testing.converse import FakeConverse, reply, response, tool_use
 from core import turn as turn_module
 from core.ids import format_instant, successor
 from core.messaging import Message, Messaging, customer_message, reply_to
 from core.observability import tracer
+from core.realtime import Publisher
 from harness import Aws, LambdaContext, demo_account, uuid7
 
 CUSTOMER = "c0ffee00-0000-4000-8000-000000000001"
@@ -85,7 +90,7 @@ def test_the_turn_event_carries_ids_and_measures_and_never_the_text(
     assert detail["message_id"] == message.message_id
     assert detail["reply_message_id"] == str(successor(uuid.UUID(message.message_id)))
     assert detail["route"] == "open_mode"
-    assert (detail["model"], detail["prompt"]) == ("us.anthropic.claude-sonnet-4-6", "system.v2")
+    assert (detail["model"], detail["prompt"]) == ("us.anthropic.claude-sonnet-4-6", "system.v3")
     assert Decimal(detail["cost_usd"]) > 0
     assert detail["steps"] == 1
     assert detail["check"] == {"result": "pass", "errors": []}
@@ -233,3 +238,75 @@ def test_the_reply_carries_the_origin_trace_and_the_turn_is_annotated_with_it(
     [answer] = [item for item in aws.message_items() if item["sender_type"] == "assistant"]
     assert answer["origin_trace_id"] == "1-6abbeeb1-origin"
     assert annotations == [("origin_trace_id", "1-6abbeeb1-origin")]
+
+
+@dataclass
+class Published:
+    status: int = 200
+    events: list[dict[str, Any]] = field(default_factory=list)
+
+    def request(self, method: str, url: str, body: str, headers: dict[str, str], timeout: object) -> Any:
+        payload = json.loads(body)
+        self.events.extend(
+            {"channel": payload["channel"], **json.loads(event)} for event in payload["events"]
+        )
+        return SimpleNamespace(status=self.status, data=b'{"failed": []}')
+
+
+@pytest.fixture
+def published(monkeypatch: pytest.MonkeyPatch) -> Published:
+    fake = Published()
+    publisher = Publisher("https://realtime.test/event", "us-east-1", boto3.Session(), fake, 0.5)  # type: ignore[arg-type]
+    monkeypatch.setattr(chatbot, "_publisher", publisher)
+    return fake
+
+
+def reading_model(aws: Aws, monkeypatch: pytest.MonkeyPatch, seen: list[Any]) -> None:
+    demo_account(aws, CUSTOMER, "PE", "es", datetime.now(UTC) - timedelta(hours=1))
+    fake = FakeConverse([response(tool_use("case_status", {})), reply("Listo.")])
+    original = fake.client
+
+    def watching(remaining: float) -> Any:
+        rooms = aws.room_items()
+        seen.append(rooms[0].get("turn_status") if rooms else None)
+        return original(remaining)
+
+    monkeypatch.setattr(turn_module, "bedrock_clients", watching)
+
+
+def test_each_tool_round_publishes_a_status_to_the_room_and_marks_the_turn(
+    aws: Aws, context: LambdaContext, monkeypatch: pytest.MonkeyPatch, published: Published
+) -> None:
+    seen: list[Any] = []
+    reading_model(aws, monkeypatch, seen)
+    message = customer_says("¿cómo va mi aclaración?")
+
+    handler(aws.stream(), context)
+
+    assert published.events == [
+        {
+            "channel": f"/rooms/{CUSTOMER}/{message.room_id}",
+            "type": "status",
+            "id": f"{message.message_id}#1",
+            "room_id": message.room_id,
+            "message_id": message.message_id,
+            "round": 1,
+            "status": "cases",
+        }
+    ]
+    assert seen == [None, "cases"]
+    [room] = aws.room_items()
+    assert "turn_status" not in room
+
+
+def test_a_status_the_channel_refuses_never_fails_the_turn(
+    aws: Aws, context: LambdaContext, monkeypatch: pytest.MonkeyPatch, published: Published
+) -> None:
+    published.status = 500
+    reading_model(aws, monkeypatch, [])
+    customer_says("¿cómo va mi aclaración?")
+
+    result = handler(aws.stream(), context)
+
+    assert result == {"batchItemFailures": []}
+    assert [reply.text for reply in replies(aws)] == ["Listo."]

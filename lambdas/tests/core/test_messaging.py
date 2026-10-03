@@ -201,3 +201,58 @@ def test_before_reads_only_the_last_messages_of_the_room_before_the_one_answered
     earlier = messaging.before(sent[8], 6)
 
     assert [item.text for item in earlier] == ["m2", "m3", "m4", "m5", "m6", "m7"]
+
+
+def test_a_tap_carries_its_ask_and_option_and_never_publishes_them() -> None:
+    ask_id = uuid7()
+    message_id = uuid7()
+
+    tapped = customer_message(
+        CUSTOMER, uuid7(), message_id, "Primax", at(message_id), input={"ask_id": ask_id, "option": "tx-1"}
+    )
+
+    assert tapped.input == {"ask_id": ask_id, "option": "tx-1"}
+    assert Message.from_item(tapped.to_item()).input == tapped.input
+    assert "input" not in tapped.public()
+
+
+@pytest.mark.parametrize(
+    "input",
+    [
+        "tx-1",
+        {"ask_id": "not-a-uuid", "option": "tx-1"},
+        {"option": "tx-1"},
+        {"ask_id": "01928f1e-0000-7000-8000-000000000001", "option": ""},
+        {"ask_id": "01928f1e-0000-7000-8000-000000000001", "option": "x" * 81},
+        {"ask_id": "01928f1e-0000-7000-8000-000000000001", "option": 3},
+        {"ask_id": "01928f1e-0000-7000-8000-000000000001", "option": "tx-1", "extra": True},
+    ],
+)
+def test_a_tap_of_any_other_shape_is_rejected(input: object) -> None:
+    message_id = uuid7()
+
+    with pytest.raises(InvalidMessage):
+        customer_message(CUSTOMER, uuid7(), message_id, "Primax", at(message_id), input=input)
+
+
+def test_only_the_turn_holder_sets_the_status_and_a_new_turn_clears_it(
+    aws: Aws, messaging: Messaging
+) -> None:
+    first = message(uuid7(), uuid7())
+    messaging.send(first)
+    second = message(first.room_id, uuid7())
+    now = at(first.message_id)
+
+    messaging.take_turn(first, now)
+    messaging.mark_status(first, "movements")
+    messaging.mark_status(second, "cases")
+    room = messaging.room(CUSTOMER, first.room_id)
+    assert room is not None
+    assert room.turn(now) == {"message_id": first.message_id, "status": "movements"}
+
+    messaging.release_turn(first)
+    messaging.take_turn(second, now)
+    room = messaging.room(CUSTOMER, first.room_id)
+    assert room is not None
+    assert room.turn(now) == {"message_id": second.message_id, "status": None}
+    assert room.turn(now + timedelta(minutes=6)) is None

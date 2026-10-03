@@ -1,22 +1,14 @@
 import { isPending, type LedgerEntry } from "../bank/ledger";
 import type { Card, Transaction } from "../bank/types";
-import { isHighScore, type Claim } from "./claims";
-import type { ClaraSessionState } from "./session";
+
+const HIGH_SCORE = 30;
 
 export function isBlocked(card: Pick<Card, "product_status">): boolean {
   return card.product_status === "Blocked";
 }
 
-export function openClaims(session: ClaraSessionState): Claim[] {
-  return session.seeded ? [session.seeded] : [];
-}
-
-export function claimForTransaction(transactionId: string, session: ClaraSessionState): Claim | undefined {
-  return openClaims(session).find((claim) => claim.transaction_id === transactionId);
-}
-
-export function findClaim(claimId: string, session: ClaraSessionState): Claim | undefined {
-  return openClaims(session).find((claim) => claim.claim_id === claimId);
+export function isHighScore(transaction: Pick<Transaction, "fraud_score">): boolean {
+  return transaction.fraud_score !== null && Number(transaction.fraud_score) > HIGH_SCORE;
 }
 
 export function flaggedCharges(entries: readonly LedgerEntry[], cards: readonly Card[]): Transaction[] {

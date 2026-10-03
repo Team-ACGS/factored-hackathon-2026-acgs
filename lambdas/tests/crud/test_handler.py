@@ -10,6 +10,7 @@ import boto3
 import pytest
 
 from core.access import RoleSession, customer_session
+from core.cases import COMPLAINT_ATTRIBUTES, case_code, stage
 from core.customers import create_customer
 from crud import handler as crud
 from crud.catalog import COUNTRIES, SUSPICIOUS_POOL
@@ -540,6 +541,7 @@ def test_an_invalid_add_is_rejected(aws: Aws, customer: None, context: LambdaCon
         ("GET", "/crud/profile"),
         ("POST", "/crud/profile/setup"),
         ("GET", "/crud/cards"),
+        ("GET", "/crud/cases"),
         ("GET", f"/crud/cards/{uuid7()}"),
         ("GET", f"/crud/cards/{uuid7()}/transactions/{uuid7()}"),
         ("POST", f"/crud/cards/{uuid7()}/transactions"),
@@ -554,3 +556,28 @@ def test_a_staff_token_gets_forbidden(
 
     assert status == 403
     assert sessions == []
+
+
+def test_cases_are_the_customer_s_own_with_their_code_type_and_stage(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    set_up(context)
+    signed_up(OTHER)
+    set_up(context, OTHER)
+
+    status, body = call("GET", "/crud/cases", context)
+
+    assert status == 200
+    [claim] = [item for item in items(aws.complaints) if item["area"] == "claims"]
+    [case] = body["cases"]
+    assert case["complaint_id"] == claim["complaint_id"]
+    assert case["transaction_id"] == claim["transaction_id"]
+    assert case["case_id"] == case_code(claim["complaint_id"], claim["creation_date"])
+    assert (case["type"], case["stage"]) == ("claim", stage(claim))
+    assert set(case) <= {*COMPLAINT_ATTRIBUTES, "case_id", "type", "stage"}
+
+
+def test_a_customer_without_cases_gets_an_empty_list(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    assert call("GET", "/crud/cases", context) == (200, {"cases": []})

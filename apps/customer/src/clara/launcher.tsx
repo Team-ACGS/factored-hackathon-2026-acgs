@@ -5,10 +5,11 @@ import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type R
 
 import { useNow } from "../app/use-now";
 import { brand } from "../bank/brand";
+import { stepOf } from "../bank/cases";
 import { formatMoney } from "../bank/format";
-import type { Transaction } from "../bank/types";
+import { chargeOf, useRow } from "../bank/rows";
+import type { Case, Transaction } from "../bank/types";
 import { useI18n } from "../i18n";
-import { claimStage, type Claim } from "./claims";
 import { chargeTopic, type Topic } from "./topics";
 
 const GREETING_MS = 1900;
@@ -20,7 +21,7 @@ type Phase = "open" | "closing" | "leaving";
 
 interface LauncherProps {
   note: Transaction | undefined;
-  claim: Claim | undefined;
+  claim: Case | undefined;
   onClosed: () => void;
   onTopic: (topic: Topic | null) => void;
 }
@@ -33,6 +34,7 @@ export function Launcher({ note, claim, onClosed, onTopic }: LauncherProps) {
   const [greeted, setGreeted] = useState(false);
   const [draft, setDraft] = useState("");
   const now = useNow();
+  const claimCharge = useRow(claim ? chargeOf(claim) : null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -158,15 +160,15 @@ export function Launcher({ note, claim, onClosed, onTopic }: LauncherProps) {
               icon={<Clock className="size-[18px]" />}
               title={t("clara.shortcut.claim")}
               hint={
-                claim
+                claim && claimCharge
                   ? t("clara.shortcut.claimOf", {
-                      merchant: claim.merchant_name,
-                      status: t(`claim.status.${claimStage(claim, now)}`).toLocaleLowerCase(locale),
+                      merchant: claimCharge.merchant_name,
+                      status: t(`claim.status.${stepOf(claim)}`).toLocaleLowerCase(locale),
                     })
                   : t("clara.shortcut.claimHint")
               }
               onClick={() =>
-                go({ kind: "claim", claim_id: claim?.claim_id ?? null, merchant_name: claim?.merchant_name ?? null })
+                go({ kind: "claim", claim_id: claim?.case_id ?? null, merchant_name: claimCharge?.merchant_name ?? null })
               }
             />
           </div>

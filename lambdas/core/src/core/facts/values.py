@@ -291,6 +291,7 @@ class Ledger:
     country: str
     now: datetime
     facts: dict[str, Fact] = field(default_factory=dict)
+    owners: dict[str, str] = field(default_factory=dict)
 
     @property
     def today(self) -> date:
@@ -305,6 +306,9 @@ class Ledger:
         )
         self.facts[fact.id] = fact
         return fact
+
+    def locate(self, transaction_id: str, product_id: str) -> None:
+        self.owners[transaction_id] = product_id
 
     def get(self, fact_id: str) -> Fact | None:
         return self.facts.get(fact_id)

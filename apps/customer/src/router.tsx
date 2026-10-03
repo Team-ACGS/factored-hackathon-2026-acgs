@@ -13,7 +13,7 @@ import { HelpPage } from "./bank/help-page";
 import { HomePage } from "./bank/home-page";
 import { bankQueries } from "./bank/services";
 import { ClaraChatPage } from "./clara/chat/chat-page";
-import { forgetClara, resolveSeededClaim } from "./clara/services";
+import { forgetClara } from "./clara/services";
 import { claraSession } from "./clara/store";
 import { localeStore } from "./i18n";
 
@@ -49,7 +49,7 @@ const appRoute = createRoute({
   },
   loader: async ({ context }) => {
     const profile = await context.queryClient.ensureQueryData(bankQueries.profile());
-    await Promise.all([applyProfileLanguage(profile), resolveSeededClaim(context.queryClient, profile)]);
+    await applyProfileLanguage(profile);
   },
   errorComponent: RetryPage,
   component: function App() {
@@ -105,6 +105,7 @@ const helpRoute = createRoute({
   path: "/help",
   validateSearch: (search: Record<string, unknown>): { claim?: string } =>
     typeof search.claim === "string" ? { claim: search.claim } : {},
+  loader: ({ context }) => context.queryClient.ensureQueryData(bankQueries.cases()),
   component: function Help() {
     const { claim } = helpRoute.useSearch();
     return <HelpPage claimId={claim} />;
