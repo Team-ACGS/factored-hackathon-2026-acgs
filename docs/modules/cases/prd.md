@@ -1,11 +1,11 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Cases: product
 
-Status: designed, not built.
+Status: Clara opens cases and the customer sees them with what the person already knows (task 0022); the agent console is designed, not built.
 
 ## Purpose
 
@@ -13,6 +13,13 @@ A case is what the customer gets when their charge cannot be explained on the sp
 This module gives the case a record, a lifecycle, and gives the human agent who inherits it a console that shows what the assistant already verified, so the agent never has to ask the customer something they already said (`docs/problem-statement.md`, v1 2026-09-26, hypothesis H4).
 
 ## User flows
+
+### Clara opens a case
+
+1. Only on the customer's confirming tap (or a bare typed yes): a fraud case after a card block (or when the card was already blocked and the customer wants a person), a claim after the one card question and the claim confirmation, a service case when they ask for a person, an unblock or money back.
+2. The case is read back before Clara says its code; if it cannot be read back she gives the bank's phone instead of a code.
+3. The customer sees the case with its stage and "what the person already knows" (the request, the charge, what the bank noticed, the block and its read-back, the open question); for a fraud or service case also "a person at the bank will contact you", declared, since no live agent exists yet.
+
 
 ### Agent receives a handoff
 
@@ -36,7 +43,7 @@ This flow is read-only for cases; the status values themselves are set by human 
 - A case is created at `Open` only; cases never sets any other status by itself (`docs/domain/dispute-process.md`).
 - Status moves from `Open` through `In Process`, optionally `Escalated`, to `Resolved` or `Rejected`, and finally `Closed`; every one of those moves is made by a human, not by this module (`docs/domain/dispute-process.md`).
 - The case carries the country's legal due date; that date is unverified against the primary legal text as of 2026-09-26 and must be corrected before it reaches a customer or an agent (`hackathon/docs/domain/legal-deadlines.md`).
-- The handoff package is written by the assistant, not by cases; cases stores and displays it (boundary given for this module).
+- The handoff package and its summary are written by the assistant, once, when the case opens; cases stores them on the case and shows them.
 - The agent's label on a conversation is the product's measurement of the handoff's quality (re-asks per handoff, hypothesis H4); cases is where that label is captured, even though scoring it is not this module's job [inferido].
 - A case has a single writer: this module's code in the shared `lambdas/core` package, used in-process by both `lambdas/crud` (agents, officers) and `lambdas/chatbot` (Clara opening a case), never by a lambda calling another lambda. When an officer resolves a case from the backoffice queue (the inbox module's ranked view), that resolution still goes through this same code; inbox itself only ranks and assigns.
 - Staff comes in three groups: `agents` (this module's live-chat console, `support.`), `officers` (bank staff who review complaints from the ranked queue, `backoffice.`, owned by inbox), and `analysts` (a fourth web for the improvement console, reserved, not built now); cases serves `agents` directly and is the write path both `agents` and `officers` use.

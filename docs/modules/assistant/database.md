@@ -1,17 +1,17 @@
 ---
-updated: 2026-10-03
-source: 0020_rich_parts
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # assistant: database
 
-Status: `customers`, `products` and `transactions` are written and read by `crud` (task 0006); the read tools in `core.tools` read them (task 0012), called by the `open_mode` graph (task 0019) only under the read-only session.
+Status: `customers`, `products` and `transactions` are written and read by `crud` (task 0006); the read tools in `core.tools` read them (task 0012), called by the graphs only under the read-only session; the story's rules write `memory`, `products` (the block) and, through `core.cases`, `complaints` (task 0022).
 
 ## Tables owned
 
 | Table | Purpose |
 |---|---|
-| `memory` | What Clara learned about the customer across conversations: charges and merchants they recognized, with their own words as `note`. Keyed by `customer_id` and `memory_key` (`recognized_charge#<transaction_id>`, `recognized_merchant#<merchant>`). Read only by `recall` and `charge_facts`; the writes come with A2. |
+| `memory` | What Clara learned about the customer across conversations: charges they recognized or not, with their own words as `note` and a snapshot of the charge, and merchants they recognized three times. Keyed by `customer_id` and `memory_key` (`recognized_charge#<transaction_id>`, `unrecognized_charge#<transaction_id>`, `recognized_merchant#<merchant key>`). Written only by `core.rules` when an ask closes; read by `recall`, `charge_facts`, the turn's context and `GET /crud/memory/charges` (ids only). |
 
 ## Tables referenced
 
@@ -38,8 +38,11 @@ Status: `customers`, `products` and `transactions` are written and read by `crud
 - A tool returns facts only; a value the model may say is a renderable fact read from a table or the merchant lexicon, never a raw tool argument echoed back.
 - Tools never read the clock: customer, country, language and now come from the caller's context.
 - A reply's public `parts` carry entity ids and Clara's readings rendered by code, never facts; the reads behind each ask option live only in the stored `draft`, and a tap is resolved from it, never from the client's text.
-- Every write carries an idempotency key so a retry cannot block a card or open a case twice (`docs/product/02-technical-flows.md`, "Writes with confirmation and read-back").
-- A card already `Blocked` is never blocked again; the engine opens a case and hands off instead (`hackathon/docs/domain/triage.md`).
+- Every write derives its key from the `ask_id` the customer confirmed: the memory row carries it, the block writes `blocked_by`, the case's `complaint_id` is it; a redelivery that finds its own key continues, any other key means "already answered" or "already blocked", so one ask causes at most one write of each kind.
+- The block is one UpdateItem conditioned on `product_status = Active`; it never creates a card, and Clara never writes any other transition (no unblock).
+- A card already `Blocked` is never blocked again; Clara offers a person and the fraud case opens without a write to the card (`hackathon/docs/domain/triage.md`).
+- A memory row is created once (conditional put) and never edited; the bank's rows are never annotated.
+- The graphs hold only the read-only session; every write runs in `core.rules` or `core.story` under the normal session.
 
 ## Migrations of note
 

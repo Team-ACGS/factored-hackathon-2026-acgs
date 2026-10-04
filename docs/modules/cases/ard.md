@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-01
-source: 0012_data_tools
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Cases: architecture decisions and debt
@@ -96,3 +96,13 @@ Status: designed, not built; entries below record decisions and open risks from 
 - Debt created: none
 - Revisit when: Clara-opened cases replace the demo claim, or a staff console reads the queue.
 - Source: 0012_data_tools
+
+## 2026-10-04: a Clara case is keyed by the confirming ask and carries its package on the row
+
+- Decision: `complaint_id` is the `ask_id` the customer confirmed; `core.cases.open` puts the row only if absent and reads it back consistently before Clara says its code; the package travels as `summary_points` (subjectless sentences in the customer's language, read by the customer and the person alike) with the summary paragraph, and the ids behind it as `evidence`, outside the allow-list.
+- Alternatives rejected: a new id per write (a redelivery would open a second case); the package as structured data for the agent only (the customer sees it too, and the support app is not built).
+- Reason: one confirmation can open at most one case, and a person reads what Clara verified without re-asking.
+- Debt created: none.
+- Revisit when: the support app needs the package as data.
+- Source: 0022_story_actions
+

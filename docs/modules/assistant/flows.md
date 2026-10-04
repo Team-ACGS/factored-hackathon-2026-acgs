@@ -1,14 +1,14 @@
 ---
 updated: 2026-10-04
-source: 0021_open_mode_polish
+source: 0022_story_actions
 ---
 
 # assistant: flows
 
-Status: the open-mode turn is built (task 0019) with views, read-only asks and status events (task 0020); writing an action is the B4 design.
+Status: the open-mode turn (tasks 0019, 0020) and the story path with its writes (task 0022) are built.
 The full design is `docs/tasks/_drafts/chat_architecture.md` at the docs root.
 
-## One turn (B1, B2)
+## One turn
 
 ```mermaid
 flowchart TD
@@ -17,10 +17,12 @@ flowchart TD
     R -- no --> TM{Turn mark free, own, or older than 5 min?}
     TM -- no --> RETRY[Record fails and retries]
     TM -- yes --> TAP{Tap of Clara's latest ask?}
-    TAP -- yes --> READ[Run the option's stored read] --> CTX
+    TAP -- answer to a story ask --> STORY[core.story: write, read back, next ask or receipt]
+    TAP -- which_one pick --> READ[Run the option's stored read] --> CTX
     TAP -- no --> FL{Safety floor on raw text}
-    FL -- not_me or lost_stolen --> ST[Safety template: call the bank]
-    FL -- nothing --> CTX[Context: name, locale, today, cards, last 3 exchanges, choice]
+    FL -- not_me or lost_stolen --> PICK[Lists to pick: newest movements or cards] --> FIN
+    FL -- nothing --> CTX[Context: name, locale, today, cards, memories, last 3 exchanges, choice, topic, story]
+    STORY --> COMP[compose: a story sentence, or the handoff summary] --> FIN
     CTX --> SUP[supervisor: Sonnet 4.6]
     SUP -- tool calls within budget --> STATUS[status event and turn status per round]
     STATUS --> TOOLS[tools under the read-only session, five rows shown]
@@ -31,33 +33,29 @@ flowchart TD
     CHK -- second failure --> FB[template from the last tool round]
     SUP -- budget out, model down or crash --> FB
     FB --> FIN
-    ST --> FIN
-    FIN --> W[Write reply, clear the mark, turn.completed]
+    FIN --> W[Write reply with its effects, clear the mark, turn.completed]
 ```
 
-Only `supervisor` calls the model; every other box is code, and every value the customer reads comes from a tool's facts through `render`.
+Only `supervisor` and `compose` call the model; every other box is code, and every value the customer reads comes from a tool's facts through `render`. A free text with a story ask open is answered by the graph and the same ask is shown again; the rules, not the model, attach the bank's question after a charge is pointed at.
 
-## Writing an action: confirm, then read back (B4)
-
-Only `CLAIM` and `PROTECT` reach a write, and the customer never hears "done" before the write is read back.
-Customer login is Cognito email and password; there is no OTP inside the chat, only explicit confirmation before the write.
+## A flagged charge, to the handoff
 
 ```mermaid
 sequenceDiagram
   participant U as Customer
-  participant E as assistant
-  participant TL as Tool (A1 block card / A2 create complaint)
-  U->>E: confirms the proposed action
-  E->>TL: call with an idempotency key
-  TL-->>E: write result
-  E->>TL: read back the affected row
-  TL-->>E: current state
-  alt read-back confirms
-    E->>U: states only what was read back
-  else read-back does not confirm
-    E->>U: says the action failed, hands off to a human
-  end
+  participant S as core.story
+  participant P as products
+  participant C as complaints
+  U->>S: taps "No fui yo" on was_it_you
+  S->>S: memory unrecognized_charge (keyed by ask_id)
+  S-->>U: fixed consent, card view, block_card
+  U->>S: taps "Sí, bloquéala"
+  S->>P: UpdateItem Blocked, blocked_by = ask_id, if Active
+  S->>P: read back (ConsistentRead)
+  S->>C: put case if absent (complaint_id = ask_id), read back
+  S->>S: package, summary (compose or template)
+  S->>C: summary, once
+  S-->>U: receipts only for what read back, case view, effects
 ```
 
-Source: `docs/product/02-technical-flows.md`, "Writes with confirmation and read-back"; `docs/tasks/_drafts/turn_flow.md`, step 10.
-A retry with the same idempotency key never blocks a card or opens a case twice.
+A redelivered confirmation finds its own `blocked_by`, case and summary and answers the same; a second tap is no longer an answer to Clara's latest message and writes nothing.

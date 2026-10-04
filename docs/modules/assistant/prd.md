@@ -1,11 +1,11 @@
 ---
 updated: 2026-10-04
-source: 0021_open_mode_polish
+source: 0022_story_actions
 ---
 
 # assistant: product
 
-Status: the customer app is a bank app with Clara as its agent (task 0010); her chat talks to the live turn (task 0019), which answers free questions about the customer's own money with the bank's own screens of what she read and read-only choices (task 0020), and sends "not me" or "lost or stolen" to the bank's phone; the flagged-charge story with asks, claims, blocks and handoff (B4) is designed, not built.
+Status: the customer app is a bank app with Clara as its agent (task 0010); her chat talks to the live turn (task 0019), which answers free questions about the customer's own money with the bank's own screens of what she read and read-only choices (task 0020), remembers what the customer told her about a charge, and acts with consent: asks about a flagged charge, blocks the card with read-back, opens cases with a prepared package and abstains on unblock and money (task 0022); Clara writing first is the next task.
 
 ## Purpose
 
@@ -32,46 +32,34 @@ Errors and empty states: setup runs once; a second attempt is refused and a half
 ### A free question about my money (built, B1)
 
 1. The customer writes anything, in their language: how much they spent at a merchant this month against last month, when their claim is resolved, what Clara knows about them.
-2. If the text says the charge was not theirs or the card was lost or stolen ("no fui yo", "me robaron", "não fui eu", "perdi o cartão"), Clara answers at once, without the model, that the card is protected by calling the bank, with the country's phone, its hours and the number from abroad; she promises no callback.
-3. Otherwise Clara reads what the question needs from the customer's own records and the bank's documents, and answers with the totals, dates, case codes and timeframes she read, each rendered by the bank's code in the customer's format; a sentence about the bank's process cites the document it comes from.
-4. When she names movements, cards, a charge or a case, the panel shows them as the bank shows them; she says how many and names one or two, and the list is the screen's.
-5. When the question matches a few charges or cards she cannot tell apart, she asks which one with buttons; a tap answers without a new search. "Hay una transacción que no reconozco" with no detail gets her five newest movements as buttons (merchant, amount, day), and the tap opens the charge with what the bank saw, its alert first. When more match than she can show, she asks for the date or the amount. She may offer, with one button, to show the rows behind a total.
-6. Rankings, spending by category, statements and payments or due dates get a fixed answer that points to what Clara can do or to the bank's phone.
-7. If Clara cannot check something (the model is down, slow or wrote a value it did not read), she answers from what she did read, or says she could not check it now; she never estimates.
+2. If the text says the charge was not theirs or the card was lost or stolen ("no fui yo", "me robaron", "não fui eu", "perdi o cartão"), Clara answers at once, without the model: for a lost card, the cards with a choice of which active one, even when there is one; for "not me" with no charge in view, the five newest movements to pick from; both go to the block confirmation (below).
+3. If they ask for something only a person does (unblock a card, money back, a person), Clara answers what she can check, says a person at the bank does that, and offers a person with a button; a service case opens only on yes.
+4. Otherwise Clara reads what the question needs from the customer's own records and the bank's documents, and answers with the totals, dates, case codes and timeframes she read, each rendered by the bank's code in the customer's format; a sentence about the bank's process cites the document it comes from.
+5. When she names movements, cards, a charge or a case, the panel shows them as the bank shows them; she says how many and names one or two, and the list is the screen's.
+6. When the question matches a few charges or cards she cannot tell apart, she asks which one with buttons; a tap answers without a new search. "Hay una transacción que no reconozco" with no detail gets her five newest movements as buttons (merchant, amount, day), and the tap opens the charge with what the bank saw, its alert first. When more match than she can show, she asks for the date or the amount. She may offer, with one button, to show the rows behind a total.
+7. Rankings, spending by category, statements and payments or due dates get a fixed answer that points to what Clara can do or to the bank's phone.
+8. If Clara cannot check something (the model is down, slow or wrote a value it did not read), she answers from what she did read, or says she could not check it now; she never estimates.
 
-### Unrecognized charge, explained
+### A charge, from the bank's button or the newest movements
 
-1. Customer sees a charge in the app and says they do not recognize it, or asks a free question.
-2. The assistant looks at the customer's own transaction and product facts.
-3. If the facts explain the charge (already reversed, never charged, a fresh hold, or a match with the customer's own merchant history), it says so and the conversation ends there.
-4. If shown prior purchases at the same merchant, the customer can recognize the charge and close without a claim.
+1. The customer taps "¿No reconoces este cargo?" on a movement, or picks one of the five newest movements in the chat.
+2. Clara explains it from the bank's records and their history at that merchant (the purchases before, the typical amount, what the bank noticed), never saying whether it is theirs and never judging the amount.
+3. A charge the bank flagged asks "¿Fuiste tú?" (yes, no, and "why are you asking", which explains what the bank noticed in plain words and asks again); any other charge asks "¿Reconoces este cargo?". Both take an optional note, and a charge already answered is never asked again: Clara says what they told her, with the note.
+4. "Yes, it was me" is remembered with the customer's words; after three recognized charges at one merchant, the merchant is remembered too, which never makes what the bank saw on a charge less important.
 
-Source: `hackathon/docs/domain/triage.md`, decision table; `docs/product/01-flows.md` flow 1.
+### Protected
 
-### Unrecognized charge, claimed
+1. "It wasn't me", a typed "not me", or "I don't recognize it" on a charge with a warning sign (abroad, an unusual channel, declined, the bank's alert) leads to the fixed confirmation "¿Quieres que proteja tu tarjeta?" with the card on screen.
+2. "Sí, bloquéala" blocks the card; Clara says it is blocked only after reading the card back, and the bank's pages show it at once.
+3. A fraud case opens with what the person already knows (the request, the charge, what the bank noticed, the block and its read-back, the open question), and "a person at the bank will contact you", declared, since there is no live agent yet.
 
-1. Facts do not explain the charge and nothing signals fraud.
-2. The assistant asks the one clarifying question about the card, per `hackathon/docs/domain/triage.md`.
-3. If the customer still does not recognize it, the assistant confirms before acting, opens a claim, and reads back the result.
-4. The customer receives a case id; no due date or legal term is ever stated (Sebastian, 0010).
+Errors and empty states: a card already blocked is never blocked again; Clara offers a person, whose yes opens the fraud case. A block or a case that does not read back is never announced: Clara says so, and gives the bank's phone when the case itself is not confirmed. "Ahora no" changes nothing.
 
-Errors and empty states: if the write cannot be confirmed on read-back, the customer is told it failed and the case is hand off to a human instead of a silent retry (`docs/tasks/_drafts/turn_flow.md`, step 10).
+### Claimed
 
-### Unrecognized charge, protected
-
-1. The customer says the charge was not theirs, or the facts carry a fraud signal (bank score, unusual country or channel, several unrecognized charges).
-2. The assistant offers to block the card, confirms, and only after the block is confirmed by reading back the card's status does it tell the customer the card is blocked.
-3. The case is opened and handed to a human on the fraud team.
-
-Errors and empty states: a card that is already blocked is never blocked again; the assistant opens the case and hands off without a second write (`hackathon/docs/domain/triage.md`).
-
-### Handoff to a human
-
-1. Certain situations stop automation entirely: a third contact about the same case, an overdue promise, an escalated or regulator case, or the customer asking for a person.
-2. The assistant does not attempt to decide; it hands off with a package of verified facts, actions already taken, evidence and open questions.
-3. The customer's next message is answered by a human agent, not the bot.
-
-Source: `docs/product/01-flows.md` flow 2; `hackathon/docs/kickoff-compliance.md` section 1, "Hand off to a human when needed".
+1. "I don't recognize it" on a charge with no warning sign asks the one card question: do they have the card and have they used it these days.
+2. No leads to the block confirmation; yes to the fixed claim confirmation and, on its yes, a claim case read back with its code. Clara stays in the conversation.
+3. No due date or legal term is ever stated (Sebastian, 0010).
 
 ## Rules
 
@@ -83,13 +71,13 @@ Source: `docs/product/01-flows.md` flow 2; `hackathon/docs/kickoff-compliance.md
 - A cited sentence says only what its excerpt says; advice about what the customer can do, and what the bank does next, is said only with a citation. The customer's own words ("cancelar") reach the bank's documents through a glossary of the bank's terms ("bloquear").
 - A policy figure (a time, a fee, a phone) is said only as a reference to the excerpt's figures, rendered from the same facts the rules read, so a document and a rule cannot disagree; a timeframe is the bank's process, never a promise.
 - Legal deadlines are the bank's reading of each norm, flagged unverified (`policy_facts.toml`, `verified = false`), and must not reach a customer as-is until checked against the primary legal text.
-- A write (block a card, open a claim) only happens after the customer confirms, and the assistant only tells the customer it happened after reading the result back, never on request alone.
+- A write (block a card, open a case, remember an answer) happens only on the customer's tap or a bare typed yes to that very question; a yes with anything after it, or a yes read by the model, shows the question again. Clara says it happened only after reading the result back.
 - The customer only ever sees their own data, never another customer's, never an invented deadline, never a promise of a specific agent (`docs/product/01-flows.md` flow 1).
 - A stale pending charge (older than 7 days) is never explained to the customer as "temporary" (`hackathon/docs/domain/triage.md`).
 - Clara never answers her own messages, and says nothing in a room delegated to a human.
 - Every value Clara says (an amount, a date, a count, a merchant, a card's last digits, a case code, a policy figure) is one she read this turn and the bank's code rendered; a reply with any other value is repaired once, then replaced by a template.
-- Clara never promises a person will call or take over, and never says "fraud", that a charge is safe, or that money will come back, nor anything about what she can or cannot promise.
-- Clara only offers to look things up and show them; until B4 her buttons never change the account.
+- Clara never says "fraud", that a charge is safe, or that money will come back, nor anything about what she can or cannot promise. Only the fixed receipt of a fraud or service case says that a person at the bank will contact the customer; nothing she composes promises a person, a call or a takeover.
+- Clara's own words only look things up and show them; what the bank allows (block, claim, a person) is offered only by the bank's buttons, with fixed consent and receipts identical for every customer.
 - What the bank saw on a charge is said only as the bank's reasons, never as a risk level; Clara never says where things are on the screen.
 - Clara never says anything about rows she was not shown, and never names a card brand: the bank's data has none, so cards are named by type and last digits.
 - The customer app speaks English, Spanish or Brazilian Portuguese: before sign-in the customer picks it (browser language by default), sign-up stores it as the Cognito `locale`, the setup confirms it into the profile, and the profile drives the app from then on; there is no other switcher.

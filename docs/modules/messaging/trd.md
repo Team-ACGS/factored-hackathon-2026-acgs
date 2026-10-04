@@ -1,11 +1,11 @@
 ---
-updated: 2026-10-03
-source: 0020_rich_parts
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Messaging: technical
 
-Status: built for customers (task 0003); agent sending comes with the support app. The customer chat talks to it through `apps/customer/src/chat/live.ts` (task 0019); Clara's replies carry `parts`, taps carry `input`, and `chatbot` publishes status events (task 0020).
+Status: built for customers (task 0003); agent sending comes with the support app. The customer chat talks to it through `apps/customer/src/chat/live.ts` (task 0019); Clara's replies carry `parts` and, after a write, `effects`; taps and the bank's charge entry carry `input`; `chatbot` publishes status events (tasks 0020, 0022).
 
 ## Structure
 
@@ -19,10 +19,10 @@ Status: built for customers (task 0003); agent sending comes with the support ap
 
 ## Endpoints owned
 
-- `POST /messages`: send a message with a client-minted `room_id` and `message_id`, and for a tap an `input` with exactly `ask_id` (a UUIDv7) and `option` (1 to 80 characters), stored and never returned; creates the room with the first message; 201 when stored, 200 with the stored message on a retry, 400 when the id is more than 2 minutes from server time, the text is empty or over 2000 characters, or `input` has another shape.
+- `POST /messages`: send a message with a client-minted `room_id` and `message_id`, and an optional `input`: a tap (`ask_id`, a UUIDv7, `option`, 1 to 80 characters, and an optional `note` of at most 140, trimmed, empty dropped) or the bank's charge entry (`topic`: `type charge`, `product_id`, `transaction_id`, both UUIDv7), stored and never returned; creates the room with the first message; 201 when stored, 200 with the stored message on a retry, 400 when the id is more than 2 minutes from server time, the text is empty or over 2000 characters, or `input` has another shape.
 - `GET /messages/rooms/latest`: the customer's latest room, its whole history in order, the turn in progress (`turn`: `message_id` and its latest `status`, while the mark is fresh) and `server_time` for the client clock.
 
-A message's public shape adds `parts` when Clara wrote it (`say` with its citations, `view` with entity ids and readings, `ask` with options); `facts`, `draft`, `source` and `input` stay on the item and are never returned or published.
+A message's public shape adds `parts` when Clara wrote it (`say` with its citations, `view` with entity ids and readings, `ask` with options) and `effects` when her turn wrote something (`card_blocked`, `case_opened`, `charge_answered`, each with the id it changed), so the client invalidates exactly those keys; `facts`, `draft`, `source` and `input` stay on the item and are never returned or published.
 A status event on the room's channel is `{type: "status", id: "<message_id>#<round>", room_id, message_id, round, status}`, where `status` is a key (`cards`, `movements`, `cases`, `memory`, `policies`) the client maps to text.
 
 No generated API spec yet.
@@ -43,7 +43,7 @@ Jobs and listeners:
 ## Depended on by
 
 - assistant: `chatbot` is triggered by customer messages and writes its reply as an ordinary message through the same messaging code, assuming `role-customer` with the record's `customer_id`.
-- `apps/customer` and `apps/support`: send through `/messages`, subscribe to the room's channel.
+- `apps/customer` and `apps/support`: send through `/messages`, subscribe to the room's channel; the customer app re-reads `GET /messages/rooms/latest` on return to the foreground, network back or a channel error (backing off 1 s doubling to 30 s), showing "Reconectando…".
 
 ## Configuration
 
@@ -67,5 +67,5 @@ Only the id travels, never text.
 ## Testing
 
 - `lambdas/tests/` on moto: `core/test_messaging.py`, `messages/`, `chat_notifier/`, and `test_round_trip.py`, which sends through the API, replays the stream into `chatbot` and `chat-notifier`, and checks retries, order and the absence of a loop.
-- `apps/customer/src/chat/*.test.ts`: the conversation reducer (pending, sent, dedupe by `message_id`, statuses dropped after the reply or 30 s without news, a tap's input kept for retry), the API retries and the clock.
+- `apps/customer/src/chat/*.test.ts`: the conversation reducer (pending, sent, dedupe by `message_id`, statuses dropped after the reply or 30 s without news, a tap's input kept for retry, effects read), the catch-up on return and its backoff, the API retries and the clock.
 - Commands: `docs/TRD.md`, Verification targets.
