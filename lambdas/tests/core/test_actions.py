@@ -624,3 +624,5 @@ def test_a_person_asked_about_a_case_names_it_and_the_stored_package_is_the_prev
 
     [stored] = [case for case in cases(aws) if case["complaint_id"] != planted["complaint_id"]]
     assert stored["summary_points"] == handoff["readings"]["points"]
+    assert stored["summary_source"] == "template"
+    assert stored["summary"] == request

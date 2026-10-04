@@ -525,7 +525,7 @@ LANGUAGE_MIN_MARKERS = 3
 
 PROCESS_ACTIONS = (
     r"(puedes|podrias|debes|deberias|tendrias que|tienes que|necesitas|conviene|te recomiendo) (\w+ ){0,2}"
-    r"(abrir\w*|iniciar\w*|presentar\w*|cancelar\w*|dar\w* de baja|llamar\w*|comunicarte|contactar\w*"
+    r"(hablar|abrir\w*|iniciar\w*|presentar\w*|cancelar\w*|dar\w* de baja|llamar\w*|comunicarte|contactar\w*"
     r"|solicitar\w*|pedir\w*|reclamar\w*|bloquear\w*)",
     r"(comunicate|llama al|llamanos|contacta|escribe al|acude)",
     r"(necesitaras|tendras que|deberas|vas a tener que|vas a necesitar) (\w+ ){0,2}"
@@ -542,6 +542,23 @@ PROCESS_ACTIONS = (
 )
 
 FORBIDDEN = {
+    "offer_talk": (
+        r"(te )?puedo (conectarte|pasarte|transferirte|comunicarte)",
+        r"te puedo (conectar|pasar|transferir|comunicar)",
+        r"puedo (\w+ ){0,8}(si (asi )?(lo )?quieres|mientras tanto)",
+        r"puedo ayudarte a (conectarte|contactar\w*|comunicarte|pasarte)",
+        r"posso (te )?(passar|conectar|transferir|encaminhar)",
+        r"posso (\w+ ){0,8}(se (voce )?quiser|enquanto isso)",
+        r"posso (te )?ajudar a (falar|entrar em contato|conectar)",
+        r"(colocar|por|deixar) (voce|te) em contato",
+        r"(una persona|alguien|un representante|un asesor|un agente|el equipo|uma pessoa|alguem|um atendente"
+        r"|um representante|a equipe|a person|someone|an agent|a representative|the team)"
+        r"( del banco| en el banco| do banco| no banco| at the bank)? "
+        r"(te |lhe )?(puede|podra|pode|podera|can|will) (\w+ ){0,2}"
+        r"(ayudar\w*|ajudar|help|resolver|gestionar)",
+        r"i can (connect|put|transfer|pass) you",
+        r"i can (\w+ ){0,8}(if you('d)? (want|like)|in the meantime)",
+    ),
     "gendered_customer": (r"(in)?satisfeit[oa]s?", r"(in)?satisfech[oa]s?"),
     "fraud_word": (r"fraud\w*",),
     "safety_claim": (
@@ -674,6 +691,10 @@ INSTRUCTIONS = {
     "card_without_series": (
         "Next to the subscriptions, name a card only as the `last4` of a series' own `recurring` fact; "
         "remove the cards that carry no series."
+    ),
+    "offer_talk": (
+        'Never offer anything in say: no transfer, no person, no lookup "if you want". Say that a person at '
+        "the bank does it and state what you read; the bank's buttons offer what the bank allows."
     ),
     "gendered_customer": (
         "Never infer the customer's gender: rephrase without the adjective about them "

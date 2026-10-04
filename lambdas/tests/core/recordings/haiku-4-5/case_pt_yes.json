@@ -65,11 +65,11 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_CLRf6wEEIV0s75nH9rYPoy",
+         "toolUseId": "tooluse_IlFPoGKZ6bbIH52ZqKhyQU",
          "name": "say",
          "input": {
           "say": [
-           "Pergunta pela devolução do dinheiro referente à contestação aberta em {f2.opened_at}. Identificação da cobrança ou referência específica da devolução esperada ainda não foi fornecida."
+           "Pergunta pela devolução do seu dinheiro. De qual cobrança ou caso espera a devolução?"
           ]
          },
          "type": "tool_use"
@@ -81,13 +81,13 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 1706,
-     "outputTokens": 87,
-     "totalTokens": 1793,
+     "outputTokens": 61,
+     "totalTokens": 1767,
      "cacheReadInputTokens": 0,
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 1232
+     "latencyMs": 705
     }
    }
   }

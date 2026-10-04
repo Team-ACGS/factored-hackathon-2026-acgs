@@ -535,12 +535,10 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_Jhxdf3ylYe3YF2APRxJDBg",
+         "toolUseId": "tooluse_1vb43zKWwbivWwgxKQO9pN",
          "name": "reply",
          "input": {
-          "say": [
-           "No puedo desbloquear tu tarjeta. Una persona del banco puede ayudarte con eso."
-          ],
+          "say": "Desbloquear una tarjeta es algo que solo puede hacer una persona en el banco. Te conectaremos con alguien que pueda ayudarte.",
           "ask": {
            "type": "talk_to_person",
            "facts": [
@@ -557,13 +555,13 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 1020,
-     "outputTokens": 94,
-     "totalTokens": 10752,
+     "outputTokens": 103,
+     "totalTokens": 10761,
      "cacheReadInputTokens": 9638,
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 1188
+     "latencyMs": 1290
     }
    }
   }

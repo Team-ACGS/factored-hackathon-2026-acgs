@@ -390,10 +390,10 @@ def with_chunk(book: Ledger) -> Ledger:
         ("I cannot tell when the money will arrive.", "en", ["money_promise"]),
         ("¿Cuánto dinero gastaste?", "es", []),
         ("You will get a refund.", "en", ["money_promise"]),
-        ("Puedes hablar con un abogado.", "es", ["legal_term"]),
+        ("Puedes hablar con un abogado.", "es", ["uncited_process", "legal_term"]),
         ("La ley te protege.", "es", ["legal_term"]),
         ("You could go to court.", "en", ["legal_term"]),
-        ("Puedes hablar con una persona del banco.", "es", []),
+        ("Puedes hablar con una persona del banco.", "es", ["uncited_process"]),
         ("No puedo prometerte una fecha exacta.", "es", ["promise_talk"]),
         ("Não posso fazer promessas sobre o prazo.", "pt-BR", ["promise_talk"]),
         ("I cannot promise a date.", "en", ["promise_talk"]),
@@ -1334,6 +1334,7 @@ def test_the_first_purchase_said_again_beside_the_bank_s_reasons_is_sent_back() 
     [
         ("es", "Para gestionar un desbloqueo necesitarás hablar con el equipo de atención."),
         ("es", "Tendrás que llamar al banco para eso."),
+        ("es", "Para cualquier gestión de desbloqueo necesitas hablar con alguien del equipo."),
         ("pt-BR", "Para isso você vai precisar falar com o banco."),
         ("en", "You will need to talk to the bank about that."),
     ],
@@ -1351,3 +1352,26 @@ def test_an_adjective_that_guesses_the_customer_s_gender_is_sent_back() -> None:
         == "gendered_customer"
     )
     assert codes("Se a resposta não resolver, o passo seguinte é o Procon.", ledger(), "pt-BR") == []
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "offered"),
+    [
+        ("es", "Te puedo conectar con alguien que lo gestione.", True),
+        ("es", "Puedo pasarte con una persona del banco.", True),
+        ("es", "Puedo revisar el estado de tus tarjetas si quieres.", True),
+        ("pt-BR", "Posso verificar o status dos seus cartões se quiser.", True),
+        ("pt-BR", "Posso te passar para um atendente.", True),
+        ("en", "I can connect you with someone at the bank.", True),
+        ("pt-BR", "Posso verificar o status dos seus cartões enquanto isso.", True),
+        ("es", "Puedo ayudarte a conectarte con ellos.", True),
+        ("es", "Si necesitas gestionar el desbloqueo, un representante puede ayudarte.", True),
+        ("es", "Para desbloquear tu tarjeta, una persona en el banco puede ayudarte con eso.", True),
+        ("pt-BR", "Posso colocar você em contato com alguém que possa desbloqueá-lo.", True),
+        ("pt-BR", "Se você precisa desbloqueá-lo, uma pessoa do banco pode ajudar com isso.", True),
+        ("es", "Desbloquear una tarjeta lo hace una persona del banco.", False),
+        ("pt-BR", "Seus cartões estão ativos.", False),
+    ],
+)
+def test_an_offer_in_prose_is_sent_back(locale: str, text: str, offered: bool) -> None:
+    assert ("offer_talk" in codes(text, ledger(), locale)) is offered

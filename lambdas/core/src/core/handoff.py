@@ -192,9 +192,13 @@ def points(package: Package, locale: str) -> list[str]:
         found.append(bind(POINTS["card"][locale], k=card))
     if package.block is not None and card is not None:
         found.append(bind(POINTS[package.block][locale], k=card))
-    if package.kind != "service" or (package.about is None and package.charge is None):
+    if _asks(package):
         found.append(QUESTIONS[_question(package)][locale])
     return found
+
+
+def _asks(package: Package) -> bool:
+    return package.kind != "service" or (package.about is None and package.charge is None)
 
 
 def handoff_points(subjects: list[Fact], asked: Ask | None, ledger: Ledger, locale: str) -> list[str]:
@@ -232,7 +236,8 @@ def _card_of(charge: Fact | None, ledger: Ledger) -> Fact | None:
 
 
 def summary_template(package: Package, locale: str) -> str:
-    return " ".join(points(package, locale)[:-1])
+    found = points(package, locale)
+    return " ".join(found[:-1] if _asks(package) else found)
 
 
 def rendered(texts: list[str], ledger: Ledger, locale: str) -> list[str]:

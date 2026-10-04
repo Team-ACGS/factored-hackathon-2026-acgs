@@ -47,9 +47,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Tu aclaración CLR-2026-182061 está en revisión desde hoy y corresponde al cargo en "
-                    "Primax con tu tarjeta terminada en 4141. El banco revisa tu aclaración dentro de 10 "
-                    "días hábiles."
+                    "Tu aclaración CLR-2026-182061 sobre el cargo en Primax está en revisión desde hoy. El "
+                    "banco revisa tu aclaración en 10 días hábiles."
                 ),
             ),
             ("handoff", "talk_to_person"),
@@ -68,8 +67,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Sua contestação CLR-2026-862021 está em análise, referente à cobrança em Pão de Açúcar. "
-                    "O banco analisa a contestação em 8 dias úteis."
+                    "Sua contestação CLR-2026-862021 está em análise, aberta em 14 de setembro para uma "
+                    "cobrança em Pão de Açúcar. O banco analisa a contestação em 8 dias úteis."
                 ),
             ),
             ("handoff", "talk_to_person"),
@@ -241,20 +240,15 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "El desbloqueo de una tarjeta lo realiza directamente una persona del banco. Te puedo "
-                    "conectar con alguien que lo gestione."
+                    "Desbloquear una tarjeta es algo que hace una persona del banco. Tus tarjetas terminada "
+                    "en 8101, terminada en 2322 y terminada en 5943 están todas activas en este momento."
                 ),
             ),
             ("handoff", "talk_to_person"),
         ),
         "unblock_pt": (
-            "composed",
-            (
-                (
-                    "Desbloquear um cartão é algo que só um atendente do banco consegue fazer. Posso "
-                    "verificar o status dos seus cartões se quiser."
-                ),
-            ),
+            "repaired",
+            ("Desbloquear um cartão é algo que só uma pessoa do banco consegue fazer.",),
             ("handoff", "talk_to_person"),
         ),
         "ten_days_pt": (
@@ -545,8 +539,10 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             (
                 (
                     "Tu aclaración CLR-2026-182061 está en revisión. El banco revisa tu aclaración en 10 "
-                    "días hábiles."
+                    "días hábiles. Si no estás conforme con la respuesta o el plazo vence sin ella, puedes "
+                    "escribir a la Defensoría del Cliente de LATAM Bank."
                 ),
+                "Si quieres hablar con alguien del banco ahora, estamos aquí para ayudarte.",
             ),
             ("handoff", "talk_to_person"),
         ),
@@ -559,7 +555,7 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Sua contestação CLR-2026-862021 está em análise. O banco analisa sua contestação e "
+                    "Sua contestação CLR-2026-862021 está em análise. O banco analisa a sua contestação e "
                     "responde dentro do prazo de análise de 8 dias úteis."
                 ),
             ),
@@ -725,15 +721,20 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
         ),
         "unblock_es": (
             "composed",
-            ("No puedo desbloquear tu tarjeta. Una persona del banco puede ayudarte con eso.",),
+            (
+                (
+                    "Desbloquear una tarjeta es algo que solo puede hacer una persona en el banco. Te "
+                    "conectaremos con alguien que pueda ayudarte."
+                ),
+            ),
             ("handoff", "talk_to_person"),
         ),
         "unblock_pt": (
             "composed",
             (
                 (
-                    "Desbloquear um cartão é algo que só uma pessoa no banco pode fazer. Vou conectar você "
-                    "com alguém que pode ajudar com isso."
+                    "O desbloqueio de um cartão é algo que só as pessoas do banco podem fazer. Posso "
+                    "verificar o status de seus cartões para você."
                 ),
             ),
             ("handoff", "talk_to_person"),
