@@ -474,6 +474,42 @@ DATE_WORDS = {
 
 DATE_HOMONYMS = {"en": ("may", "march")}
 
+VOSEO = {
+    "llevás": "llevas",
+    "tenés": "tienes",
+    "querés": "quieres",
+    "podés": "puedes",
+    "sabés": "sabes",
+    "hacés": "haces",
+    "gastás": "gastas",
+    "pagás": "pagas",
+    "usás": "usas",
+    "necesitás": "necesitas",
+    "reconocés": "reconoces",
+    "decime": "dime",
+    "contame": "cuéntame",
+    "fijate": "fíjate",
+}
+
+PRESENT_TODAY = {
+    "es": r"hoy (tienes|tiene|hay|estas|esta|llevas|ves|sigues|sigue|cuentas)",
+    "pt-BR": r"hoje (voce tem|voce esta|tem|ha|esta)",
+    "en": r"today (you have|you are|you're|there is|there are)",
+}
+
+PROCESS_ACTIONS = (
+    r"(puedes|podrias|debes|deberias|tendrias que|tienes que|necesitas|conviene|te recomiendo) (\w+ ){0,2}"
+    r"(abrir\w*|iniciar\w*|presentar\w*|cancelar\w*|dar\w* de baja|llamar\w*|comunicarte|contactar\w*"
+    r"|solicitar\w*|pedir\w*|reclamar\w*|bloquear\w*)",
+    r"(comunicate|llama al|llamanos|contacta|escribe al|acude)",
+    r"(voce )?(pode|poderia|deve|deveria|precisa|tem que) (\w+ ){0,2}"
+    r"(abrir|iniciar|registrar|cancelar\w*|ligar|entrar em contato|contatar|solicitar|pedir|bloquear)",
+    r"(ligue|entre em contato|contate|procure o banco)",
+    r"you (can|could|should|need to|have to|must) (\w+ ){0,2}"
+    r"(open|start|file|cancel|call|contact|request|block)",
+    r"(call|contact) the bank",
+)
+
 FORBIDDEN = {
     "fraud_word": (r"fraud\w*",),
     "safety_claim": (
@@ -507,6 +543,38 @@ FORBIDDEN = {
         r"money back",
         r"(get|receive|recover) your money",
         r"guarante\w*",
+    ),
+    "told_promise": (
+        r"te (va a |van a )?(respond|contest|inform|avis|notific|contact|llam|escrib)\w*",
+        r"(respondera|responderan|contestara|informara|avisara|notificara|contactara)n?",
+        r"(recibiras|tendras) (una |su )?respuesta",
+        r"(vai|ira|vao) (te |lhe )?(responder|informar|avisar|notificar|contatar|ligar)\w*",
+        r"(te|lhe) (responde|informa|avisa|notifica|contata|liga)\w*",
+        r"(voce )?(vai|ira) receber (uma |a )?resposta",
+        r"(will|'ll|is going to) "
+        r"(get back to|respond to|reply to|answer|notify|inform|contact|call|tell) you",
+        r"you (will|'ll) (hear|get an answer|receive an answer|be told|be informed|be notified|be contacted)",
+    ),
+    "location_talk": (
+        r"a continuacion",
+        r"aqui",
+        r"abajo",
+        r"debajo",
+        r"a la derecha",
+        r"al lado",
+        r"en (el|este) panel",
+        r"en (la|esta) pantalla",
+        r"a seguir",
+        r"abaixo",
+        r"ao lado",
+        r"a direita",
+        r"no painel",
+        r"na tela",
+        r"below",
+        r"here",
+        r"on the right",
+        r"in the panel",
+        r"on (the|your) screen",
     ),
     "promise_talk": (
         r"promet\w*",
@@ -558,6 +626,21 @@ INSTRUCTIONS = {
     "money_promise": "Never promise money back; describe the next step of the process instead.",
     "legal_term": "Avoid legal terms; describe the bank's process in plain words.",
     "promise_talk": "Never say what you can or cannot promise; state the bank's process with its citation.",
+    "told_promise": (
+        "Never say the bank will answer, contact or inform the customer; state the review and its cited "
+        "timeframe only."
+    ),
+    "location_talk": (
+        "Never say where the rows or options are (here, below, on the right); the panel shows them."
+    ),
+    "uncited_process": (
+        "A sentence about what the customer can do or what the bank does is said only with the citation "
+        "[p:<chunk_id>] of the excerpt that says it; without one, remove the sentence."
+    ),
+    "card_without_series": (
+        "Next to the subscriptions, name a card only as the `last4` of a series' own `recurring` fact; "
+        "remove the cards that carry no series."
+    ),
     "noun_after_count": "A count renders with its noun; remove the noun you wrote after the reference.",
     "view_unknown": "Use one of the view types of the reply tool.",
     "view_fact_unknown": "A view may show only facts a tool returned this turn.",

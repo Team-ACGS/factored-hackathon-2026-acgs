@@ -20,8 +20,11 @@ from core.facts.catalog import (
     NUMBER_VALUES,
     ORDINALS,
     PERIOD_PREPOSITIONS,
+    PRESENT_TODAY,
+    PROCESS_ACTIONS,
     RELATIVE_DAY_LEADS,
     UNSEEN_CLAIMS,
+    VOSEO,
     WEEKDAYS,
 )
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
@@ -52,6 +55,8 @@ MISSING_PREPOSITION = {
         r"(?:quer|gostaria de) saber\b"
     ),
 }
+VOSEO_FORMS = re.compile(r"(?<!\w)(?:" + "|".join(VOSEO) + r")(?!\w)", re.IGNORECASE)
+SPEND_SCOPE = frozenset({"merchant", "period", "compare_period", "last4"})
 PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d)(os|as|o|a)(?!\w)")
 DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
@@ -103,6 +108,7 @@ def check(
                 except Unfit as unfit:
                     errors.append(_part_error(unfit.code, index, unfit.fact_id, part))
     errors.extend(_movements_beside_spend(parts, ledger))
+    errors.extend(_cards_without_series(parts, ledger))
     return sorted(errors, key=lambda error: (error.part, error.span))
 
 
@@ -112,19 +118,72 @@ def tidy_reply(texts: Sequence[str], ledger: Ledger) -> tuple[list[str], dict[st
     def referenced(text: str) -> set[str | None]:
         return {kinds.get(match.group(1)) for match in REFERENCE.finditer(text)}
 
-    if not any("spend" in referenced(text) for text in texts):
-        return list(texts), {}
+    def restates_search(sentence: str) -> bool:
+        found = [(kinds.get(match.group(1)), match.group(2)) for match in REFERENCE.finditer(sentence)]
+        return any(kind == "movements" for kind, _ in found) and all(
+            kind == "movements" or (kind == "spend" and field in SPEND_SCOPE) for kind, field in found
+        )
+
+    spend = any("spend" in referenced(text) for text in texts)
+
+    def dropped_as(sentence: str) -> str | None:
+        found = referenced(sentence)
+        if spend and restates_search(sentence):
+            return "movements_beside_spend"
+        if found or CITATION.search(sentence):
+            return None
+        if _process_actions().search(fold(sentence)):
+            return "uncited_process"
+        if _location_talk().search(fold(sentence)):
+            return "location_talk"
+        return None
+
     kept: list[str] = []
-    dropped = 0
+    edits: dict[str, int] = {}
     for text in texts:
-        sentences = [match.group(0) for match in SENTENCE.finditer(text) if match.group(0)]
-        others = [sentence for sentence in sentences if referenced(sentence) != {"movements"}]
-        dropped += len(sentences) - len(others)
+        others = []
+        for sentence in (match.group(0) for match in SENTENCE.finditer(text) if match.group(0)):
+            kind = dropped_as(sentence)
+            if kind is None:
+                others.append(sentence)
+            else:
+                edits[kind] = edits.get(kind, 0) + 1
         if "".join(others).strip():
             kept.append("".join(others).strip())
     if not kept:
         return list(texts), {}
-    return kept, {"movements_beside_spend": dropped} if dropped else {}
+    return kept, edits
+
+
+def _cards_without_series(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
+    says = [(index, part.text) for index, part in enumerate(parts) if isinstance(part, Say)]
+    series = {
+        fact.fields.get("card_ref")
+        for _, text in says
+        for match in REFERENCE.finditer(text)
+        if (fact := ledger.get(match.group(1))) is not None and fact.kind == "recurring"
+    }
+    if not series:
+        return []
+    errors = []
+    for index, text in says:
+        offset = 0
+        for sentence in SENTENCE.findall(text):
+            fields: dict[str, set[str]] = {}
+            for match in REFERENCE.finditer(sentence):
+                fields.setdefault(match.group(1), set()).add(match.group(2))
+            for match in REFERENCE.finditer(sentence):
+                fact = ledger.get(match.group(1))
+                if (
+                    fact is not None
+                    and fact.kind == "card"
+                    and fields[fact.id] == {"last4"}
+                    and fact.fields.get("card_ref") not in series
+                ):
+                    span = (offset + match.start(), offset + match.end())
+                    errors.append(_error("card_without_series", index, span, match.group(0)))
+            offset += len(sentence)
+    return errors
 
 
 def _movements_beside_spend(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
@@ -158,6 +217,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
     text, agreement = _agree_after_counts(text, ledger, locale)
     text, dashes = DASH.subn(", ", text)
     text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
+    text, voseo = VOSEO_FORMS.subn(_as_tu, text) if locale == "es" else (text, 0)
     edits = {
         "number_word": numbers,
         "doubled_noun": nouns,
@@ -167,9 +227,16 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
         "agreement": agreement,
         "dash": dashes,
         "grammar": grammar,
+        "voseo": voseo,
         "citation_placement": citations,
     }
     return text, {kind: count for kind, count in edits.items() if count}
+
+
+def _as_tu(match: re.Match[str]) -> str:
+    said = match.group(0)
+    tu = VOSEO[said.lower()]
+    return tu[:1].upper() + tu[1:] if said[:1].isupper() else tu
 
 
 def _with_preposition(match: re.Match[str]) -> str:
@@ -333,6 +400,21 @@ def number_homonyms(locale: str) -> tuple[re.Pattern[str], ...]:
 
 
 @cache
+def _present_today(locale: str) -> re.Pattern[str]:
+    return bounded([PRESENT_TODAY[locale]])
+
+
+@cache
+def _location_talk() -> re.Pattern[str]:
+    return bounded(FORBIDDEN["location_talk"])
+
+
+@cache
+def _process_actions() -> re.Pattern[str]:
+    return bounded(PROCESS_ACTIONS)
+
+
+@cache
 def _unseen_claims() -> re.Pattern[str]:
     return bounded(UNSEEN_CLAIMS)
 
@@ -382,13 +464,28 @@ class _SayCheck:
         self._scan_folded(_lexicon(), "merchant_outside_reference", mask=True)
         self._scan_raw(DIGITS, "digit_outside_reference")
         self._scan_raw(CURRENCY, "currency_outside_reference")
+        self._mask_folded(_present_today(self.locale))
         self._scan_folded(_date_words(self.locale), "date_outside_reference")
         self._scan_number_words()
         if _unseen_rows(self.ledger):
             self._scan_folded(_unseen_claims(), "unseen_rows_claim")
         for code, pattern in _forbidden():
             self._scan_folded(pattern, code)
+        self._uncited_process()
         return self.errors
+
+    def _uncited_process(self) -> None:
+        start = 0
+        for end in [match.end() for match in SENTENCE_END.finditer(self.original)] + [len(self.original)]:
+            sentence = self.original[start:end]
+            found = _process_actions().search(fold(sentence))
+            if found and not CITATION.search(sentence):
+                self._report("uncited_process", (start + found.start(), start + found.end()))
+            start = end
+
+    def _mask_folded(self, pattern: re.Pattern[str]) -> None:
+        for match in pattern.finditer(fold("".join(self.outside))):
+            self._mask(match.span())
 
     def _references(self) -> None:
         for match in REFERENCE.finditer(self.original):

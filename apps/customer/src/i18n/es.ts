@@ -214,6 +214,7 @@ export const es: Record<MessageKey, string> = {
   "clara.chat.view.back": "Volver",
   "clara.chat.view.movements.kicker": "Tus movimientos",
   "clara.chat.view.movements.title": "Movimientos",
+  "clara.chat.view.movements.series": "Cargos recurrentes",
   "clara.chat.view.movements.label": "Ver movimientos",
   "clara.chat.view.movements.shown": "{count} movimientos",
   "clara.chat.view.movements.hint": "Toca un movimiento para ver qué es",

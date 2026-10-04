@@ -150,11 +150,9 @@ def _card_fact(option: Option, ledger: Ledger) -> Fact:
 
 def _day(value: Value | None, ledger: Ledger, locale: str) -> str:
     if isinstance(value, Instant):
-        return format_date(
-            value.value.astimezone(zone(ledger.country)).date(), ledger, locale, standalone=False
-        )
+        return format_date(value.value.astimezone(zone(ledger.country)).date(), ledger, locale, article=False)
     if isinstance(value, Day):
-        return format_date(value.value, ledger, locale, standalone=False)
+        return format_date(value.value, ledger, locale, article=False)
     return ""
 
 
@@ -167,6 +165,10 @@ def _none(facts: list[Fact], ledger: Ledger, locale: str) -> Json:
 
 
 def _movements(facts: list[Fact], ledger: Ledger, locale: str) -> Json:
+    series = next((fact for fact in facts if fact.kind == "recurring_list"), None)
+    count = series.fields.get("count") if series else None
+    if count is not None:
+        return {"kind": "series", "count": render_value(count, ledger, locale)}
     aggregate = next((fact for fact in facts if fact.kind == "movements"), None)
     if aggregate is None:
         return {}

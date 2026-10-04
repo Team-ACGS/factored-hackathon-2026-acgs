@@ -1,4 +1,5 @@
 import random
+import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -18,6 +19,7 @@ from harness import Aws, demo_account, uuid7
 NOW = datetime(2026, 9, 20, 17, 0, tzinfo=UTC)
 RECORDINGS = Path(__file__).parent / "core" / "recordings"
 PLANTED_SUFFIX = 2979
+PLACEHOLDER = re.compile(r"\{\{policy\.[a-z_.]+\}\}")
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,7 @@ class Document:
     text: str
     figures: tuple[str, ...]
     page: int
+    section: int = 3
 
 
 DOCUMENTS = {
@@ -58,6 +61,30 @@ DOCUMENTS = {
             ("cards.replacement_time",),
             2,
         ),
+        Document(
+            "dispute-lifecycle",
+            "disputes",
+            "dispute_lifecycle",
+            "procedure",
+            "Ciclo de una aclaración",
+            "Apertura. Usted presenta la aclaración en la app con Clara o por teléfono en el "
+            "{{policy.channels.phone}}. Su caso queda abierto y usted recibe un número de caso.",
+            ("channels.phone",),
+            3,
+            2,
+        ),
+        Document(
+            "blocked-card-effects",
+            "card_security",
+            "blocked_card_effects",
+            "guide",
+            "Qué deja de funcionar cuando se bloquea una tarjeta",
+            "Mi suscripción fue rechazada: el comercio decide qué hace con un pago rechazado. Actualice la "
+            "forma de pago cuando reciba la tarjeta nueva, o cancélela con el comercio si ya no la quiere.",
+            ("cards.replacement_time",),
+            3,
+            7,
+        ),
     ),
     "BR": (
         Document(
@@ -83,6 +110,31 @@ DOCUMENTS = {
             "nem nenhum serviço.",
             ("cards.replacement_time",),
             2,
+        ),
+        Document(
+            "dispute-lifecycle",
+            "disputes",
+            "dispute_lifecycle",
+            "procedure",
+            "Ciclo de uma contestação",
+            "Abertura. Você apresenta a contestação no app com a Clara ou por telefone no "
+            "{{policy.channels.phone}}. Seu caso fica aberto e você recebe um número de caso.",
+            ("channels.phone",),
+            3,
+            2,
+        ),
+        Document(
+            "blocked-card-effects",
+            "card_security",
+            "blocked_card_effects",
+            "guide",
+            "O que deixa de funcionar quando um cartão é bloqueado",
+            "Minha assinatura foi recusada: o estabelecimento decide o que faz com um pagamento recusado. "
+            "Atualize a forma de pagamento quando receber o cartão novo, ou cancele a assinatura com o "
+            "estabelecimento se você não a quer mais.",
+            ("cards.replacement_time",),
+            3,
+            7,
         ),
     ),
 }
@@ -154,7 +206,7 @@ def policy_index(country: str) -> PolicySearch:
     facts = policy_facts()[country]
     records = [
         ChunkRecord(
-            chunk_id=chunk_id(f"{country.lower()}-{document.slug}", 2, facts.version, 3, 1),
+            chunk_id=chunk_id(f"{country.lower()}-{document.slug}", 2, facts.version, document.section, 1),
             country=country,
             language=facts.language,
             group=document.group,
@@ -166,7 +218,9 @@ def policy_index(country: str) -> PolicySearch:
             effective_date=date(2026, 9, 1),
             section=document.title,
             title=document.title,
-            text=document.text.replace("{{policy.claims.review_time}}", "…"),
+            text=document.text.replace("{{policy.claims.review_time}}", "…").replace(
+                "{{policy.channels.phone}}", "…"
+            ),
             figures={key: facts.specs[key] for key in document.figures},
             page_start=document.page,
             page_end=document.page + 1,

@@ -17,7 +17,6 @@ from core.retrieval import (
     thresholds,
 )
 from core.tools import TOOLS, ToolContext, search_policies
-from core.tools.registry import TOOLS as REGISTRY
 from core.vectors import (
     POLICY_ATTEMPTS,
     SEARCH_CALLS,
@@ -246,7 +245,7 @@ def test_unavailable_after_one_retry_never_no_match(
 ) -> None:
     bedrock, vectors = clients
     ledger = Ledger("PE", NOW)
-    (bedrock if failing == "bedrock" else vectors).failures = 2
+    (bedrock if failing == "bedrock" else vectors).failures = POLICY_ATTEMPTS
 
     result = search_policies(context(clients), ledger, query="revisión")
 
@@ -255,7 +254,7 @@ def test_unavailable_after_one_retry_never_no_match(
 
 
 def test_a_failure_is_retried_within_the_turn(clients: tuple[FakeBedrockRuntime, FakeS3Vectors]) -> None:
-    clients[1].failures = 1
+    clients[1].failures = POLICY_ATTEMPTS - 1
     ledger = Ledger("PE", NOW)
 
     search_policies(context(clients), ledger, query="revisión de mi aclaración")
@@ -276,9 +275,17 @@ def test_invalid_arguments_are_refused(
     assert ledger.facts[result.ids[0]].fields["error"] == Trace("invalid_argument")
 
 
-def test_two_attempts_of_the_three_calls_fit_in_half_the_turn() -> None:
-    assert REGISTRY["search_policies"].attempts == POLICY_ATTEMPTS == 2
-    assert SEARCH_CALLS == 3
+def test_every_attempt_of_the_worst_search_fits_in_half_the_turn(
+    clients: tuple[FakeBedrockRuntime, FakeS3Vectors],
+) -> None:
+    put(clients, [BLOCKING])
+    bedrock, vectors = clients
+
+    search_policies(
+        context(clients, minimum=cuts(es=0.99)), Ledger("PE", NOW), query="¿Y si cancelo mi tarjeta?"
+    )
+
+    assert len(bedrock.calls) + vectors.queries == SEARCH_CALLS
     assert WORST_SEARCH_SECONDS <= TURN_SECONDS / 2
 
 

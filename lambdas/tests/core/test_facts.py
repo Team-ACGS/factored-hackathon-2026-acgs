@@ -369,7 +369,7 @@ def with_chunk(book: Ledger) -> Ledger:
         ("Compraste en primax.", "es", ["merchant_outside_reference"]),
         ("Compraste en Netflix.", "es", ["merchant_outside_reference"]),
         ("Claro, te ayudo.", "es", []),
-        ("Llama al +51 999 888 777.", "es", ["contact_outside_facts"]),
+        ("Llama al +51 999 888 777.", "es", ["uncited_process", "contact_outside_facts"]),
         ("Entra a www.banco.pe/ayuda.", "es", ["contact_outside_facts"]),
         ("Escribe a ayuda@banco.pe.", "es", ["contact_outside_facts"]),
         ("Revisa bancolatam.com.", "es", ["contact_outside_facts"]),
@@ -401,6 +401,21 @@ def with_chunk(book: Ledger) -> Ledger:
         ("No puedo anticipar el resultado.", "es", ["promise_talk"]),
         ("Não posso antecipar o resultado.", "pt-BR", ["promise_talk"]),
         ("No pude revisar eso ahora.", "es", []),
+        ("Hoy tienes 2 tarjetas.", "es", ["digit_outside_reference"]),
+        ("Hoy tienes tus tarjetas activas.", "es", []),
+        ("Hoje você tem seus cartões ativos.", "pt-BR", []),
+        ("Fue hoy.", "es", ["date_outside_reference"]),
+        ("Los más recientes aparecen a continuación.", "es", ["location_talk"]),
+        ("Aquí puedes verlos todos.", "es", ["location_talk"]),
+        ("As mais recentes estão abaixo.", "pt-BR", ["location_talk"]),
+        ("You can see them below.", "en", ["location_talk"]),
+        ("El banco la revisará y te responderá pronto.", "es", ["told_promise"]),
+        ("O banco vai te responder.", "pt-BR", ["told_promise"]),
+        ("The bank will get back to you.", "en", ["told_promise"]),
+        ("Para hacerlo, comunícate directamente con el banco.", "es", ["uncited_process"]),
+        ("Necesitas cancelarlas directamente con cada proveedor.", "es", ["uncited_process"]),
+        ("Você precisa cancelar com cada empresa.", "pt-BR", ["uncited_process"]),
+        ("You should call the bank.", "en", ["uncited_process"]),
     ],
 )
 def test_the_check_applies_each_rule_outside_references(text: str, locale: str, expected: list[str]) -> None:
@@ -1068,9 +1083,50 @@ def test_an_answer_about_a_spend_never_adds_the_count_of_the_movements_search() 
         {"movements_beside_spend": 2},
     )
     assert tidy_reply(["Encontré {f3.count}."], book) == (["Encontré {f3.count}."], {})
+    assert tidy_reply(
+        ["Gastaste {f1.total}.", "Hay {f3.count} en {f1.merchant} en esos dos meses."], book
+    ) == (
+        ["Gastaste {f1.total}."],
+        {"movements_beside_spend": 1},
+    )
 
     reply = compose(fallback("answer", book, "es"), book, "es", "fallback")
     assert [part["text"][:9] for part in reply.parts if part["type"] == "say"] == ["Gastaste "]
+
+
+def test_a_process_sentence_passes_with_its_citation_and_a_card_beside_the_series_needs_a_series() -> None:
+    book = with_chunk(ledger())
+    cited = f"Puedes abrir una aclaración llamando al banco [p:{CHUNK}]."
+    assert codes(cited, book) == []
+
+    for index, digits in ((1, "5529"), (2, "0355")):
+        book.add(
+            "card",
+            {
+                "card_ref": Ref("card", f"card-{index}"),
+                "last4": Last4(digits),
+                "status": Status("card", "Active"),
+            },
+        )
+    book.add(
+        "recurring",
+        {"merchant": Merchant("Movistar"), "card_ref": Ref("card", "card-1"), "last4": Last4("5529")},
+    )
+
+    assert check_codes(
+        [
+            Say("Si bloqueas tu tarjeta {f2.last4}, se rechaza."),
+            Say("Tienes {f3.merchant} en tu tarjeta {f3.last4}."),
+        ],
+        book,
+    ) == [("card_without_series", "{f2.last4}")]
+    assert check_codes(
+        [Say("Tu tarjeta {f1.last4} y tu tarjeta {f2.last4}."), Say("Tienes {f3.merchant}.")], book
+    ) == [("card_without_series", "{f2.last4}")]
+    assert (
+        check_codes([Say("Tu tarjeta {f2.last4} está {f2.status}."), Say("Tienes {f3.merchant}.")], book)
+        == []
+    )
 
 
 @pytest.mark.parametrize(
@@ -1090,3 +1146,31 @@ def test_a_charge_status_agrees_with_the_noun_that_names_the_charge(
     book.add("movement", {"merchant": Merchant("Primax"), "status": Status("transaction", "Approved")})
 
     assert render_text(text, book, locale) == expected
+
+
+def test_a_bare_pointer_or_uncited_advice_is_dropped_before_the_check_and_counted() -> None:
+    book = with_chunk(spend_ledger())
+
+    texts, edits = tidy_reply(
+        [
+            "Gastaste {f1.total}. Aquí puedes ver los más recientes.",
+            "Si no lo reconoces, puedes llamar al banco para abrir una aclaración.",
+            f"Puedes abrir una aclaración llamando al banco [p:{CHUNK}].",
+        ],
+        book,
+    )
+
+    assert texts == ["Gastaste {f1.total}.", f"Puedes abrir una aclaración llamando al banco [p:{CHUNK}]."]
+    assert edits == {"location_talk": 1, "uncited_process": 1}
+    assert tidy_reply(["Puedes cancelar {f1.merchant} con el comercio."], book) == (
+        ["Puedes cancelar {f1.merchant} con el comercio."],
+        {},
+    )
+
+
+def test_a_voseo_form_becomes_its_tu_form_in_spanish_only() -> None:
+    assert tidy("Este mes llevás {f1.total}. ¿Querés verlos?", spend_ledger(), "es") == (
+        "Este mes llevas {f1.total}. ¿Quieres verlos?",
+        {"voseo": 2},
+    )
+    assert tidy("Você tem {f1.total}.", spend_ledger(), "pt-BR")[1] == {}

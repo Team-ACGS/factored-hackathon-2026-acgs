@@ -212,6 +212,7 @@ export const en = {
   "clara.chat.view.back": "Back",
   "clara.chat.view.movements.kicker": "Your movements",
   "clara.chat.view.movements.title": "Movements",
+  "clara.chat.view.movements.series": "Recurring charges",
   "clara.chat.view.movements.label": "See movements",
   "clara.chat.view.movements.shown": "{count} movements",
   "clara.chat.view.movements.hint": "Tap a movement to see what it is",

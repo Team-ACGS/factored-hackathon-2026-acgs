@@ -143,7 +143,7 @@ function MovementsView({ spec, nav }: ViewProps<"movements">) {
       <div className="flex flex-wrap gap-2">
         <Pill>{count ?? t("clara.chat.view.movements.shown", { count: String(spec.rows.length) })}</Pill>
         {last4 && <Pill>{last4}</Pill>}
-        {period && <Pill>{period}</Pill>}
+        {period && spec.readings.merchant && <Pill>{period}</Pill>}
       </div>
       <MovementRows rows={spec.rows} nav={nav} />
       <Hint>{t("clara.chat.view.movements.hint")}</Hint>

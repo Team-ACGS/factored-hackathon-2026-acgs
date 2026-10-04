@@ -214,6 +214,7 @@ export const ptBR: Record<MessageKey, string> = {
   "clara.chat.view.back": "Voltar",
   "clara.chat.view.movements.kicker": "Suas movimentações",
   "clara.chat.view.movements.title": "Movimentações",
+  "clara.chat.view.movements.series": "Cobranças recorrentes",
   "clara.chat.view.movements.label": "Ver movimentações",
   "clara.chat.view.movements.shown": "{count} movimentações",
   "clara.chat.view.movements.hint": "Toque em uma movimentação para ver o que é",
