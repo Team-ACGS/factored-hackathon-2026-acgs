@@ -535,11 +535,11 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_XO98ydvAOrjsueIfGWvjNu",
+         "toolUseId": "tooluse_9w3UOPgvrVtV6ITZZPOVO6",
          "name": "reply",
          "input": {
           "say": [
-           "O desbloqueio de um cartão é algo que só as pessoas do banco podem fazer. Posso verificar o status de seus cartões para você."
+           "Um cartão bloqueado precisa ser desbloqueado por uma pessoa do banco. Qual é o cartão que você quer desbloquear?"
           ],
           "ask": {
            "type": "talk_to_person",
@@ -563,7 +563,7 @@
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 1434
+     "latencyMs": 1293
     }
    }
   }

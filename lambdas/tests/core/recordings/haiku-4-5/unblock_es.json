@@ -535,10 +535,12 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_1vb43zKWwbivWwgxKQO9pN",
+         "toolUseId": "tooluse_duc8ZJPq80UdIEgiFor8RI",
          "name": "reply",
          "input": {
-          "say": "Desbloquear una tarjeta es algo que solo puede hacer una persona en el banco. Te conectaremos con alguien que pueda ayudarte.",
+          "say": [
+           "El desbloqueo de tu tarjeta es algo que solo una persona del banco puede hacer. La banco te ofrece esa opción para que puedas hacerlo directamente."
+          ],
           "ask": {
            "type": "talk_to_person",
            "facts": [
@@ -555,13 +557,19 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 1020,
-     "outputTokens": 103,
-     "totalTokens": 10761,
-     "cacheReadInputTokens": 9638,
-     "cacheWriteInputTokens": 0
+     "outputTokens": 112,
+     "totalTokens": 10770,
+     "cacheReadInputTokens": 0,
+     "cacheWriteInputTokens": 9638,
+     "cacheDetails": [
+      {
+       "ttl": "5m",
+       "inputTokens": 9638
+      }
+     ]
     },
     "metrics": {
-     "latencyMs": 1290
+     "latencyMs": 1409
     }
    }
   }

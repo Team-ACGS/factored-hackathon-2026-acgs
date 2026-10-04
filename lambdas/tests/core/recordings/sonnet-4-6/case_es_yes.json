@@ -70,7 +70,7 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_g6EBwknqMePmDJRTCPtsSl",
+         "toolUseId": "tooluse_1weLs83EN8GJsXMSPHSFJ7",
          "name": "say",
          "input": {
           "say": [
@@ -92,7 +92,7 @@
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 3254
+     "latencyMs": 1117
     }
    }
   }

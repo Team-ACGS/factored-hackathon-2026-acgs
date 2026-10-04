@@ -41,6 +41,7 @@ from core.facts.values import (
     Instant,
     Json,
     Labels,
+    Last4,
     Ledger,
     Money,
     Note,
@@ -82,6 +83,12 @@ PLURAL_CUES = {
     "pt-BR": re.compile(r"(?<!\w)(?:estão|são|ambas|ambos|todas|todos)(?!\w)", re.IGNORECASE),
 }
 CLAUSE_START = re.compile(r"[.;:!?]")
+CARD_NOUNS = {
+    "es": ("tus tarjetas", "tu tarjeta"),
+    "pt-BR": ("seus cartões", "seu cartão"),
+    "en": ("your cards", "your card"),
+}
+LIST_WORDS = {"es": "y", "pt-BR": "e", "en": "and"}
 BOTH = re.compile(r"(?<!\w)(amb)(os|as)(?!\w)", re.IGNORECASE)
 STATUS_WORD = re.compile(r"(?<!\w)(ativ|activ|bloquead)(os|as)(?!\w)", re.IGNORECASE)
 PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d|activ)(os|as|o|a)(?!\w)")
@@ -283,6 +290,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
     text, agreement = _agree_after_counts(text, ledger, locale)
     text, plural_statuses = _plural_card_statuses(text, ledger, locale)
     text, both = _agree_both(text, ledger, locale)
+    text, each_card = _one_card_each(text, ledger, locale)
     text, dashes = DASH.subn(", ", text)
     text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
     text, voseo = VOSEO_FORMS.subn(_as_tu, text) if locale == "es" else (text, 0)
@@ -293,7 +301,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
         "period_preposition": periods,
         "date_preposition": dates,
         "relative_day": relative,
-        "agreement": agreement + plural_statuses + both,
+        "agreement": agreement + plural_statuses + both + each_card,
         "dash": dashes,
         "grammar": grammar,
         "voseo": voseo,
@@ -421,6 +429,30 @@ def _agree_both(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
     for start, end, ending in sorted(set(swaps), reverse=True):
         text = text[:start] + ending + text[end:]
     return text, len(set(swaps))
+
+
+def _one_card_each(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    plural, singular = CARD_NOUNS[locale]
+    reference = r"\{[fp]\d+\.[a-z0-9_.]+\}"
+    pattern = re.compile(
+        rf"(?<!\w)({re.escape(plural)})\s*{reference}(?:\s*(?:,|{LIST_WORDS[locale]})\s*{reference})+",
+        re.IGNORECASE,
+    )
+    edits = 0
+
+    def each(match: re.Match[str]) -> str:
+        nonlocal edits
+        found = list(REFERENCE.finditer(match.group(0)))
+        if not all(isinstance(resolve(ledger, ref.group(1), ref.group(2)), Last4) for ref in found):
+            return match.group(0)
+        edits += 1
+        listed = REFERENCE.sub(
+            lambda ref: f"{singular} {ref.group(0)}", match.group(0)[len(match.group(1)) :]
+        )
+        noun = singular[:1].upper() + singular[1:] if match.group(1)[:1].isupper() else singular
+        return noun + listed.lstrip()[len(singular) :]
+
+    return pattern.sub(each, text), edits
 
 
 def _plural_card_statuses(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:

@@ -540,10 +540,10 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_TuMSgLuX7HQqh54PABHQvs",
+         "toolUseId": "tooluse_oB7NtWksWG7UEzZqDyPNQx",
          "name": "search_policies",
          "input": {
-          "query": "prazo para receber dinheiro de volta após contestação",
+          "query": "prazo para receber dinheiro de volta na contestação",
           "topic": "disputes"
          },
          "type": "tool_use"
@@ -551,7 +551,7 @@
        },
        {
         "toolUse": {
-         "toolUseId": "tooluse_6ncP66OR6apczfngn6Z5Xe",
+         "toolUseId": "tooluse_tqcrcZKIvOAodhLCSTPMG1",
          "name": "case_status",
          "input": {},
          "type": "tool_use"
@@ -569,7 +569,7 @@
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 1620
+     "latencyMs": 1603
     }
    }
   },
@@ -589,9 +589,9 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_TuMSgLuX7HQqh54PABHQvs",
+         "toolUseId": "tooluse_oB7NtWksWG7UEzZqDyPNQx",
          "input": {
-          "query": "prazo para receber dinheiro de volta após contestação",
+          "query": "prazo para receber dinheiro de volta na contestação",
           "topic": "disputes"
          },
          "name": "search_policies"
@@ -599,7 +599,7 @@
        },
        {
         "toolUse": {
-         "toolUseId": "tooluse_6ncP66OR6apczfngn6Z5Xe",
+         "toolUseId": "tooluse_tqcrcZKIvOAodhLCSTPMG1",
          "input": {},
          "name": "case_status"
         }
@@ -616,7 +616,7 @@
            "text": "{\"untrusted\":true,\"facts\":[{\"id\":\"p1\",\"kind\":\"policy_chunk\",\"fields\":{\"chunk_id\":{\"type\":\"trace\",\"value\":\"br-dispute-lifecycle-v2-f2-s3-c1\",\"trace_only\":true},\"doc_id\":{\"type\":\"trace\",\"value\":\"br-dispute-lifecycle\",\"trace_only\":true},\"title\":{\"type\":\"text\",\"value\":\"Ciclo de uma contestação\"},\"section\":{\"type\":\"text\",\"value\":\"Ciclo de uma contestação\"},\"text\":{\"type\":\"passage\",\"value\":\"O banco analisa a sua contestação e responde dentro do prazo de análise de 8 dias úteis.\",\"untrusted\":true,\"trace_only\":true},\"doc_type\":{\"type\":\"trace\",\"value\":\"procedure\",\"trace_only\":true},\"country\":{\"type\":\"trace\",\"value\":\"BR\",\"trace_only\":true},\"version\":{\"type\":\"trace\",\"value\":\"2\",\"trace_only\":true},\"effective_date\":{\"type\":\"date\",\"value\":\"2026-09-01\"},\"page\":{\"type\":\"trace\",\"value\":\"4\",\"trace_only\":true},\"url\":{\"type\":\"trace\",\"value\":\"https://docs.factoredai.sdfles.com/BR/br-dispute-lifecycle-v2-f2.pdf#page=4\",\"trace_only\":true},\"figures.claims.review_time\":{\"type\":\"count\",\"value\":8,\"noun\":\"business_day\"}}},{\"id\":\"p2\",\"kind\":\"policy_chunk\",\"fields\":{\"chunk_id\":{\"type\":\"trace\",\"value\":\"br-dispute-lifecycle-v2-f2-s2-c1\",\"trace_only\":true},\"doc_id\":{\"type\":\"trace\",\"value\":\"br-dispute-lifecycle\",\"trace_only\":true},\"title\":{\"type\":\"text\",\"value\":\"Ciclo de uma contestação\"},\"section\":{\"type\":\"text\",\"value\":\"Ciclo de uma contestação\"},\"text\":{\"type\":\"passage\",\"value\":\"Abertura. Você apresenta a contestação no app com a Clara ou por telefone no +55 11 4000 2000. Seu caso fica aberto e você recebe um número de caso.\",\"untrusted\":true,\"trace_only\":true},\"doc_type\":{\"type\":\"trace\",\"value\":\"procedure\",\"trace_only\":true},\"country\":{\"type\":\"trace\",\"value\":\"BR\",\"trace_only\":true},\"version\":{\"type\":\"trace\",\"value\":\"2\",\"trace_only\":true},\"effective_date\":{\"type\":\"date\",\"value\":\"2026-09-01\"},\"page\":{\"type\":\"trace\",\"value\":\"3\",\"trace_only\":true},\"url\":{\"type\":\"trace\",\"value\":\"https://docs.factoredai.sdfles.com/BR/br-dispute-lifecycle-v2-f2.pdf#page=3\",\"trace_only\":true},\"figures.channels.phone\":{\"type\":\"channel\",\"kind\":\"phone\",\"value\":\"+55 11 4000 2000\"}}},{\"id\":\"f6\",\"kind\":\"policies\",\"fields\":{\"count\":{\"type\":\"count\",\"value\":2,\"noun\":\"excerpt\"},\"ids\":{\"type\":\"ids\",\"values\":[\"p1\",\"p2\"],\"trace_only\":true},\"outcome\":{\"type\":\"trace\",\"value\":\"match\",\"trace_only\":true}}}]}"
           }
          ],
-         "toolUseId": "tooluse_TuMSgLuX7HQqh54PABHQvs",
+         "toolUseId": "tooluse_oB7NtWksWG7UEzZqDyPNQx",
          "status": "success"
         }
        },
@@ -627,7 +627,7 @@
            "text": "{\"untrusted\":true,\"facts\":[{\"id\":\"f7\",\"kind\":\"case\",\"fields\":{\"case_ref\":{\"type\":\"ref\",\"kind\":\"case\",\"value\":\"01a09b0d-5fb0-7823-a2e3-c23598a65a11\",\"trace_only\":true},\"case_id\":{\"type\":\"case_id\",\"value\":\"CLR-2026-862021\"},\"type\":{\"type\":\"enum\",\"domain\":\"case_type\",\"value\":\"claim\"},\"stage\":{\"type\":\"status\",\"domain\":\"stage\",\"value\":\"in_review\"},\"opened_at\":{\"type\":\"date\",\"value\":\"2026-09-14\"},\"assigned_at\":{\"type\":\"date\",\"value\":\"2026-09-16\"},\"in_review_at\":{\"type\":\"date\",\"value\":\"2026-09-20\"},\"next_step\":{\"type\":\"enum\",\"domain\":\"next_step\",\"value\":\"review_in_progress\"},\"transaction_ref\":{\"type\":\"ref\",\"kind\":\"transaction\",\"value\":\"01a09b0d-5fb0-7823-a2e3-c23598a65a11\",\"trace_only\":true},\"merchant\":{\"type\":\"merchant\",\"value\":\"Pão de Açúcar\"},\"amount\":{\"type\":\"money\",\"amount\":\"197.26\",\"currency\":\"BRL\"},\"last4\":{\"type\":\"last4\",\"value\":\"6400\"}}},{\"id\":\"f8\",\"kind\":\"cases\",\"fields\":{\"count\":{\"type\":\"count\",\"value\":1,\"noun\":\"case\"},\"ids\":{\"type\":\"ids\",\"values\":[\"f7\"],\"trace_only\":true},\"truncated\":{\"type\":\"flag\",\"value\":false,\"trace_only\":true}}}]}"
           }
          ],
-         "toolUseId": "tooluse_6ncP66OR6apczfngn6Z5Xe",
+         "toolUseId": "tooluse_tqcrcZKIvOAodhLCSTPMG1",
          "status": "success"
         }
        }
@@ -1162,10 +1162,19 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_qRYFF75OGDpgGnRZTUToBi",
+         "toolUseId": "tooluse_adJ8GMVQaiOSe7rm9HuPvs",
          "name": "reply",
          "input": {
-          "say": "Sua contestação {f7.case_id} está {f7.stage}, aberta {f7.opened_at} para uma cobrança em {f7.merchant}. O banco analisa a contestação em {p1.figures.claims.review_time} [p:br-dispute-lifecycle-v2-f2-s3-c1].",
+          "say": [
+           "Sua contestação {f7.case_id} está {f7.stage}, aberta {f7.opened_at} e referente a uma cobrança em {f7.merchant} de {f7.amount} no seu cartão {f7.last4}.",
+           "O banco analisa a contestação em {p1.figures.claims.review_time} [p:br-dispute-lifecycle-v2-f2-s3-c1]. Quem pode confirmar o desfecho e o crédito é um atendente do banco."
+          ],
+          "ask": {
+           "type": "talk_to_person",
+           "facts": [
+            "f7"
+           ]
+          },
           "view": {
            "type": "case",
            "facts": [
@@ -1182,13 +1191,13 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 2334,
-     "outputTokens": 147,
-     "totalTokens": 12104,
+     "outputTokens": 227,
+     "totalTokens": 12184,
      "cacheReadInputTokens": 9623,
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 2502
+     "latencyMs": 3579
     }
    }
   }

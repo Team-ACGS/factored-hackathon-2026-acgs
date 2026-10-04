@@ -67,8 +67,12 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Sua contestação CLR-2026-862021 está em análise, aberta em 14 de setembro para uma "
-                    "cobrança em Pão de Açúcar. O banco analisa a contestação em 8 dias úteis."
+                    "Sua contestação CLR-2026-862021 está em análise, aberta em 14 de setembro e referente a "
+                    "uma cobrança em Pão de Açúcar de R$\xa0197,26 no seu cartão final 6400."
+                ),
+                (
+                    "O banco analisa a contestação em 8 dias úteis. Quem pode confirmar o desfecho e o "
+                    "crédito é um atendente do banco."
                 ),
             ),
             ("handoff", "talk_to_person"),
@@ -237,18 +241,19 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             ("charge", "was_it_you"),
         ),
         "unblock_es": (
-            "composed",
+            "repaired",
             (
                 (
-                    "Desbloquear una tarjeta es algo que hace una persona del banco. Tus tarjetas terminada "
-                    "en 8101, terminada en 2322 y terminada en 5943 están todas activas en este momento."
+                    "Desbloquear una tarjeta es algo que realiza una persona del banco. Tu tarjeta terminada "
+                    "en 8101, tu tarjeta terminada en 2322 y tu tarjeta terminada en 5943 están todas "
+                    "activas en este momento."
                 ),
             ),
             ("handoff", "talk_to_person"),
         ),
         "unblock_pt": (
             "repaired",
-            ("Desbloquear um cartão é algo que só uma pessoa do banco consegue fazer.",),
+            ("Desbloquear um cartão é algo que só um atendente do banco pode fazer.",),
             ("handoff", "talk_to_person"),
         ),
         "ten_days_pt": (
@@ -535,15 +540,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             ("movements",),
         ),
         "case_es": (
-            "composed",
-            (
-                (
-                    "Tu aclaración CLR-2026-182061 está en revisión. El banco revisa tu aclaración en 10 "
-                    "días hábiles. Si no estás conforme con la respuesta o el plazo vence sin ella, puedes "
-                    "escribir a la Defensoría del Cliente de LATAM Bank."
-                ),
-                "Si quieres hablar con alguien del banco ahora, estamos aquí para ayudarte.",
-            ),
+            "fallback",
+            ("Lo que pasa con tu dinero lo decide una persona del banco.",),
             ("handoff", "talk_to_person"),
         ),
         "spend_pt": (
@@ -723,8 +721,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Desbloquear una tarjeta es algo que solo puede hacer una persona en el banco. Te "
-                    "conectaremos con alguien que pueda ayudarte."
+                    "El desbloqueo de tu tarjeta es algo que solo una persona del banco puede hacer. La "
+                    "banco te ofrece esa opción para que puedas hacerlo directamente."
                 ),
             ),
             ("handoff", "talk_to_person"),
@@ -733,8 +731,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "O desbloqueio de um cartão é algo que só as pessoas do banco podem fazer. Posso "
-                    "verificar o status de seus cartões para você."
+                    "Um cartão bloqueado precisa ser desbloqueado por uma pessoa do banco. Qual é o cartão "
+                    "que você quer desbloquear?"
                 ),
             ),
             ("handoff", "talk_to_person"),

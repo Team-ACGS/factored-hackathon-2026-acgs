@@ -70,11 +70,11 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_OHdrgjyBYKxCMAGf9mQAeT",
+         "toolUseId": "tooluse_JMeK89GbexdjHQ2hK5A9zb",
          "name": "say",
          "input": {
           "say": [
-           "Pede para desbloquear um cartão. Pergunta em aberto: qual cartão quer desbloquear e por quê? Caso {f2.case_id} aberto em {f2.opened_at}."
+           "Pede desbloqueio de cartão. Pergunta em aberto: qual cartão deseja desbloquear e por quê? Caso {f2.case_id} aberto em {f2.opened_at}."
           ]
          },
          "type": "tool_use"
@@ -92,7 +92,7 @@
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 1313
+     "latencyMs": 1410
     }
    }
   }

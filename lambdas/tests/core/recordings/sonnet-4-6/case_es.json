@@ -540,7 +540,7 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_Q288EotcbMT4kYydbPaDmY",
+         "toolUseId": "tooluse_dCyW0Qzf6MZfxoaWPtj3in",
          "name": "case_status",
          "input": {},
          "type": "tool_use"
@@ -548,7 +548,7 @@
        },
        {
         "toolUse": {
-         "toolUseId": "tooluse_hR2ZHflXZ6A3J2Ikn4wvIi",
+         "toolUseId": "tooluse_tPdG216Rhl9nDcf5z127Td",
          "name": "search_policies",
          "input": {
           "query": "cuánto tiempo tarda la devolución de una aclaración",
@@ -569,7 +569,7 @@
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 3295
+     "latencyMs": 1651
     }
    }
   },
@@ -589,14 +589,14 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_Q288EotcbMT4kYydbPaDmY",
+         "toolUseId": "tooluse_dCyW0Qzf6MZfxoaWPtj3in",
          "input": {},
          "name": "case_status"
         }
        },
        {
         "toolUse": {
-         "toolUseId": "tooluse_hR2ZHflXZ6A3J2Ikn4wvIi",
+         "toolUseId": "tooluse_tPdG216Rhl9nDcf5z127Td",
          "input": {
           "query": "cuánto tiempo tarda la devolución de una aclaración",
           "topic": "disputes"
@@ -616,7 +616,7 @@
            "text": "{\"untrusted\":true,\"facts\":[{\"id\":\"f6\",\"kind\":\"case\",\"fields\":{\"case_ref\":{\"type\":\"ref\",\"kind\":\"case\",\"value\":\"01a09b25-542a-71c6-b011-f76ab3f39037\",\"trace_only\":true},\"case_id\":{\"type\":\"case_id\",\"value\":\"CLR-2026-182061\"},\"type\":{\"type\":\"enum\",\"domain\":\"case_type\",\"value\":\"claim\"},\"stage\":{\"type\":\"status\",\"domain\":\"stage\",\"value\":\"in_review\"},\"opened_at\":{\"type\":\"date\",\"value\":\"2026-09-14\"},\"assigned_at\":{\"type\":\"date\",\"value\":\"2026-09-16\"},\"in_review_at\":{\"type\":\"date\",\"value\":\"2026-09-20\"},\"next_step\":{\"type\":\"enum\",\"domain\":\"next_step\",\"value\":\"review_in_progress\"},\"transaction_ref\":{\"type\":\"ref\",\"kind\":\"transaction\",\"value\":\"01a09b25-542a-71c6-b011-f76ab3f39037\",\"trace_only\":true},\"merchant\":{\"type\":\"merchant\",\"value\":\"Primax\"},\"amount\":{\"type\":\"money\",\"amount\":\"127.80\",\"currency\":\"PEN\"},\"last4\":{\"type\":\"last4\",\"value\":\"4141\"}}},{\"id\":\"f7\",\"kind\":\"cases\",\"fields\":{\"count\":{\"type\":\"count\",\"value\":1,\"noun\":\"case\"},\"ids\":{\"type\":\"ids\",\"values\":[\"f6\"],\"trace_only\":true},\"truncated\":{\"type\":\"flag\",\"value\":false,\"trace_only\":true}}}]}"
           }
          ],
-         "toolUseId": "tooluse_Q288EotcbMT4kYydbPaDmY",
+         "toolUseId": "tooluse_dCyW0Qzf6MZfxoaWPtj3in",
          "status": "success"
         }
        },
@@ -627,7 +627,7 @@
            "text": "{\"untrusted\":true,\"facts\":[{\"id\":\"p1\",\"kind\":\"policy_chunk\",\"fields\":{\"chunk_id\":{\"type\":\"trace\",\"value\":\"pe-dispute-lifecycle-v2-f2-s3-c1\",\"trace_only\":true},\"doc_id\":{\"type\":\"trace\",\"value\":\"pe-dispute-lifecycle\",\"trace_only\":true},\"title\":{\"type\":\"text\",\"value\":\"Ciclo de una aclaración\"},\"section\":{\"type\":\"text\",\"value\":\"Ciclo de una aclaración\"},\"text\":{\"type\":\"passage\",\"value\":\"El banco revisa tu aclaración y te responde dentro del plazo de revisión de 10 días hábiles.\",\"untrusted\":true,\"trace_only\":true},\"doc_type\":{\"type\":\"trace\",\"value\":\"procedure\",\"trace_only\":true},\"country\":{\"type\":\"trace\",\"value\":\"PE\",\"trace_only\":true},\"version\":{\"type\":\"trace\",\"value\":\"2\",\"trace_only\":true},\"effective_date\":{\"type\":\"date\",\"value\":\"2026-09-01\"},\"page\":{\"type\":\"trace\",\"value\":\"4\",\"trace_only\":true},\"url\":{\"type\":\"trace\",\"value\":\"https://docs.factoredai.sdfles.com/PE/pe-dispute-lifecycle-v2-f2.pdf#page=4\",\"trace_only\":true},\"figures.claims.review_time\":{\"type\":\"count\",\"value\":10,\"noun\":\"business_day\"}}},{\"id\":\"p2\",\"kind\":\"policy_chunk\",\"fields\":{\"chunk_id\":{\"type\":\"trace\",\"value\":\"pe-dispute-lifecycle-v2-f2-s2-c1\",\"trace_only\":true},\"doc_id\":{\"type\":\"trace\",\"value\":\"pe-dispute-lifecycle\",\"trace_only\":true},\"title\":{\"type\":\"text\",\"value\":\"Ciclo de una aclaración\"},\"section\":{\"type\":\"text\",\"value\":\"Ciclo de una aclaración\"},\"text\":{\"type\":\"passage\",\"value\":\"Apertura. Usted presenta la aclaración en la app con Clara o por teléfono en el +51 1 600 2000. Su caso queda abierto y usted recibe un número de caso.\",\"untrusted\":true,\"trace_only\":true},\"doc_type\":{\"type\":\"trace\",\"value\":\"procedure\",\"trace_only\":true},\"country\":{\"type\":\"trace\",\"value\":\"PE\",\"trace_only\":true},\"version\":{\"type\":\"trace\",\"value\":\"2\",\"trace_only\":true},\"effective_date\":{\"type\":\"date\",\"value\":\"2026-09-01\"},\"page\":{\"type\":\"trace\",\"value\":\"3\",\"trace_only\":true},\"url\":{\"type\":\"trace\",\"value\":\"https://docs.factoredai.sdfles.com/PE/pe-dispute-lifecycle-v2-f2.pdf#page=3\",\"trace_only\":true},\"figures.channels.phone\":{\"type\":\"channel\",\"kind\":\"phone\",\"value\":\"+51 1 600 2000\"}}},{\"id\":\"p3\",\"kind\":\"policy_chunk\",\"fields\":{\"chunk_id\":{\"type\":\"trace\",\"value\":\"pe-dispute-lifecycle-v2-f2-s9-c1\",\"trace_only\":true},\"doc_id\":{\"type\":\"trace\",\"value\":\"pe-dispute-lifecycle\",\"trace_only\":true},\"title\":{\"type\":\"text\",\"value\":\"Ciclo de una aclaración\"},\"section\":{\"type\":\"text\",\"value\":\"Ciclo de una aclaración\"},\"text\":{\"type\":\"passage\",\"value\":\"Usted puede pedir hablar con una persona por el chat, que atiende todos los días, de 8:00 a 22:00, o en el +51 1 600 2000, que atiende las 24 horas, todos los días. Si no está conforme con la respuesta, o si el plazo del banco vence sin ella, puede escribir a la defensoría del banco, Defensoría del Cliente de LATAM Bank, en defensoria.pe@latambank.example, que responde en 15 días hábiles. La autoridad de protección al consumidor (Instituto Nacional de Defensa de la Competencia y de la Protección de la Propiedad Intelectual) es el siguiente paso fuera del banco.\",\"untrusted\":true,\"trace_only\":true},\"doc_type\":{\"type\":\"trace\",\"value\":\"procedure\",\"trace_only\":true},\"country\":{\"type\":\"trace\",\"value\":\"PE\",\"trace_only\":true},\"version\":{\"type\":\"trace\",\"value\":\"2\",\"trace_only\":true},\"effective_date\":{\"type\":\"date\",\"value\":\"2026-09-01\"},\"page\":{\"type\":\"trace\",\"value\":\"5\",\"trace_only\":true},\"url\":{\"type\":\"trace\",\"value\":\"https://docs.factoredai.sdfles.com/PE/pe-dispute-lifecycle-v2-f2.pdf#page=5\",\"trace_only\":true},\"figures.authority.consumer_agency\":{\"type\":\"text\",\"value\":\"Instituto Nacional de Defensa de la Competencia y de la Protección de la Propiedad Intelectual\"},\"figures.channels.phone\":{\"type\":\"channel\",\"kind\":\"phone\",\"value\":\"+51 1 600 2000\"},\"figures.channels.phone_schedule\":{\"type\":\"channel\",\"kind\":\"schedule\",\"value\":\"las 24 horas, todos los días\"},\"figures.service.handoff_hours\":{\"type\":\"channel\",\"kind\":\"schedule\",\"value\":\"todos los días, de 8:00 a 22:00\"},\"figures.service.ombudsman\":{\"type\":\"channel\",\"kind\":\"email\",\"value\":\"defensoria.pe@latambank.example\"},\"figures.service.ombudsman_name\":{\"type\":\"text\",\"value\":\"Defensoría del Cliente de LATAM Bank\"},\"figures.service.ombudsman_response\":{\"type\":\"count\",\"value\":15,\"noun\":\"business_day\"}}},{\"id\":\"f8\",\"kind\":\"policies\",\"fields\":{\"count\":{\"type\":\"count\",\"value\":3,\"noun\":\"excerpt\"},\"ids\":{\"type\":\"ids\",\"values\":[\"p1\",\"p2\",\"p3\"],\"trace_only\":true},\"outcome\":{\"type\":\"trace\",\"value\":\"match\",\"trace_only\":true}}}]}"
           }
          ],
-         "toolUseId": "tooluse_hR2ZHflXZ6A3J2Ikn4wvIi",
+         "toolUseId": "tooluse_tPdG216Rhl9nDcf5z127Td",
          "status": "success"
         }
        }
@@ -1162,7 +1162,7 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_ElnpEn1iLrevpxAVVvbjO3",
+         "toolUseId": "tooluse_m3Y6hzqQIqQCxNEccyLFXf",
          "name": "reply",
          "input": {
           "say": [
@@ -1196,7 +1196,7 @@
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 2946
+     "latencyMs": 2856
     }
    }
   }

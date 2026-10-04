@@ -65,11 +65,11 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_RCyfAlgyud7HTcJR0w549v",
+         "toolUseId": "tooluse_UX0vlTfbq0nFClPjM3iwjb",
          "name": "say",
          "input": {
           "say": [
-           "Pregunta por la devolución de su dinero. Se desconoce de qué cargo o caso específico espera la aclaración."
+           "Pregunta por la devolución de su dinero. No se especifica de qué cargo o caso espera la devolución."
           ]
          },
          "type": "tool_use"
@@ -81,13 +81,13 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 1710,
-     "outputTokens": 67,
-     "totalTokens": 1777,
+     "outputTokens": 64,
+     "totalTokens": 1774,
      "cacheReadInputTokens": 0,
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 799
+     "latencyMs": 827
     }
    }
   }

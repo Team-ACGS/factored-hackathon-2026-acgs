@@ -1375,3 +1375,34 @@ def test_an_adjective_that_guesses_the_customer_s_gender_is_sent_back() -> None:
 )
 def test_an_offer_in_prose_is_sent_back(locale: str, text: str, offered: bool) -> None:
     assert ("offer_talk" in codes(text, ledger(), locale)) is offered
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "expected"),
+    [
+        (
+            "es",
+            "Tus tarjetas {f1.last4}, {f2.last4} y {f3.last4} están activas.",
+            "Tu tarjeta {f1.last4}, tu tarjeta {f2.last4} y tu tarjeta {f3.last4} están activas.",
+        ),
+        (
+            "pt-BR",
+            "Seus cartões {f1.last4} e {f2.last4} estão ativos.",
+            "Seu cartão {f1.last4} e seu cartão {f2.last4} estão ativos.",
+        ),
+        (
+            "en",
+            "Your cards {f1.last4} and {f2.last4} are active.",
+            "Your card {f1.last4} and your card {f2.last4} are active.",
+        ),
+    ],
+)
+def test_a_plural_card_noun_before_a_list_of_last_digits_becomes_one_noun_per_card(
+    locale: str, text: str, expected: str
+) -> None:
+    book = ledger()
+    for digits in ("8101", "2322", "5943"):
+        book.add("card", {"last4": Last4(digits)})
+
+    assert tidy(text, book, locale) == (expected, {"agreement": 1})
+    assert tidy("Tus tarjetas {f1.last4} están activas.", book, "es")[1] == {}
