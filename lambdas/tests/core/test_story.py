@@ -155,6 +155,13 @@ def answered(
     )
 
 
+def composes_only(model: FakeConverse) -> bool:
+    return all(
+        [tool["toolSpec"]["name"] for tool in request["toolConfig"]["tools"]] == ["say"]
+        for request in model.requests
+    )
+
+
 def memory_rows(aws: Aws) -> dict[str, dict[str, Any]]:
     return {str(item["memory_key"]): item for item in aws.memory.scan()["Items"]}
 
@@ -237,9 +244,28 @@ def test_a_topic_on_a_charge_the_card_does_not_hold_is_free_text(aws: Aws, accou
     assert not [item for item in result.reply.parts if item["type"] == "ask"]
 
 
-def test_a_flagged_charge_is_not_asked_here(aws: Aws, account: DemoAccount) -> None:
+def test_a_flagged_charge_is_asked_was_it_you_with_why_as_a_third_option(
+    aws: Aws, account: DemoAccount
+) -> None:
     row = quiet(newest(account))
     flag(aws, row)
+
+    result, _, _, model = picked(account, row)
+
+    assert context_of(model)["story"] == {"ask": "was_it_you", "charge": "f6", "open": False}
+    ask = part(result, "ask")
+    assert (ask["ask"], ask["prompt"]) == ("was_it_you", "¿Fuiste tú?")
+    assert [option["id"] for option in ask["options"]] == ["yes", "no", "why"]
+
+
+def test_a_flagged_charge_on_a_blocked_card_is_not_asked(aws: Aws, account: DemoAccount) -> None:
+    row = quiet(newest(account))
+    flag(aws, row)
+    aws.products.update_item(
+        Key={"customer_id": CUSTOMER, "product_id": row["product_id"]},
+        UpdateExpression="SET product_status = :blocked",
+        ExpressionAttributeValues={":blocked": "Blocked"},
+    )
 
     result, _, _, model = picked(account, row)
 
@@ -247,7 +273,7 @@ def test_a_flagged_charge_is_not_asked_here(aws: Aws, account: DemoAccount) -> N
     assert not [item for item in result.reply.parts if item["type"] == "ask"]
 
 
-def test_yes_with_a_note_is_remembered_by_the_rules_without_the_model(
+def test_yes_with_a_note_is_remembered_by_the_rules_and_the_model_only_words_the_thanks(
     aws: Aws, account: DemoAccount, assumed: list[dict[str, Any]]
 ) -> None:
     row = quiet(newest(account))
@@ -258,7 +284,8 @@ def test_yes_with_a_note_is_remembered_by_the_rules_without_the_model(
         history, tap, first, "Sí, fui yo", option="yes", note="  era la gasolina del viaje "
     )
 
-    assert model.requests == []
+    assert len(model.requests) == 1
+    assert composes_only(model)
     assert result.route == "story"
     assert result.reply.source == "story"
     assert result.reply.text == "Gracias, lo anoto: reconoces este cargo y no volveré a preguntarte por él."
@@ -271,16 +298,19 @@ def test_yes_with_a_note_is_remembered_by_the_rules_without_the_model(
     assert [request.get("Policy") for request in assumed] == [None]
 
 
-def test_no_is_remembered_and_answered_with_the_bank_s_phone(aws: Aws, account: DemoAccount) -> None:
+def test_no_on_a_charge_without_a_protect_signal_is_remembered_and_asks_about_the_card(
+    aws: Aws, account: DemoAccount
+) -> None:
     row = quiet(newest(account))
     first, tap, history, _ = picked(account, row)
 
-    result, _, _ = answered(history, tap, first, "No lo reconozco", option="no")
+    result, _, model = answered(history, tap, first, "No lo reconozco", option="no")
 
     assert set(memory_rows(aws)) == {f"unrecognized_charge#{row['transaction_id']}"}
-    assert result.reply.text.startswith(
-        "Si no hiciste esa compra, protege tu tarjeta ahora: llama al banco al "
-    )
+    assert model.requests == []
+    assert result.reply.text == "Gracias por contarme. Antes de seguir, necesito saber algo de tu tarjeta."
+    assert part(result, "ask")["ask"] == "have_card"
+    assert result.summary()["writes"] == ["memory"]
 
 
 @pytest.mark.parametrize(
@@ -300,7 +330,7 @@ def test_a_short_answer_or_a_typed_not_me_closes_the_open_ask(
 
     result, _, model = answered(history, tap, first, text)
 
-    assert model.requests == []
+    assert composes_only(model)
     assert result.route == "story"
     stored = memory_rows(aws)[f"{kind}#{row['transaction_id']}"]
     assert stored.get("note") == note
@@ -331,9 +361,9 @@ def test_closing_is_idempotent_per_ask_on_redelivery(aws: Aws, account: DemoAcco
     answer = rules.answer_of(message, pending)
     assert answer is not None
 
-    once = rules.close_ask(answer, message, NOW, "chatbot")
-    again = rules.close_ask(answer, message, NOW + timedelta(seconds=30), "chatbot")
-    other = rules.close_ask(replace(answer, ask=replace(pending, ask_id=uuid7())), message, NOW, "chatbot")
+    once = rules.close_ask(answer, message, NOW)
+    again = rules.close_ask(answer, message, NOW + timedelta(seconds=30))
+    other = rules.close_ask(replace(answer, ask=replace(pending, ask_id=uuid7())), message, NOW)
 
     assert (once.outcome, again.outcome, other.outcome) == ("written", "redelivered", "already")
     [stored] = memory_rows(aws).values()
@@ -413,7 +443,7 @@ def test_three_recognized_charges_at_one_merchant_teach_the_merchant_and_never_s
         message = says("sí", room, at(timedelta(minutes=10 - index)))
         answer = rules.answer_of(message, pending)
         assert answer is not None
-        closing = rules.close_ask(answer, message, NOW, "chatbot")
+        closing = rules.close_ask(answer, message, NOW)
         assert closing.merchant_learned is (index == 2)
     flagged, quiet_one = rows[3], rows[4]
     flag(aws, flagged)
@@ -557,7 +587,8 @@ def test_a_floor_hit_inside_a_short_answer_wins_over_the_answer(aws: Aws, accoun
 
     assert model.requests == []
     assert set(memory_rows(aws)) == {f"unrecognized_charge#{row['transaction_id']}"}
-    assert not_me.reply.text.startswith("Si no hiciste esa compra, protege tu tarjeta ahora")
+    assert not_me.reply.text.startswith("Puedo bloquear tu tarjeta")
+    assert part(not_me, "ask")["ask"] == "block_card"
 
 
 def test_a_lost_card_inside_a_short_answer_supersedes_the_question_and_writes_nothing(
@@ -570,7 +601,7 @@ def test_a_lost_card_inside_a_short_answer_supersedes_the_question_and_writes_no
 
     assert model.requests == []
     assert (result.route, result.floor) == ("safety", "lost_stolen")
-    assert result.reply.text.startswith("Si perdiste tu tarjeta o te la robaron, protégela ahora")
+    assert result.reply.text == "Vamos a proteger tu tarjeta. Elige cuál perdiste o te robaron."
     assert memory_rows(aws) == {}
 
 

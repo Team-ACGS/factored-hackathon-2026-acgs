@@ -1,7 +1,7 @@
 import { cn } from "@clara/ui/lib/cn";
 import { useLayoutEffect, useRef, useState } from "react";
 
-import { MAX_NOTE_LENGTH, type AskOption, type AskPart } from "../../chat/conversation";
+import { confirmKinds, MAX_NOTE_LENGTH, type AskOption, type AskPart } from "../../chat/conversation";
 import { useI18n } from "../../i18n";
 
 const optionClass =
@@ -10,17 +10,20 @@ const optionClass =
 const confirmClass =
   "h-[46px] min-w-0 rounded-full bg-ink px-6 text-[14.5px] font-semibold text-white transition-opacity duration-200 focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none disabled:cursor-default disabled:opacity-30 max-[900px]:flex-1 min-[901px]:min-w-[240px]";
 
+const ASIDE = "why";
+
 interface ActionBarProps {
   ask: AskPart;
   gone: boolean;
   inView: boolean;
+  card: boolean;
   picked: AskOption | null;
   onCancelPick: () => void;
   onChoose: (option: AskOption, note?: string) => void;
   onHeight: (height: number) => void;
 }
 
-export function ActionBar({ ask, gone, inView, picked, onCancelPick, onChoose, onHeight }: ActionBarProps) {
+export function ActionBar({ ask, gone, inView, card, picked, onCancelPick, onChoose, onHeight }: ActionBarProps) {
   const { t } = useI18n();
   const element = useRef<HTMLDivElement>(null);
 
@@ -44,8 +47,10 @@ export function ActionBar({ ask, gone, inView, picked, onCancelPick, onChoose, o
     >
       {ask.kind === "show" ? (
         <Direct ask={ask} onChoose={onChoose} />
+      ) : confirmKinds.includes(ask.kind) ? (
+        <Confirm ask={ask} onChoose={onChoose} />
       ) : inView ? (
-        <InView ask={ask} picked={picked} onCancel={onCancelPick} onChoose={onChoose} />
+        <InView ask={ask} card={card} picked={picked} onCancel={onCancelPick} onChoose={onChoose} />
       ) : (
         <Choices ask={ask} onChoose={onChoose} />
       )}
@@ -72,14 +77,36 @@ function Direct({ ask, onChoose }: { ask: AskPart; onChoose: (option: AskOption)
   );
 }
 
+function Confirm({ ask, onChoose }: { ask: AskPart; onChoose: (option: AskOption) => void }) {
+  const [accept, ...others] = ask.options;
+  return (
+    <>
+      {ask.prompt && <Prompt>{ask.prompt}</Prompt>}
+      <div className="flex w-full flex-wrap items-center justify-center gap-2">
+        {others.map((option) => (
+          <button key={option.id} type="button" className={optionClass} onClick={() => onChoose(option)}>
+            <span className="truncate">{option.label}</span>
+          </button>
+        ))}
+        {accept && (
+          <button type="button" className={confirmClass} onClick={() => onChoose(accept)}>
+            {accept.label}
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
 interface InViewProps {
   ask: AskPart;
+  card: boolean;
   picked: AskOption | null;
   onCancel: () => void;
   onChoose: (option: AskOption) => void;
 }
 
-function InView({ ask, picked, onCancel, onChoose }: InViewProps) {
+function InView({ ask, card, picked, onCancel, onChoose }: InViewProps) {
   const { t } = useI18n();
   if (!picked) {
     return (
@@ -91,14 +118,14 @@ function InView({ ask, picked, onCancel, onChoose }: InViewProps) {
   }
   return (
     <>
-      <Prompt>{t("clara.chat.bar.isThis")}</Prompt>
+      <Prompt>{t(card ? "clara.chat.bar.isThisCard" : "clara.chat.bar.isThis")}</Prompt>
       <span className="max-w-full truncate text-[15px] font-semibold">{picked.label}</span>
       <div className="flex w-full flex-wrap items-center justify-center gap-2">
         <button type="button" className={optionClass} onClick={onCancel}>
           {t("clara.chat.bar.cancel")}
         </button>
         <button type="button" className={confirmClass} onClick={() => onChoose(picked)}>
-          {t("clara.chat.bar.thisOne")}
+          {t(card ? "clara.chat.bar.thisCard" : "clara.chat.bar.thisOne")}
         </button>
       </div>
     </>
@@ -109,11 +136,12 @@ function Choices({ ask, onChoose }: { ask: AskPart; onChoose: (option: AskOption
   const { t } = useI18n();
   const [selected, setSelected] = useState<AskOption | null>(null);
   const [note, setNote] = useState("");
+  const aside = ask.options.find((option) => option.id === ASIDE);
   return (
     <>
       {ask.prompt && <Prompt>{ask.prompt}</Prompt>}
       <div className="flex flex-wrap items-center justify-center gap-2">
-        {ask.options.map((option) => {
+        {ask.options.filter((option) => option !== aside).map((option) => {
           const pressed = selected?.id === option.id;
           return (
             <button
@@ -168,6 +196,15 @@ function Choices({ ask, onChoose }: { ask: AskPart; onChoose: (option: AskOption
           {selected ? t("clara.chat.bar.confirm", { option: selected.label }) : t("clara.chat.bar.choose")}
         </button>
       </div>
+      {aside && (
+        <button
+          type="button"
+          className="rounded-full px-3 py-1 text-[13.5px] font-semibold text-ink-2 underline decoration-[rgb(23_36_34/0.3)] underline-offset-4 hover:text-ink hover:decoration-ink focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none"
+          onClick={() => onChoose(aside)}
+        >
+          {aside.label}
+        </button>
+      )}
     </>
   );
 }

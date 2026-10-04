@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   askOf,
+  effectsOf,
   emptyConversation,
   liveTurn,
   openAsk,
@@ -181,7 +182,7 @@ describe("clara's views and asks", () => {
 
   it("reads an ask's options and ignores asks it does not know", () => {
     const parts = [
-      { type: "ask", ask: "block_card", options: [{ id: "p1", label: "Bloquear" }] },
+      { type: "ask", ask: "unblock_card", options: [{ id: "p1", label: "Desbloquear" }] },
       { type: "ask", ask: "which_one", prompt: "¿Cuál es?", options: [{ id: "t1", label: "Primax · S/ 120.00" }, { id: 4 }] },
     ];
 
@@ -319,5 +320,49 @@ describe("a tap", () => {
     const state = run({ ...(sending("m-003") as Extract<Action, { type: "sending" }>), input }, { type: "failed", messageId: "m-003" });
 
     expect(visibleMessages(state)[0]).toMatchObject({ delivery: "failed", input });
+  });
+});
+
+describe("effects of a write reply", () => {
+  it("reads the blocked card, the opened case and the answered charge, and drops anything else", () => {
+    const effects = effectsOf({
+      effects: [
+        { type: "card_blocked", product_id: "p1" },
+        { type: "case_opened", complaint_id: "m1", case_type: "fraud" },
+        { type: "charge_answered", transaction_id: "t1" },
+        { type: "card_unblocked", product_id: "p1" },
+        { type: "case_opened" },
+      ],
+    });
+
+    expect(effects).toEqual([
+      { type: "card_blocked", productId: "p1" },
+      { type: "case_opened", complaintId: "m1", caseType: "fraud" },
+      { type: "charge_answered", transactionId: "t1" },
+    ]);
+    expect(effectsOf({})).toEqual([]);
+  });
+
+  it("keeps the effects on the received message", () => {
+    const state = run({
+      type: "received",
+      message: server("0199a0b0-0000-7000-8000-000000000010", {
+        sender_type: "assistant",
+        effects: [{ type: "case_opened", complaint_id: "m1", case_type: "service" }],
+      }),
+    });
+
+    expect(Object.values(state.messages)[0]?.effects).toEqual([
+      { type: "case_opened", complaintId: "m1", caseType: "service" },
+    ]);
+  });
+});
+
+describe("story asks", () => {
+  it("reads every story ask the turn can send", () => {
+    for (const kind of ["was_it_you", "have_card", "block_card", "open_claim", "talk_to_person"]) {
+      const parts = [{ type: "ask", ask: kind, options: [{ id: "yes", label: "Sí" }] }];
+      expect(askOf({ parts })?.kind).toBe(kind);
+    }
   });
 });

@@ -18,11 +18,13 @@ from core.retrieval import NON_FILTERABLE, ChunkRecord, PolicySearch, VectorRetr
 from core.vectors import SEARCH_DOCUMENT, Vector
 from crud.catalog import COUNTRIES
 from crud.generator import Claim, Score, manual_transaction
-from harness import Aws, demo_account, uuid7
+from harness import Aws, demo_account
 
 NOW = datetime(2026, 9, 20, 17, 0, tzinfo=UTC)
 RECORDINGS = Path(__file__).parent / "core" / "recordings"
 PLANTED_SUFFIX = 2979
+ROOM_SEED = 1
+MESSAGE_SEED = 1_000
 PLACEHOLDER = re.compile(r"\{\{policy\.[a-z_.]+\}\}")
 
 
@@ -151,7 +153,7 @@ class DemoTurn:
     text: str
     history: tuple[tuple[str, str], ...] = ()
     planted: bool = False
-    topic: Literal["", "charge", "remembered"] = ""
+    topic: Literal["", "charge", "remembered", "flagged"] = ""
 
 
 TOPIC_TEXT = {
@@ -214,12 +216,19 @@ DEMO = {
     "topic_pt": DemoTurn("BR", "pt-BR", TOPIC_TEXT["pt-BR"], topic="charge"),
     "remembered_es": DemoTurn("PE", "es", TOPIC_TEXT["es"], topic="remembered"),
     "remembered_pt": DemoTurn("BR", "pt-BR", TOPIC_TEXT["pt-BR"], topic="remembered"),
+    "flagged_es": DemoTurn("PE", "es", TOPIC_TEXT["es"], planted=True, topic="flagged"),
+    "flagged_pt": DemoTurn("BR", "pt-BR", TOPIC_TEXT["pt-BR"], planted=True, topic="flagged"),
+    "unblock_es": DemoTurn("PE", "es", "Desbloquea mi tarjeta, por favor"),
+    "unblock_pt": DemoTurn("BR", "pt-BR", "desbloqueia meu cartão, por favor"),
 }
 KEPT = {"unrecognized_es": "¿y por qué me cobraron eso si casi no voy?"}
 
 
+FLAGGED = ("flagged_es", "flagged_pt")
+
+
 def base(name: str) -> str:
-    for suffix in ("_tap", "_pick", "_kept"):
+    for suffix in ("_why", "_no", "_block", "_yes", "_card", "_open", "_tap", "_pick", "_kept"):
         name = name.removesuffix(suffix)
     return name
 
@@ -268,23 +277,22 @@ def demo_turn(aws: Aws, name: str) -> tuple[Message, list[Message]]:
     turn = DEMO[name]
     customer_id = f"c0ffee00-0000-4000-8000-{list(DEMO).index(name) + 1:012d}"
     account = demo_account(aws, customer_id, turn.country, turn.locale, NOW - timedelta(hours=1))
-    if turn.planted:
-        plant_charge(aws, customer_id, turn.country, account.cards[0]["product_id"])
-    room = uuid7()
+    planted = (
+        plant_charge(aws, customer_id, turn.country, account.cards[0]["product_id"]) if turn.planted else None
+    )
+    room = str(uuid7_at(NOW - timedelta(hours=1), ROOM_SEED))
     history: list[Message] = []
     sent = NOW - timedelta(minutes=len(turn.history) + 1)
     for sender, text in turn.history:
         if sender == "customer":
-            history.append(
-                customer_message(customer_id, room, uuid7(int(sent.timestamp() * 1000)), text, sent)
-            )
+            history.append(customer_message(customer_id, room, demo_id(sent, len(history)), text, sent))
         else:
             history.append(reply_to(history[-1], "assistant", text, sent))
         sent += timedelta(minutes=1)
     sent = NOW - timedelta(seconds=1)
     text, input = turn.text, None
     if turn.topic:
-        row = habitual_charge(account.transactions)
+        row = dict(planted) if turn.topic == "flagged" and planted else habitual_charge(account.transactions)
         if turn.topic == "remembered":
             remember(aws, customer_id, row, NOTES[turn.locale])
         text = turn.text.format(
@@ -299,9 +307,11 @@ def demo_turn(aws: Aws, name: str) -> tuple[Message, list[Message]]:
                 "transaction_id": row["transaction_id"],
             }
         }
-    return customer_message(
-        customer_id, room, uuid7(int(sent.timestamp() * 1000)), text, sent, input=input
-    ), history
+    return customer_message(customer_id, room, demo_id(sent, len(history)), text, sent, input=input), history
+
+
+def demo_id(at: datetime, index: int) -> str:
+    return str(uuid7_at(at, MESSAGE_SEED + index))
 
 
 def habitual_charge(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -375,22 +385,22 @@ def kept(question: Message, history: list[Message], first: Reply, text: str) -> 
     asked = reply_to(question, "assistant", first.text, NOW, first.parts, first.facts, first.draft)
     sent = NOW - timedelta(milliseconds=200)
     message = customer_message(
-        question.customer_id, question.room_id, uuid7(int(sent.timestamp() * 1000)), text, sent
+        question.customer_id, question.room_id, demo_id(sent, len(history) + 1), text, sent
     )
     return message, [*history, question, asked]
 
 
 def tap(
-    question: Message, history: list[Message], first: Reply, option: str
+    question: Message, history: list[Message], first: Reply, option: str, step: int = 0
 ) -> tuple[Message, list[Message]]:
     asked = reply_to(question, "assistant", first.text, NOW, first.parts, first.facts, first.draft)
     [ask] = [part for part in first.parts if part["type"] == "ask"]
     [label] = [entry["label"] for entry in ask["options"] if entry["id"] == option]
-    tapped_at = NOW - timedelta(milliseconds=500)
+    tapped_at = NOW - timedelta(milliseconds=500 - 100 * step)
     message = customer_message(
         question.customer_id,
         question.room_id,
-        uuid7(int(tapped_at.timestamp() * 1000)),
+        demo_id(tapped_at, len(history) + 1),
         label,
         tapped_at,
         input={"ask_id": asked.message_id, "option": option},

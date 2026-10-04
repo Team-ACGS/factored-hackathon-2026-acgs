@@ -92,7 +92,6 @@ def test_a_charge_view_carries_clara_s_readings_rendered_in_the_customer_s_local
             "explanation": "ya habías comprado antes en este comercio",
             "reasons": [{"reason": "foreign_country", "text": "es en otro país"}],
             "habit": f"Hiciste 5 compras antes en este comercio; lo típico es S/{NB}58.50.",
-            "compared": "Este cargo es unas 2 veces lo habitual.",
         },
     }
     assert "verdict" not in str(reply.parts)

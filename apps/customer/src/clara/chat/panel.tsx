@@ -125,6 +125,7 @@ export function ChatPanel(props: PanelProps) {
           ask={bar.ask}
           gone={!asked}
           inView={Boolean(asked && nav.pick)}
+          card={shown?.spec.kind === "cards"}
           picked={bar.ask.options.find((option) => option.id === nav.pick?.selected) ?? null}
           onCancelPick={onCancelPick}
           onChoose={(option, note) => chat.choose(bar, option, note)}

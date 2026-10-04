@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.answers import SAY_KEYS
-from core.facts.parts import ASK_TYPES, VIEW_TYPES
+from core.facts.parts import MODEL_ASK_TYPES, VIEW_TYPES
 from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS, SHOWN_ROWS, newest_page
 from core.facts.values import Count, Fact, Ledger
 from core.tools import TOOLS
@@ -83,10 +83,14 @@ VIEW_DESCRIPTION = (
 )
 
 ASK_DESCRIPTION = (
-    "Buttons under your answer, read only. which_one: two to five candidate facts, all charges (movement "
-    "rows, `similar`, `charge`) or all cards, when the question matches several. show: one `spend`, `case` "
-    "with a disputed charge, or card fact whose rows the customer may want to see, never with a view. "
-    "recognize_charge: the one `charge` fact the customer says they do not recognize."
+    "Buttons under your answer; the bank's code acts only on the customer's tap. which_one: two to five "
+    "candidate facts, all charges (movement rows, `similar`, `charge`) or all cards, when the question "
+    "matches several. show: one `spend`, `case` with a disputed charge, or card fact whose rows the customer "
+    "may want to see, never with a view. recognize_charge: the one `charge` fact the customer says they do "
+    "not recognize. was_it_you: the one `charge` fact the customer names whose `verdict.reasons` include the "
+    "bank's alert. open_claim: the one `charge` fact the customer disputes without saying it was stolen or "
+    "not theirs. talk_to_person: one fact the request is about, when only a person at the bank can do what "
+    "they ask."
 )
 
 SAY_KEY_DESCRIPTION = (
@@ -127,7 +131,7 @@ def reply_schema() -> dict[str, Any]:
             },
             "say_key": {"type": "string", "enum": list(SAY_KEYS), "description": SAY_KEY_DESCRIPTION},
             "view": _choice_schema(VIEW_TYPES, MAX_VIEW_ITEMS, VIEW_DESCRIPTION),
-            "ask": _choice_schema(ASK_TYPES, MAX_OPTIONS, ASK_DESCRIPTION),
+            "ask": _choice_schema(MODEL_ASK_TYPES, MAX_OPTIONS, ASK_DESCRIPTION),
         },
     }
 

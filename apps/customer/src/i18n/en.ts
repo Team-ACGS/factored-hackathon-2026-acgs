@@ -140,6 +140,8 @@ export const en = {
   "claim.title": "Claim for {merchant}",
   "claim.stage.opened": "Opened",
   "claim.stage.assigned": "Assigned to the claims team",
+  "case.stage.assigned.fraud": "Assigned to the security team",
+  "case.stage.assigned.service": "Assigned to a person at the bank",
   "claim.stage.review": "In review",
   "claim.status.opened": "Opened",
   "claim.status.assigned": "Assigned",
@@ -206,6 +208,8 @@ export const en = {
   "clara.chat.bar.pickHint": "Tap it in the list",
   "clara.chat.bar.isThis": "Is it this one?",
   "clara.chat.bar.thisOne": "Yes, this one",
+  "clara.chat.bar.isThisCard": "Is it this card?",
+  "clara.chat.bar.thisCard": "Yes, this card",
   "clara.chat.bar.cancel": "Cancel",
   "clara.chat.bar.choose": "Choose an option",
   "clara.chat.bar.confirm": "Confirm: {option}",
@@ -246,6 +250,9 @@ export const en = {
   "clara.chat.view.history.purchases": "Your purchases",
   "clara.chat.view.case.kicker": "Your case",
   "clara.chat.view.case.label": "See your case",
+  "clara.chat.view.case.known": "What the person already knows",
+  "clara.chat.view.case.recorded": "What is on record",
+  "clara.chat.view.case.contact": "A person at the bank will contact you",
 } as const;
 
 export type MessageKey = keyof typeof en;

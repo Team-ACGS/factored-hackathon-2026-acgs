@@ -1,7 +1,7 @@
 from typing import Literal, get_args
 
 from core.facts.catalog import LIST_JOIN
-from core.facts.fallback import FIELD, TEMPLATES
+from core.facts.fallback import FIELD
 from core.facts.parts import Part, Say
 from core.facts.render import render_text
 from core.facts.values import Count, Fact, FactIds, Label, Ledger
@@ -93,19 +93,6 @@ ABOUT_YOU = {
     },
 }
 
-CLOSED = {
-    "recognized": {
-        "es": "Gracias, lo anoto: reconoces este cargo y no volveré a preguntarte por él.",
-        "pt-BR": "Obrigada, anotei: você reconhece esta cobrança e não vou perguntar de novo sobre ela.",
-        "en": "Thank you, noted: you recognize this charge and I will not ask you about it again.",
-    },
-    "already": {
-        "es": "Ya me habías respondido sobre este cargo, así que lo dejo como me dijiste.",
-        "pt-BR": "Você já tinha me respondido sobre esta cobrança, então deixo como você me disse.",
-        "en": "You had already answered me about this charge, so I keep it as you told me.",
-    },
-}
-
 REMEMBERED = {
     "recognized_charge": {
         "es": "Reconociste tu cargo en {merchant} por {amount}, {date}.",
@@ -138,12 +125,6 @@ def contact(ledger: Ledger) -> Fact:
 
 def safety(kind: FloorClass, ledger: Ledger, locale: str) -> list[Part]:
     return [Say(_bind(SAFETY[kind][locale], "c", contact(ledger)))]
-
-
-def closed(outcome: str, ledger: Ledger, locale: str) -> list[Part]:
-    if outcome == "missing":
-        return [Say(TEMPLATES["unavailable"][locale])]
-    return [Say(CLOSED[outcome][locale])]
 
 
 def remembered(fact: Fact, ledger: Ledger, locale: str) -> str:

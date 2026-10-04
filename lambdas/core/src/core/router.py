@@ -42,8 +42,74 @@ FLOOR: dict[FloorClass, tuple[str, ...]] = {
     ),
 }
 
+AbstainClass = Literal["unblock", "refund", "human"]
+
+ABSTAIN: dict[AbstainClass, tuple[str, ...]] = {
+    "unblock": (
+        "desbloquea",
+        "desbloqueala",
+        "desbloquear",
+        "desbloquearla",
+        "desbloquearon",
+        "desbloqueen",
+        "desbloqueo",
+        "desbloqueia",
+        "desbloqueie",
+        "desbloquear meu cartao",
+        "desbloqueio",
+        "unblock",
+        "unlock my card",
+    ),
+    "refund": (
+        "devuelven la plata",
+        "devuelvan la plata",
+        "devuelven el dinero",
+        "devuelvan el dinero",
+        "devolver el dinero",
+        "devolver la plata",
+        "devolucion",
+        "reembolso",
+        "reembolsen",
+        "me devuelven",
+        "me devuelvan",
+        "devolvem o dinheiro",
+        "devolver o dinheiro",
+        "devolver meu dinheiro",
+        "meu dinheiro de volta",
+        "receber o dinheiro",
+        "receber meu dinheiro",
+        "receber o meu dinheiro",
+        "recibir mi dinero",
+        "recibir el dinero",
+        "estorno",
+        "refund",
+        "money back",
+    ),
+    "human": (
+        "hablar con una persona",
+        "hablar con un humano",
+        "hablar con alguien",
+        "hablar con un agente",
+        "hablar con un asesor",
+        "quiero una persona",
+        "pasame con una persona",
+        "falar com uma pessoa",
+        "falar com um humano",
+        "falar com um atendente",
+        "falar com alguem",
+        "quero uma pessoa",
+        "talk to a person",
+        "talk to a human",
+        "speak to a person",
+        "real person",
+    ),
+}
+
 _SPACES = re.compile(r"\s+")
 _PATTERNS = {kind: bounded(re.escape(phrase) for phrase in phrases) for kind, phrases in FLOOR.items()}
+_ABSTAIN_PATTERNS = {
+    kind: bounded(re.escape(phrase) for phrase in phrases) for kind, phrases in ABSTAIN.items()
+}
 
 
 ShortAnswer = Literal["yes", "no"]
@@ -105,6 +171,14 @@ def normalize(text: str) -> str:
 def floor(text: str) -> FloorClass | None:
     normalized = normalize(text)
     for kind, pattern in _PATTERNS.items():
+        if pattern.search(normalized):
+            return kind
+    return None
+
+
+def abstain(text: str) -> AbstainClass | None:
+    normalized = normalize(text)
+    for kind, pattern in _ABSTAIN_PATTERNS.items():
         if pattern.search(normalized):
             return kind
     return None

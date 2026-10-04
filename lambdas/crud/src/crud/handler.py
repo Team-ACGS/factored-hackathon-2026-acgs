@@ -21,6 +21,7 @@ from core.customers import read_customer
 from core.facts.values import Channel
 from core.ids import InvalidId, format_instant, parse_uuid7, uuid7_time
 from core.ingestion import MAX_CLOCK_SKEW, ContractViolation, Duplicate, Ingestion, UnknownCard, check
+from core.memory import Memory
 from core.observability import logger, metrics, tracer
 from core.policies import policy_facts
 from crud.catalog import COUNTRIES, LANGUAGES
@@ -31,6 +32,7 @@ from crud.store import CustomerNotFound, SetupAlreadyCompleted, Store
 SERVICE = "crud"
 PAGE_SIZE = 20
 MAX_CASES = 100
+MAX_ANSWERED = 500
 SUFFIX_ATTEMPTS = 20
 
 app = APIGatewayRestResolver(cors=CORSConfig(allow_origin="*", max_age=300))
@@ -167,6 +169,14 @@ def list_cases() -> dict[str, Any]:
     items, _ = cases.cases(principal.subject, MAX_CASES)
     items.sort(key=lambda item: str(item.get("creation_date") or ""), reverse=True)
     return {"cases": [_case(item) for item in items]}
+
+
+@app.get("/crud/memory/charges")
+@tracer.capture_method(capture_response=False)
+def answered_charges() -> dict[str, Any]:
+    principal = _customer()
+    memory = Memory.from_dynamodb(customer_session(principal.subject, SERVICE).dynamodb)
+    return {"answered": memory.answered(principal.subject, MAX_ANSWERED)}
 
 
 def _case(item: dict[str, Any]) -> dict[str, Any]:

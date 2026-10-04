@@ -1,6 +1,6 @@
 import pytest
 
-from core.router import Route, floor, route, short_answer
+from core.router import Route, abstain, floor, route, short_answer
 
 PHRASES = [
     ("No fui yo, ¿qué es este cargo?", "not_me"),
@@ -68,3 +68,23 @@ def test_only_a_short_unambiguous_answer_at_the_start_closes_an_ask(
     text: str, expected: tuple[str, str] | None
 ) -> None:
     assert short_answer(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Desbloquea mi tarjeta", "unblock"),
+        ("¿me la pueden desbloquear?", "unblock"),
+        ("desbloqueia meu cartão", "unblock"),
+        ("¿cuándo me devuelven la plata?", "refund"),
+        ("quero meu dinheiro de volta", "refund"),
+        ("quando vou receber o dinheiro da minha contestação?", "refund"),
+        ("can I get a refund", "refund"),
+        ("quiero hablar con una persona", "human"),
+        ("quero falar com uma pessoa", "human"),
+        ("¿cuánto gasté en Primax este mes?", None),
+        ("¿qué es este cargo?", None),
+    ],
+)
+def test_the_abstention_lexicon_names_what_only_a_person_does(text: str, expected: str | None) -> None:
+    assert abstain(text) == expected

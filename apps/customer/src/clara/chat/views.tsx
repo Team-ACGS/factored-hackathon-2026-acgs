@@ -1,12 +1,12 @@
 import { cn } from "@clara/ui/lib/cn";
 import { useInfiniteQuery, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { AlertCircle, ChevronRight, Globe, Siren, Smartphone, Store } from "lucide-react";
+import { AlertCircle, ChevronRight, Globe, Headset, Siren, Smartphone, Store } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useNow } from "../../app/use-now";
 import { materialOf } from "../../bank/card-display";
 import { CardFace, CardUsage } from "../../bank/card-face";
-import { caseOfTransaction, stepsOf } from "../../bank/cases";
+import { caseOfTransaction, stageKey, stepsOf } from "../../bank/cases";
 import { formatExpiration, formatMoney } from "../../bank/format";
 import { cardTypeKey, isCredit, labelOf } from "../../bank/labels";
 import { entriesOf, isPending } from "../../bank/ledger";
@@ -183,21 +183,28 @@ function CardsView({ spec, nav }: ViewProps<"cards">) {
   const { t } = useI18n();
   const cards = useCards();
   const shown = spec.cards.flatMap((id) => cards.find((card) => card.product_id === id) ?? []);
+  const picking = spec.cards.some((id) => nav.pick?.ids.has(id));
   return (
     <>
       {shown.map((card) => {
         const name = cardLabel(card, t);
+        const pickable = nav.pick?.ids.has(card.product_id) ?? false;
+        const picked = pickable && nav.pick?.selected === card.product_id;
         return (
           <button
             key={card.product_id}
             type="button"
-            disabled={nav.disabled}
-            aria-label={t("clara.chat.view.card.label", { card: name })}
+            disabled={nav.disabled || (picking && !pickable)}
+            aria-pressed={pickable ? picked : undefined}
+            aria-label={pickable ? name : t("clara.chat.view.card.label", { card: name })}
             className={cn(
               box,
-              "grid w-full grid-cols-[130px_minmax(0,1fr)_16px] items-center gap-3.5 p-4 text-left transition-[border-color,translate] duration-150 hover:-translate-y-0.5 hover:border-[#c9d9f0] sm:grid-cols-[200px_minmax(0,1fr)_20px] sm:gap-5",
+              "grid w-full grid-cols-[130px_minmax(0,1fr)_16px] items-center gap-3.5 p-4 text-left transition-[border-color,translate,opacity] duration-150 hover:-translate-y-0.5 hover:border-[#c9d9f0] disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:border-line sm:grid-cols-[200px_minmax(0,1fr)_20px] sm:gap-5",
+              picked && "border-ink shadow-[inset_0_0_0_1px_var(--color-ink)] hover:border-ink",
             )}
-            onClick={() => nav.open({ kind: "card", productId: card.product_id })}
+            onClick={() =>
+              pickable ? nav.pick?.choose(card.product_id) : nav.open({ kind: "card", productId: card.product_id })
+            }
           >
             <CardFace tone="clara" card={card} material={materialOf(cards, card.product_id)} />
             <span className="grid min-w-0 gap-2.5">
@@ -205,11 +212,11 @@ function CardsView({ spec, nav }: ViewProps<"cards">) {
               <CardState card={card} />
               <CardUsage card={card} tone="clara" />
             </span>
-            <ChevronRight className="size-[18px] text-ink-3" aria-hidden />
+            {!pickable && <ChevronRight className="size-[18px] text-ink-3" aria-hidden />}
           </button>
         );
       })}
-      <Hint>{t("clara.chat.view.cards.hint")}</Hint>
+      {!picking && <Hint>{t("clara.chat.view.cards.hint")}</Hint>}
       <Source />
     </>
   );
@@ -327,7 +334,7 @@ function ChargeView({ spec }: ViewProps<"charge">) {
   const { locale, t } = useI18n();
   const now = useNow();
   const { tx, card } = useCharge(spec.row);
-  const { explanation, reasons = [], habit, compared } = spec.readings;
+  const { explanation, reasons = [], habit } = spec.readings;
   if (!tx) return <DetailSkeleton />;
   return (
     <>
@@ -357,11 +364,10 @@ function ChargeView({ spec }: ViewProps<"charge">) {
           })}
         </>
       )}
-      {(habit || compared) && (
+      {habit && (
         <div className={cn(box, "grid gap-1.5 px-5 py-[18px]")}>
           <b className="text-[14.5px]">{t("clara.chat.view.charge.habit")}</b>
-          {habit && <p className="text-[14px] text-ink-2">{habit}</p>}
-          {compared && <p className="text-[14px] text-ink-2">{compared}</p>}
+          <p className="text-[14px] text-ink-2">{habit}</p>
         </div>
       )}
       <Source />
@@ -404,7 +410,7 @@ function CaseView({ spec }: ViewProps<"case">) {
       {shown.map((item) => (
         <CaseCard key={item.complaint_id} item={item} />
       ))}
-      <Source claim />
+      <Source claim={shown.every((item) => item.type === "claim")} />
     </>
   );
 }
@@ -415,7 +421,7 @@ function CaseCard({ item }: { item: Case }) {
   const day = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
   const items: TimelineItem[] = stepsOf(item).map(({ step, state, at }) => ({
     state,
-    title: t(`claim.stage.${step}`),
+    title: t(stageKey(item, step)),
     sub:
       at === null
         ? undefined
@@ -438,6 +444,32 @@ function CaseCard({ item }: { item: Case }) {
         <span className="font-mono text-base font-medium">{item.case_id}</span>
       </div>
       <Timeline items={items} stagger={1} />
+      {item.summary_points && item.summary_points.length > 0 && <Known item={item} />}
+    </div>
+  );
+}
+
+function Known({ item }: { item: Case }) {
+  const { t } = useI18n();
+  const points = item.summary_points ?? [];
+  const handedOff = item.type !== "claim";
+  return (
+    <div className="grid gap-2.5 border-t border-line pt-3.5">
+      <b className="text-[14.5px]">{t(handedOff ? "clara.chat.view.case.known" : "clara.chat.view.case.recorded")}</b>
+      <ul className="grid gap-1.5">
+        {points.map((point) => (
+          <li key={point} className="grid grid-cols-[14px_minmax(0,1fr)] gap-2 text-[14px] text-ink-2">
+            <span className="mt-[9px] size-1.5 rounded-full bg-ink-3" aria-hidden />
+            <span>{point}</span>
+          </li>
+        ))}
+      </ul>
+      {handedOff && (
+        <p className="flex items-center gap-2 rounded-[14px] bg-muted px-3.5 py-3 text-[13.5px] font-semibold text-ink-2">
+          <Headset className="size-[17px] flex-none" aria-hidden />
+          {t("clara.chat.view.case.contact")}
+        </p>
+      )}
     </div>
   );
 }

@@ -22,6 +22,10 @@ export function createBankApi(http: Http) {
       return ((await http.request("GET", "/crud/cases")) as { cases: Case[] }).cases;
     },
 
+    async answered(): Promise<string[]> {
+      return ((await http.request("GET", "/crud/memory/charges")) as { answered: string[] }).answered;
+    },
+
     async card(productId: string, cursor: string | null = null): Promise<CardPage> {
       const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
       return (await http.request("GET", `${card(productId)}${query}`)) as CardPage;

@@ -80,6 +80,13 @@ class Memory:
             items.extend(page["Items"])
         return [public_memory(item) for item in items], "LastEvaluatedKey" in page
 
+    def answered(self, customer_id: str, max_rows: int) -> list[str]:
+        found: list[str] = []
+        for memory_type in CHARGE_TYPES:
+            items, _ = self.memories(customer_id, f"{memory_type}#", max_rows)
+            found.extend(str(item["subject"]) for item in items if item.get("subject"))
+        return sorted(set(found))
+
     def remember(self, customer_id: str, item: Mapping[str, Any]) -> tuple[dict[str, Any], bool]:
         row = {
             "customer_id": customer_id,

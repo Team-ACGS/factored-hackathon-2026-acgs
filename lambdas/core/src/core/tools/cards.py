@@ -55,13 +55,15 @@ def card_status(context: ToolContext, ledger: Ledger, args: CardStatusInput) -> 
     except InvalidId as error:
         raise NotFound(args.card_ref) from error
     reader = Reader(context)
-    item = reader.accounts.card(context.customer_id, args.card_ref, (*CARD_FIELDS, *BALANCE_FIELDS))
+    item = reader.accounts.card(
+        context.customer_id, args.card_ref, (*CARD_FIELDS, *BALANCE_FIELDS, "blocked_at")
+    )
     card = to_card(item) if item else None
     if card is None:
         raise NotFound(args.card_ref)
     fields = card_fields(card)
     if card.status == "Blocked":
-        fields["blocked_by_clara"] = Flag(False)
+        fields["blocked_by_clara"] = Flag(bool(item and item.get("blocked_at")))
     as_of = item.get("balance_as_of") if item else None
     fields["balance_available"] = Flag(as_of is not None)
     if as_of is not None and item is not None:

@@ -9,6 +9,7 @@ import {
 import { ApiError } from "../api/http";
 import { minutes, seconds } from "../api/query-client";
 import { idTime, type Clock } from "../chat/clock";
+import type { Effect } from "../chat/conversation";
 import type { Locale } from "../i18n/locale";
 import type { BankApi } from "./api";
 import {
@@ -27,11 +28,25 @@ export const bankKeys = {
   profile: () => ["bank", "profile"] as const,
   cards: () => ["bank", "cards"] as const,
   cases: () => ["bank", "cases"] as const,
+  answered: () => ["bank", "answered"] as const,
   ledger: (productId: string) => ["bank", "ledger", productId] as const,
   transaction: (productId: string, transactionId: string) => ["bank", "transaction", productId, transactionId] as const,
   adds: () => ["bank", "add"] as const,
   add: (productId: string) => [...bankKeys.adds(), productId] as const,
 };
+
+export function invalidationsOf(effects: readonly Effect[]): (readonly string[])[] {
+  return effects.flatMap((effect): (readonly string[])[] => {
+    switch (effect.type) {
+      case "card_blocked":
+        return [bankKeys.cards(), bankKeys.ledger(effect.productId)];
+      case "case_opened":
+        return [bankKeys.cases()];
+      case "charge_answered":
+        return [bankKeys.answered()];
+    }
+  });
+}
 
 function isSetupConflict(error: unknown): boolean {
   return error instanceof ApiError && error.status === 409;
@@ -66,6 +81,8 @@ export function createBankQueries(bank: BankApi, clock: Clock) {
       }),
 
     cases: () => queryOptions({ queryKey: bankKeys.cases(), queryFn: () => bank.cases(), staleTime: seconds(30) }),
+    answered: () =>
+      queryOptions({ queryKey: bankKeys.answered(), queryFn: () => bank.answered(), staleTime: seconds(30) }),
 
     transaction: (productId: string, transactionId: string) =>
       queryOptions({

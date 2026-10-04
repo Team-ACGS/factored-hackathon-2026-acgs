@@ -85,6 +85,7 @@ def answer(record: DynamoDBRecord) -> None:
                 answer.facts,
                 answer.draft,
                 answer.source,
+                answer.effects,
             )
         )
         summary = turn.summary()

@@ -1,13 +1,24 @@
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, get_args
 
 from core.facts.values import Json
 
 ViewType = Literal["movements", "cards", "card", "movement", "charge", "history", "case"]
-AskType = Literal["which_one", "show", "recognize_charge"]
+AskType = Literal[
+    "which_one",
+    "show",
+    "recognize_charge",
+    "was_it_you",
+    "have_card",
+    "block_card",
+    "open_claim",
+    "talk_to_person",
+]
+ModelAskType = Literal["which_one", "show", "recognize_charge", "was_it_you", "open_claim", "talk_to_person"]
 VIEW_TYPES: tuple[str, ...] = get_args(ViewType)
 ASK_TYPES: tuple[str, ...] = get_args(AskType)
+MODEL_ASK_TYPES: tuple[str, ...] = get_args(ModelAskType)
 
 
 class InvalidPart(ValueError):
@@ -35,6 +46,7 @@ class View:
 class Ask:
     ask: str
     facts: tuple[str, ...]
+    target: Json | None = field(default=None, compare=False)
 
     def to_wire(self) -> Json:
         return {"type": "ask", "ask": self.ask, "facts": list(self.facts)}

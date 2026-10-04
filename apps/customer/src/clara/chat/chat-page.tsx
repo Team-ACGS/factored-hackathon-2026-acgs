@@ -18,6 +18,7 @@ import {
   pickIds,
   reducePanel,
   shownView,
+  storyFaces,
   type PanelView,
 } from "./panel-state";
 import { useStatusText } from "./status";
@@ -57,7 +58,13 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
   const shown = shownView(panel, views);
   const mode = panelMode(shown, working, asked !== null);
   const typing = draft.trim() !== "";
-  const face = faceOf(mode, { typing, asking: asked !== null, arriving: phase.kind === "arriving", working: work.face });
+  const face = faceOf(mode, {
+    typing,
+    asking: asked !== null,
+    arriving: phase.kind === "arriving",
+    working: work.face,
+    story: storyFaces(chat.messages),
+  });
   const look = working ? work.look : undefined;
 
   function resize() {

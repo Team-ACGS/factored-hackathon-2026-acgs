@@ -179,6 +179,23 @@ def test_a_reply_keeps_its_parts_and_audit_fields_and_publishes_only_the_parts(m
     assert {"facts", "draft", "source"}.isdisjoint(stored.public())
 
 
+def test_a_write_reply_publishes_its_effects_for_the_client_to_invalidate(messaging: Messaging) -> None:
+    question = message(uuid7(), uuid7())
+    messaging.send(question)
+    product, complaint = uuid7(), uuid7()
+    effects = (
+        {"type": "card_blocked", "product_id": product},
+        {"type": "case_opened", "complaint_id": complaint},
+    )
+    answer = reply_to(question, "assistant", "Listo.", datetime.now(UTC), source="story", effects=effects)
+
+    messaging.write(answer)
+
+    stored = messaging.stored(CUSTOMER, answer.message_key)
+    assert stored == answer
+    assert stored.public()["effects"] == list(effects)
+
+
 def test_a_message_without_parts_publishes_its_text_only(messaging: Messaging) -> None:
     sent = message(uuid7(), uuid7())
     messaging.send(sent)

@@ -13,6 +13,7 @@ export interface ServerMessage {
   sent_at: string;
   created_at: string;
   parts?: unknown;
+  effects?: unknown;
 }
 
 export interface Citation {
@@ -49,7 +50,6 @@ export interface Readings {
   typical_amount?: string;
   explanation?: string;
   habit?: string;
-  compared?: string;
   reasons?: Reason[];
 }
 
@@ -66,8 +66,24 @@ export interface AskOption {
   label: string;
 }
 
-export const askKinds = ["which_one", "show", "recognize_charge"] as const;
+export const askKinds = [
+  "which_one",
+  "show",
+  "recognize_charge",
+  "was_it_you",
+  "have_card",
+  "block_card",
+  "open_claim",
+  "talk_to_person",
+] as const;
 export type AskKind = (typeof askKinds)[number];
+
+export const confirmKinds: readonly AskKind[] = ["have_card", "block_card", "open_claim", "talk_to_person"];
+
+export type Effect =
+  | { type: "card_blocked"; productId: string }
+  | { type: "case_opened"; complaintId: string; caseType: string | null }
+  | { type: "charge_answered"; transactionId: string };
 
 export interface AskPart {
   kind: AskKind;
@@ -87,6 +103,7 @@ export interface ChatMessage {
   sentAt: string;
   createdAt: string | null;
   delivery: Delivery;
+  effects: Effect[];
   input?: ChatInput;
 }
 
@@ -196,7 +213,7 @@ function strings(value: unknown): string[] {
 function readingsOf(value: unknown): Readings {
   const fields = record(value) ?? {};
   const readings: Readings = {};
-  for (const name of ["kind", "count", "period", "last4", "merchant", "typical_amount", "explanation", "habit", "compared"] as const) {
+  for (const name of ["kind", "count", "period", "last4", "merchant", "typical_amount", "explanation", "habit"] as const) {
     const text = fields[name];
     if (typeof text === "string") readings[name] = text;
   }
@@ -255,6 +272,24 @@ export function askOf(message: Pick<ServerMessage, "parts">): AskPart | null {
   return null;
 }
 
+export function effectsOf(message: Pick<ServerMessage, "effects">): Effect[] {
+  if (!Array.isArray(message.effects)) return [];
+  return message.effects.flatMap((entry): Effect[] => {
+    const fields = record(entry);
+    if (fields?.type === "card_blocked" && typeof fields.product_id === "string") {
+      return [{ type: "card_blocked", productId: fields.product_id }];
+    }
+    if (fields?.type === "case_opened" && typeof fields.complaint_id === "string") {
+      const caseType = typeof fields.case_type === "string" ? fields.case_type : null;
+      return [{ type: "case_opened", complaintId: fields.complaint_id, caseType }];
+    }
+    if (fields?.type === "charge_answered" && typeof fields.transaction_id === "string") {
+      return [{ type: "charge_answered", transactionId: fields.transaction_id }];
+    }
+    return [];
+  });
+}
+
 export function sourcesOf(says: readonly Say[]): Citation[] {
   const seen = new Map<string, Citation>();
   for (const citation of says.flatMap((say) => say.citations)) {
@@ -283,6 +318,7 @@ function fromServer(message: ServerMessage): ChatMessage {
     sentAt: message.sent_at,
     createdAt: message.created_at,
     delivery: "sent",
+    effects: effectsOf(message),
   };
 }
 
@@ -327,6 +363,7 @@ export function reduce(state: Conversation, action: Action): Conversation {
             sentAt: action.sentAt,
             createdAt: null,
             delivery: "pending",
+            effects: [],
             ...(action.input ? { input: action.input } : {}),
           },
         ]),

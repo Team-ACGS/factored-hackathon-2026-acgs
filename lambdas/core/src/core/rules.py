@@ -7,20 +7,29 @@ from typing import Any, Literal
 
 from core.access import customer_session
 from core.accounts import Accounts
-from core.facts.targets import MIN_OPTIONS, candidate, recognizable, show_option
-from core.facts.values import Fact, Ledger
+from core.facts.targets import ANSWER_OPTIONS, MIN_OPTIONS, candidate, recognizable, show_option
+from core.facts.values import Fact, Labels, Ledger, Ref, Status
 from core.ids import format_instant
 from core.memory import MAX_NOTE, Memory, memory_key
 from core.merchants import merchant_key
 from core.messaging import Message
-from core.router import ShortAnswer, floor, short_answer
+from core.router import floor, short_answer
 
 RECOGNIZE = "recognize_charge"
+WAS_IT_YOU = "was_it_you"
+HAVE_CARD = "have_card"
+BLOCK = "block_card"
+CLAIM = "open_claim"
+PERSON = "talk_to_person"
+STORY_ASKS = frozenset({RECOGNIZE, WAS_IT_YOU, HAVE_CARD, BLOCK, CLAIM, PERSON})
+ABOUT_THE_CHARGE = frozenset({RECOGNIZE, WAS_IT_YOU})
+PROTECT_REASONS = frozenset({"foreign_country", "unusual_channel"})
 MERCHANT_AFTER = 3
 MAX_CHARGE_MEMORIES = 500
 
 AnsweredBy = Literal["tap", "lexicon", "floor"]
 Closed = Literal["written", "redelivered", "already", "missing"]
+Purpose = Literal["lost", "not_me"]
 
 
 @dataclass(frozen=True)
@@ -29,12 +38,18 @@ class Choice:
     option: str
     read: Mapping[str, Any]
     recent: bool = False
+    purpose: str | None = None
 
 
 @dataclass(frozen=True)
 class Target:
-    product_id: str
-    transaction_id: str
+    product_id: str | None
+    transaction_id: str | None = None
+    reason: str | None = None
+    area: str | None = None
+
+    def to_wire(self) -> dict[str, str]:
+        return {name: value for name, value in self.__dict__.items() if value is not None}
 
 
 @dataclass(frozen=True)
@@ -47,7 +62,7 @@ class OpenAsk:
 @dataclass(frozen=True)
 class Answer:
     ask: OpenAsk
-    option: ShortAnswer
+    option: str
     note: str | None
     by: AnsweredBy
 
@@ -57,18 +72,20 @@ class Closing:
     answer: Answer
     outcome: Closed
     merchant_learned: bool = False
+    earlier: str | None = None
 
 
 @dataclass(frozen=True)
 class TurnState:
     choice: str | None = None
     asking: str | None = None
+    open_cases: frozenset[str] = frozenset()
 
 
 def allowed_asks(state: TurnState, ledger: Ledger) -> frozenset[str]:
     if state.asking is not None:
         return frozenset({state.asking})
-    allowed: set[str] = set()
+    allowed: set[str] = {PERSON}
     kinds = Counter(
         found[0] for fact in ledger.facts.values() if (found := candidate(fact, ledger)) is not None
     )
@@ -79,13 +96,47 @@ def allowed_asks(state: TurnState, ledger: Ledger) -> frozenset[str]:
     ):
         allowed.add("show")
     charges = [fact for fact in ledger.facts.values() if fact.kind == "charge"]
-    if len(charges) == 1 and recognizable(charges[0]):
-        allowed.add(RECOGNIZE)
+    if len(charges) == 1:
+        asked = story_ask(charges[0])
+        if asked is not None:
+            allowed.add(asked)
+        if claimable(charges[0], state.open_cases):
+            allowed.add(CLAIM)
     return frozenset(allowed)
 
 
-def asks_to_recognize(fact: Fact | None) -> bool:
-    return fact is not None and fact.kind == "charge" and recognizable(fact)
+def flagged(fact: Fact) -> bool:
+    reasons = fact.fields.get("verdict.reasons")
+    return isinstance(reasons, Labels) and "score_high" in reasons.values
+
+
+def card_active(fact: Fact) -> bool:
+    return fact.fields.get("card.status") == Status("card", "Active")
+
+
+def story_ask(fact: Fact | None) -> str | None:
+    if fact is None or fact.kind != "charge" or "memory.type" in fact.fields:
+        return None
+    if recognizable(fact):
+        return RECOGNIZE
+    return WAS_IT_YOU if flagged(fact) and card_active(fact) else None
+
+
+def claimable(fact: Fact, open_cases: frozenset[str]) -> bool:
+    transaction = fact.fields.get("charge.transaction_ref")
+    return (
+        fact.kind == "charge"
+        and not flagged(fact)
+        and card_active(fact)
+        and isinstance(transaction, Ref)
+        and transaction.value not in open_cases
+    )
+
+
+def protect_signals(fact: Fact) -> bool:
+    reasons = fact.fields.get("verdict.reasons")
+    named = isinstance(reasons, Labels) and bool(PROTECT_REASONS & set(reasons.values))
+    return named or flagged(fact) or fact.fields.get("charge.status") == Status("transaction", "Declined")
 
 
 def latest_reply(message: Message, history: Sequence[Message]) -> Message | None:
@@ -101,7 +152,13 @@ def resolve_choice(message: Message, asked: Message | None) -> Choice | None:
             continue
         for option in part.get("options") or []:
             if option.get("id") == message.input.get("option") and isinstance(option.get("read"), Mapping):
-                return Choice(str(part["ask"]), str(option["id"]), option["read"], bool(part.get("recent")))
+                return Choice(
+                    str(part["ask"]),
+                    str(option["id"]),
+                    option["read"],
+                    bool(part.get("recent")),
+                    str(part["purpose"]) if part.get("purpose") else None,
+                )
     return None
 
 
@@ -110,11 +167,16 @@ def open_ask(asked: Message | None) -> OpenAsk | None:
         return None
     for part in asked.draft:
         target = part.get("target")
-        if part.get("type") == "ask" and part.get("ask") == RECOGNIZE and isinstance(target, Mapping):
-            return OpenAsk(
-                asked.message_id, RECOGNIZE, Target(str(target["product_id"]), str(target["transaction_id"]))
-            )
+        if part.get("type") == "ask" and part.get("ask") in STORY_ASKS and isinstance(target, Mapping):
+            return OpenAsk(asked.message_id, str(part["ask"]), _target(target))
     return None
+
+
+def _target(value: Mapping[str, Any]) -> Target:
+    def text(name: str) -> str | None:
+        return str(value[name]) if value.get(name) else None
+
+    return Target(text("product_id"), text("transaction_id"), text("reason"), text("area"))
 
 
 def topic_of(message: Message) -> Target | None:
@@ -130,13 +192,13 @@ def answer_of(message: Message, asked: OpenAsk | None) -> Answer | None:
     tap = message.input or {}
     if "ask_id" in tap:
         option = tap.get("option")
-        if tap["ask_id"] != asked.ask_id or option not in ("yes", "no"):
+        if tap["ask_id"] != asked.ask_id or option not in ANSWER_OPTIONS[asked.ask]:
             return None
-        return Answer(asked, option, _note(tap.get("note")), "tap")
+        return Answer(asked, str(option), _note(tap.get("note")), "tap")
     if "topic" in tap:
         return None
     hit = floor(message.text)
-    if hit == "not_me":
+    if hit == "not_me" and asked.ask in ABOUT_THE_CHARGE:
         return Answer(asked, "no", None, "floor")
     if hit is not None:
         return None
@@ -144,30 +206,37 @@ def answer_of(message: Message, asked: OpenAsk | None) -> Answer | None:
     return Answer(asked, short[0], _note(short[1]), "lexicon") if short else None
 
 
-def close_ask(answer: Answer, message: Message, now: datetime, service: str) -> Closing:
-    session = customer_session(message.customer_id, service).dynamodb
-    target = answer.ask.target
-    row = Accounts.from_dynamodb(session).transaction(
-        message.customer_id, target.product_id, target.transaction_id
-    )
+def remember_answer(
+    customer_id: str,
+    ask_id: str,
+    target: Target,
+    recognized: bool,
+    note: str | None,
+    room_id: str,
+    now: datetime,
+) -> tuple[Closed, bool, str | None]:
+    if target.product_id is None or target.transaction_id is None:
+        return "missing", False, None
+    session = customer_session(customer_id, "chatbot").dynamodb
+    row = Accounts.from_dynamodb(session).transaction(customer_id, target.product_id, target.transaction_id)
     if row is None:
-        return Closing(answer, "missing")
+        return "missing", False, None
     memory = Memory.from_dynamodb(session)
-    earlier = memory.of_charge(message.customer_id, target.transaction_id)
-    if earlier is not None and earlier.get("ask_id") != answer.ask.ask_id:
-        return Closing(answer, "already")
-    kind = "recognized_charge" if answer.option == "yes" else "unrecognized_charge"
+    earlier = memory.of_charge(customer_id, target.transaction_id)
+    if earlier is not None and earlier.get("ask_id") != ask_id:
+        return "already", False, str(earlier.get("type"))
+    kind = "recognized_charge" if recognized else "unrecognized_charge"
     created_at = format_instant(now)
     stored, created = memory.remember(
-        message.customer_id,
+        customer_id,
         {
             "memory_key": memory_key(kind, target.transaction_id),
             "type": kind,
             "subject": target.transaction_id,
-            "note": answer.note,
-            "source_room_id": message.room_id,
+            "note": note,
+            "source_room_id": room_id,
             "created_at": created_at,
-            "ask_id": answer.ask.ask_id,
+            "ask_id": ask_id,
             "merchant": row["merchant_name"],
             "product_id": target.product_id,
             "amount": Decimal(str(row["amount"])),
@@ -175,28 +244,41 @@ def close_ask(answer: Answer, message: Message, now: datetime, service: str) -> 
             "charged_at": row["transaction_date"],
         },
     )
-    if not created and stored.get("ask_id") != answer.ask.ask_id:
-        return Closing(answer, "already")
-    learned = kind == "recognized_charge" and _learn_merchant(
-        memory, message, str(row["merchant_name"]), answer.ask.ask_id, created_at
+    if not created and stored.get("ask_id") != ask_id:
+        return "already", False, str(stored.get("type"))
+    learned = recognized and _learn_merchant(
+        memory, customer_id, room_id, str(row["merchant_name"]), ask_id, created_at
     )
-    return Closing(answer, "written" if created else "redelivered", learned)
+    return ("written" if created else "redelivered"), learned, None
 
 
-def _learn_merchant(memory: Memory, message: Message, merchant: str, ask_id: str, created_at: str) -> bool:
+def close_ask(answer: Answer, message: Message, now: datetime) -> Closing:
+    outcome, learned, earlier = remember_answer(
+        message.customer_id,
+        answer.ask.ask_id,
+        answer.ask.target,
+        answer.option == "yes",
+        answer.note,
+        message.room_id,
+        now,
+    )
+    return Closing(answer, outcome, learned, earlier)
+
+
+def _learn_merchant(
+    memory: Memory, customer_id: str, room_id: str, merchant: str, ask_id: str, created_at: str
+) -> bool:
     key = merchant_key(merchant)
-    charges, _ = memory.memories(
-        message.customer_id, "recognized_charge#", MAX_CHARGE_MEMORIES, consistent=True
-    )
+    charges, _ = memory.memories(customer_id, "recognized_charge#", MAX_CHARGE_MEMORIES, consistent=True)
     if sum(1 for item in charges if merchant_key(str(item.get("merchant") or "")) == key) < MERCHANT_AFTER:
         return False
     _, created = memory.remember(
-        message.customer_id,
+        customer_id,
         {
             "memory_key": memory_key("recognized_merchant", key),
             "type": "recognized_merchant",
             "subject": merchant,
-            "source_room_id": message.room_id,
+            "source_room_id": room_id,
             "created_at": created_at,
             "ask_id": ask_id,
         },

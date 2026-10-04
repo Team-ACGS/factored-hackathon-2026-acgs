@@ -22,14 +22,16 @@ export function ClaraWidget() {
 
 function Widget() {
   const { data: cards } = useSuspenseQuery(bankQueries.cards());
-  const claim = useQuery(bankQueries.cases()).data?.find((item) => item.type === "claim" && isOpen(item));
+  const cases = useQuery(bankQueries.cases()).data ?? [];
+  const answered = new Set(useQuery(bankQueries.answered()).data ?? []);
+  const claim = cases.find((item) => item.type === "claim" && isOpen(item));
   const open = useLauncherOpen();
   const openClara = useOpenClara();
 
   return (
     <LedgersOf productIds={cards.map((card) => card.product_id)}>
       {(ledgers) => {
-        const flagged = flaggedCharges(ledgers.flat(), cards);
+        const flagged = flaggedCharges(ledgers.flat(), cards, answered, cases);
         return (
           <>
             <Fab unread={flagged.length} launched={open} onOpen={launcher.open} />

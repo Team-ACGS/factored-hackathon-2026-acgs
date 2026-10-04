@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { watchReturn, type Visibility } from "./catch-up";
+import { MAX_RETRY_MS, retryDelay, watchReturn, type Visibility } from "./catch-up";
 
 class Page extends EventTarget implements Visibility {
   visibilityState: DocumentVisibilityState = "visible";
@@ -38,5 +38,12 @@ describe("catching up", () => {
     page.turn("visible");
 
     expect(onReturn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a channel that keeps failing", () => {
+  it("waits longer after each failure, up to a cap", () => {
+    expect([0, 1, 2, 3].map(retryDelay)).toEqual([1_000, 2_000, 4_000, 8_000]);
+    expect(retryDelay(10)).toBe(MAX_RETRY_MS);
   });
 });

@@ -502,7 +502,7 @@ def test_an_ask_outside_allowed_asks_never_passes_the_check() -> None:
     book = view_ledger()
     allowed = allowed_asks(TurnState(), book)
 
-    assert allowed == {"which_one", "show"}
+    assert allowed == {"which_one", "show", "talk_to_person"}
     assert check_codes([Ask("which_one", ("f3", "f4"))], book, allowed) == []
     assert check_codes([Ask("show", ("f8",))], book, allowed) == []
     assert check_codes([Ask("block_card", ("f1",))], book, allowed) == [("ask_not_allowed", "block_card")]
@@ -526,10 +526,11 @@ def test_allowed_asks_need_candidates_and_never_repeat_the_choice_just_made() ->
     lone = ledger()
     lone.add("card", {"card_ref": Ref("card", "card-1"), "last4": Last4("4141")})
 
-    assert allowed_asks(TurnState(), lone) == {"show"}
-    assert allowed_asks(TurnState("which_one"), view_ledger()) == {"show"}
-    assert allowed_asks(TurnState("show"), view_ledger()) == {"which_one"}
-    assert allowed_asks(TurnState(), ledger()) == frozenset()
+    assert allowed_asks(TurnState(), lone) == {"show", "talk_to_person"}
+    assert allowed_asks(TurnState("which_one"), view_ledger()) == {"show", "talk_to_person"}
+    assert allowed_asks(TurnState("show"), view_ledger()) == {"which_one", "talk_to_person"}
+    assert allowed_asks(TurnState(), ledger()) == {"talk_to_person"}
+    assert allowed_asks(TurnState(asking="block_card"), view_ledger()) == {"block_card"}
 
 
 def test_a_count_reference_followed_by_its_noun_is_a_doubled_noun() -> None:

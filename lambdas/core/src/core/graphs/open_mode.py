@@ -19,7 +19,7 @@ from core import answers
 from core.answers import SayKey
 from core.facts import Ask, Part, Say, View, check, fallback
 from core.facts.check import CheckError, repair_instruction, tidy, tidy_reply
-from core.facts.parts import AskType, ViewType
+from core.facts.parts import ModelAskType, ViewType
 from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS
 from core.facts.values import Ledger
 from core.graphs.model import Clients, bedrock_clients, chat_model
@@ -27,7 +27,7 @@ from core.graphs.profiles import ModelProfile, profile_for
 from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, Context, shown_rows, tool_result, tool_specs
 from core.observability import logger, metrics
 from core.replies import Reply, Source, compose
-from core.rules import RECOGNIZE, TurnState, allowed_asks
+from core.rules import CLAIM, HAVE_CARD, STORY_ASKS, TurnState, allowed_asks
 from core.tools import TOOLS, ToolContext, call
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ class ViewArgs(BaseModel):
 
 class AskArgs(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    type: AskType
+    type: ModelAskType
     facts: tuple[str, ...] = Field(min_length=1, max_length=MAX_OPTIONS)
 
 
@@ -392,8 +392,11 @@ def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source
     if args.view is not None:
         parts.append(View(args.view.type, args.view.facts))
     allowed = allowed_asks(run.state, run.ledger)
-    if args.ask is not None and args.ask.type == RECOGNIZE and RECOGNIZE not in allowed:
+    if args.ask is not None and args.ask.type in STORY_ASKS and args.ask.type not in allowed:
         run.metrics.count_tidied({"ask_refused": 1})
+    elif args.ask is not None and args.ask.type == CLAIM:
+        parts.append(Ask(HAVE_CARD, args.ask.facts))
+        allowed = allowed | {HAVE_CARD}
     elif args.ask is not None:
         parts.append(Ask(args.ask.type, args.ask.facts))
     return parts, source, check(parts, run.ledger, locale, allowed)

@@ -6,7 +6,7 @@ import { createQueryClient, minutes } from "../api/query-client";
 import { mintId, type Clock } from "../chat/clock";
 import type { BankApi } from "./api";
 import type { Ledger } from "./ledger";
-import { bankKeys, createBankQueries, ensureLedgerUntil } from "./queries";
+import { bankKeys, createBankQueries, ensureLedgerUntil, invalidationsOf } from "./queries";
 import type { Card, CardPage, Setup, Transaction } from "./types";
 
 vi.hoisted(() => {
@@ -40,6 +40,7 @@ function world() {
     setup: vi.fn<BankApi["setup"]>(),
     cards: vi.fn<BankApi["cards"]>(),
     cases: vi.fn<BankApi["cases"]>(),
+    answered: vi.fn<BankApi["answered"]>(),
     card: vi.fn<BankApi["card"]>(),
     transaction: vi.fn<BankApi["transaction"]>(),
     add: vi.fn<BankApi["add"]>(),
@@ -363,5 +364,18 @@ describe("ensureLedgerUntil", () => {
     );
 
     await expect(ensureLedgerUntil(client, queries.ledger("card-1"), () => false)).rejects.toEqual(new ApiError(503));
+  });
+});
+
+describe("what a write reply invalidates", () => {
+  it("names exactly the keys each effect changes", () => {
+    expect(
+      invalidationsOf([
+        { type: "card_blocked", productId: "card-1" },
+        { type: "case_opened", complaintId: "m1", caseType: "fraud" },
+        { type: "charge_answered", transactionId: "t1" },
+      ]),
+    ).toEqual([bankKeys.cards(), bankKeys.ledger("card-1"), bankKeys.cases(), bankKeys.answered()]);
+    expect(invalidationsOf([])).toEqual([]);
   });
 });

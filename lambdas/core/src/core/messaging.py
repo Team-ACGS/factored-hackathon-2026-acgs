@@ -49,6 +49,7 @@ class Message:
     draft: tuple[Json, ...] = ()
     source: str | None = None
     input: Json | None = None
+    effects: tuple[Json, ...] = ()
 
     @property
     def message_key(self) -> str:
@@ -67,7 +68,7 @@ class Message:
         }
         if self.origin_trace_id:
             item["origin_trace_id"] = self.origin_trace_id
-        for name in ("parts", "facts", "draft"):
+        for name in ("parts", "facts", "draft", "effects"):
             if getattr(self, name):
                 item[name] = list(getattr(self, name))
         if self.source:
@@ -95,6 +96,7 @@ class Message:
             draft=tuple(plain(item.get("draft") or [])),
             source=str(item["source"]) if item.get("source") else None,
             input=plain(item["input"]) if isinstance(item.get("input"), Mapping) else None,
+            effects=tuple(plain(item.get("effects") or [])),
         )
 
     def public(self) -> dict[str, Any]:
@@ -108,6 +110,8 @@ class Message:
         }
         if self.parts:
             public["parts"] = list(self.parts)
+        if self.effects:
+            public["effects"] = list(self.effects)
         return public
 
 
@@ -254,6 +258,7 @@ def reply_to(
     facts: tuple[Json, ...] = (),
     draft: tuple[Json, ...] = (),
     source: str | None = None,
+    effects: tuple[Json, ...] = (),
 ) -> Message:
     return Message(
         customer_id=message.customer_id,
@@ -268,6 +273,7 @@ def reply_to(
         facts=facts,
         draft=draft,
         source=source,
+        effects=effects,
     )
 
 

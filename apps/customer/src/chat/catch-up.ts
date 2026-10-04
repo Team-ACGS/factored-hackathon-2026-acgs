@@ -1,3 +1,10 @@
+export const FIRST_RETRY_MS = 1_000;
+export const MAX_RETRY_MS = 30_000;
+
+export function retryDelay(failures: number): number {
+  return Math.min(MAX_RETRY_MS, FIRST_RETRY_MS * 2 ** failures);
+}
+
 export interface Visibility extends EventTarget {
   readonly visibilityState: DocumentVisibilityState;
 }
