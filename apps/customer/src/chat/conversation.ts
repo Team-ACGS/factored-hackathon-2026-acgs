@@ -179,6 +179,8 @@ function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 }
 
+export const BANK_ALERT = "score_high";
+
 function readingsOf(value: unknown): Readings {
   const fields = record(value) ?? {};
   const readings: Readings = {};
@@ -187,12 +189,16 @@ function readingsOf(value: unknown): Readings {
     if (typeof text === "string") readings[name] = text;
   }
   if (Array.isArray(fields.reasons)) {
-    readings.reasons = fields.reasons.flatMap((entry): Reason[] => {
+    const reasons = fields.reasons.flatMap((entry): Reason[] => {
       const reason = record(entry);
       return reason && typeof reason.reason === "string" && typeof reason.text === "string"
         ? [{ reason: reason.reason, text: reason.text }]
         : [];
     });
+    readings.reasons = [
+      ...reasons.filter(({ reason }) => reason === BANK_ALERT),
+      ...reasons.filter(({ reason }) => reason !== BANK_ALERT),
+    ];
   }
   return readings;
 }

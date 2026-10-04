@@ -1,7 +1,7 @@
 import { ClaraEntity } from "@clara/ui/components/clara-entity";
-import type { EntityState } from "@clara/ui/lib/entity";
-import { ChevronDown } from "lucide-react";
-import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { EntityState, WorkingLook } from "@clara/ui/lib/entity";
+import { ChevronDown, Search, Waves } from "lucide-react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 import { brand } from "../../bank/brand";
 import type { AskOption, ChatMessage } from "../../chat/conversation";
@@ -17,6 +17,8 @@ interface PanelProps {
   shown: PanelView | null;
   mode: PanelMode;
   face: EntityState;
+  look: WorkingLook | undefined;
+  earlier: boolean;
   asked: ChatMessage | null;
   nav: Navigation;
   sheet: "open" | "closed";
@@ -46,12 +48,15 @@ function useLastAsk(asked: ChatMessage | null): ChatMessage | null {
   return asked ?? last;
 }
 
-export function ChatPanel({ chat, shown: target, mode, face, asked, nav, sheet, onCloseSheet }: PanelProps) {
+export function ChatPanel(props: PanelProps) {
+  const { chat, shown: target, mode, face, look, earlier, asked, nav, sheet, onCloseSheet } = props;
   const { t } = useI18n();
   const { shown, leaving } = useLeaving(target);
   const bar = useLastAsk(asked);
   const body = useRef<HTMLDivElement>(null);
+  const [workWidth, setWorkWidth] = useState(0);
   const docked = mode !== "hero" || shown !== null;
+  const working = mode === "working";
 
   useLayoutEffect(() => {
     if (body.current) body.current.scrollTop = 0;
@@ -62,17 +67,21 @@ export function ChatPanel({ chat, shown: target, mode, face, asked, nav, sheet, 
       className="chat-panel"
       aria-label={t("clara.chat.panel")}
       data-docked={docked || undefined}
+      data-working={working || undefined}
       data-bar={asked ? true : undefined}
       data-sheet={sheet}
+      style={{ "--work-text": `${workWidth}px` } as CSSProperties}
     >
       <div className="chat-entity" data-mode={entityMode(mode)}>
         <ClaraEntity
           state={face}
           mode={entityMode(mode)}
-          motion={mode === "searching" ? "thinking" : undefined}
+          motion={working ? "thinking" : undefined}
+          look={look}
           label={t("clara.name")}
         />
       </div>
+      {working && <WorkStatus status={chat.status} listening={face === "escucha"} onWidth={setWorkWidth} />}
       <button
         type="button"
         onClick={onCloseSheet}
@@ -81,15 +90,11 @@ export function ChatPanel({ chat, shown: target, mode, face, asked, nav, sheet, 
       >
         <ChevronDown className="size-[18px]" aria-hidden />
       </button>
-      <div className="chat-head">
-        {mode === "searching" ? (
-          <Searching status={chat.status} />
-        ) : (
-          shown && (
-            <Suspense fallback={null}>
-              <Head view={shown} />
-            </Suspense>
-          )
+      <div className="chat-head" aria-hidden={working || undefined}>
+        {shown && (
+          <Suspense fallback={null}>
+            <Head view={shown} earlier={earlier} />
+          </Suspense>
         )}
       </div>
       {!docked && (
@@ -98,7 +103,13 @@ export function ChatPanel({ chat, shown: target, mode, face, asked, nav, sheet, 
           <p className="max-w-[44ch] text-ink-2">{t("clara.chat.heroText", { bank: brand.name })}</p>
         </div>
       )}
-      <div ref={body} className="chat-body" data-leaving={leaving || undefined}>
+      <div
+        ref={body}
+        className="chat-body"
+        data-leaving={leaving || undefined}
+        aria-hidden={working || undefined}
+        inert={working}
+      >
         {shown && (
           <Suspense fallback={null}>
             <ViewBody key={shown.id} spec={shown.spec} nav={nav} />
@@ -117,20 +128,46 @@ export function ChatPanel({ chat, shown: target, mode, face, asked, nav, sheet, 
   );
 }
 
-function Searching({ status }: { status: string | null }) {
+interface WorkStatusProps {
+  status: string | null;
+  listening: boolean;
+  onWidth: (width: number) => void;
+}
+
+function WorkStatus({ status, listening, onWidth }: WorkStatusProps) {
   const text = useStatusText(status);
+  const element = useRef<HTMLDivElement>(null);
+  const Badge = listening ? Waves : Search;
+
+  useLayoutEffect(() => {
+    const target = element.current;
+    if (!target) return;
+    const observer = new ResizeObserver(() => onWidth(target.offsetWidth));
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [onWidth]);
+
   return (
-    <span className="flex items-center gap-2 text-sm text-ink-2" role="status">
-      <span className="chat-shimmer">{text}</span>
-    </span>
+    <div ref={element} className="chat-work" role="status">
+      <span className="chat-work-badge" aria-hidden>
+        <Badge className="size-[15px]" strokeWidth={2.4} />
+      </span>
+      <span className="chat-shimmer text-[15px] leading-snug">{text}</span>
+    </div>
   );
 }
 
-function Head({ view }: { view: PanelView }) {
+function Head({ view, earlier }: { view: PanelView; earlier: boolean }) {
+  const { t } = useI18n();
   const meta = useViewMeta(view.spec);
   return (
     <>
-      <span className="text-xs font-semibold tracking-[0.06em] text-ink-3 uppercase">{meta.kicker}</span>
+      <span className="truncate text-xs font-semibold tracking-[0.06em] text-ink-3 uppercase">
+        {meta.kicker}
+        {earlier && (
+          <span className="font-normal tracking-normal normal-case"> · {t("clara.chat.earlier")}</span>
+        )}
+      </span>
       <span className="truncate text-[19px] font-semibold">{meta.title}</span>
     </>
   );

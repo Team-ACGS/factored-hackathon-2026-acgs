@@ -180,6 +180,7 @@ export const en = {
   "clara.chat.label": "Conversation with Clara",
   "clara.chat.fine": "Clara is the virtual assistant of {bank}. She answers with your account data.",
   "clara.chat.heroText": "I'm Clara, your assistant at {bank}. How can I help you today?",
+  "clara.chat.earlier": "from your earlier message",
   "clara.chat.thinking": "Checking your information",
   "clara.chat.source.page": "p. {page}",
   "clara.chat.source.open": "Open {title}, the bank's document",

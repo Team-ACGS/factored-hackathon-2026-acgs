@@ -1,7 +1,7 @@
 import json
 import subprocess
 import sys
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -20,7 +20,8 @@ from core.facts import (
     render_value,
 )
 from core.facts.catalog import LABELS, LOCALES, NOUNS, STATUS_LABELS
-from core.facts.check import tidy
+from core.facts.check import repair_instruction, tidy, tidy_reply
+from core.facts.fallback import FIELD, TEMPLATES
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.render import format_money
 from core.facts.values import (
@@ -648,7 +649,7 @@ def test_the_fallback_answers_from_the_same_ledger_and_passes_the_check(locale: 
     assert check(parts, book, locale) == []
     reply = compose(parts, book, locale, "fallback")
     says = [part for part in reply.parts if part["type"] == "say"]
-    assert len(says) == 13
+    assert len(says) == 12
     assert all("{" not in say["text"] for say in says)
     assert {
         "type": "view",
@@ -913,3 +914,179 @@ def test_a_comparison_direction_reads_with_its_preposition_in_portuguese() -> No
     assert render_text("Gastaste {f1.delta} {f1.direction} que el mes pasado.", book, "es") == (
         f"Gastaste {format_money(Decimal('145.31'), 'BRL', 'es')} menos que el mes pasado."
     )
+
+
+DAY = date(2026, 9, 14)
+TEMPLATE_VALUES: dict[str, Value] = {
+    "count": Count(1, "movement"),
+    "last4": Last4("4141"),
+    "merchant": Merchant("Primax"),
+    "total": Money(Decimal(240), "PEN"),
+    "compare_total": Money(Decimal(180), "PEN"),
+    "period": Period(DAY, DAY),
+    "compare_period": Period(DAY, DAY),
+    "last_date": Day(DAY),
+}
+DATED = [
+    (key, locale, text)
+    for key, texts in TEMPLATES.items()
+    for locale, text in texts.items()
+    if locale != "en" and {"period", "compare_period", "last_date"} & set(FIELD.findall(text))
+]
+
+
+@pytest.mark.parametrize(("key", "locale", "template"), DATED, ids=[f"{k}-{loc}" for k, loc, _ in DATED])
+def test_every_template_renders_its_dates_with_the_article(key: str, locale: str, template: str) -> None:
+    book = ledger()
+    book.add(key, {name: TEMPLATE_VALUES[name] for name in FIELD.findall(template)})
+
+    rendered = render_text(FIELD.sub(lambda match: f"{{f1.{match.group(1)}}}", template), book, locale)
+
+    day = {"es": "14 de septiembre", "pt-BR": "14 de setembro"}[locale]
+    article = {"es": "el ", "pt-BR": "em "}[locale]
+    assert day in rendered
+    assert rendered.count(day) == rendered.count(article + day)
+
+
+def recent_ledger(matched: int = 12) -> Ledger:
+    book = ledger()
+    rows = [
+        book.add(
+            "movement",
+            {
+                "transaction_ref": Ref("transaction", f"tx-{index}"),
+                "card_ref": Ref("card", "card-1" if index % 2 else "card-2"),
+                "merchant": Merchant(f"Shop {index}"),
+            },
+        )
+        for index in range(1, 11)
+    ]
+    book.add(
+        "movements",
+        {
+            "count": Count(matched, "movement"),
+            "ids": FactIds(tuple(row.id for row in rows)),
+            "recent": Flag(True),
+        },
+    )
+    return book
+
+
+def test_which_one_over_the_newest_rows_of_a_recent_search_passes_though_more_matched() -> None:
+    allowed = frozenset({"which_one"})
+
+    assert check_codes([Ask("which_one", ("f1", "f2", "f3", "f4", "f5"))], recent_ledger(), allowed) == []
+    assert check_codes([Ask("which_one", ("f2", "f3", "f4", "f5", "f6"))], recent_ledger(), allowed) == [
+        ("ask_options_partial", "f2")
+    ]
+    assert check_codes([Ask("which_one", ("f1", "f2"))], recent_ledger(), allowed) == [
+        ("ask_options_partial", "f1")
+    ]
+    filtered = recent_ledger()
+    filtered.facts["f11"] = Fact("f11", "movements", {**filtered.facts["f11"].fields, "recent": Flag(False)})
+    assert check_codes([Ask("which_one", ("f1", "f2", "f3", "f4", "f5"))], filtered, allowed) == [
+        ("ask_options_partial", "f1")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("locale", "noun", "value", "text", "expected"),
+    [
+        ("es", "subscription", 2, "Veo {f1.count} detectadas.", "Veo 2 cargos recurrentes detectados."),
+        ("es", "purchase", 1, "Hay {f1.count} registrado.", "Hay 1 compra registrada."),
+        ("es", "movement", 3, "Hay {f1.count} aprobadas.", "Hay 3 movimientos aprobados."),
+        (
+            "pt-BR",
+            "subscription",
+            2,
+            "Vejo {f1.count} detectados.",
+            "Vejo 2 cobranças recorrentes detectadas.",
+        ),
+        ("pt-BR", "card", 2, "Você tem {f1.count} bloqueadas.", "Você tem 2 cartões bloqueados."),
+    ],
+)
+def test_a_participle_after_a_count_agrees_with_the_counted_noun(
+    locale: str, noun: str, value: int, text: str, expected: str
+) -> None:
+    book = ledger()
+    book.add("recurring_list", {"count": Count(value, noun)})
+
+    tidied, edits = tidy(text, book, locale)
+
+    assert render_text(tidied, book, locale) == expected
+    assert edits == {"agreement": 1}
+    assert tidy("Hay {f1.count} cada mes.", book, locale)[1] == {}
+
+
+def test_a_relative_day_never_follows_a_contracted_article() -> None:
+    book = ledger()
+    book.add("movement", {"date": Instant(NOW - timedelta(hours=1)), "day": Day(date(2026, 9, 14))})
+
+    tidied, edits = tidy("Es el cargo correspondiente al {f1.date}.", book, "es")
+
+    assert render_text(tidied, book, "es") == "Es el cargo correspondiente hoy a las 09:00."
+    assert edits == {"relative_day": 1}
+    assert tidy("Desde el 1 hasta el día al {f1.day}.", book, "es")[1] == {}
+
+
+def test_a_repair_names_every_kind_of_error_and_the_part_each_part_error_is_in() -> None:
+    book = view_ledger()
+    parts: list[Part] = [
+        Say("Fue ayer."),
+        View("movements", ("f5",)),
+        Ask("show", ("f8",)),
+    ]
+
+    errors = check(parts, book, "es", frozenset({"show", "which_one"}))
+
+    assert [error.code for error in errors] == ["date_outside_reference", "show_with_view"]
+    assert errors[1].to_repair()["in"] == "ask show with facts f8"
+    assert "date_outside_reference, show_with_view" in repair_instruction(errors)
+
+
+def spend_and_search() -> Ledger:
+    book = spend_ledger()
+    book.add(
+        "movements",
+        {"count": Count(14, "movement"), "ids": FactIds(("f2",)), "period": Period(date(2026, 8, 1), DAY)},
+    )
+    return book
+
+
+def test_an_answer_about_a_spend_never_adds_the_count_of_the_movements_search() -> None:
+    book = spend_and_search()
+
+    assert check_codes([Say("Gastaste {f1.total}."), Say("En total hay {f3.count} {f3.period}.")], book) == [
+        ("movements_beside_spend", "{f3.count}"),
+        ("movements_beside_spend", "{f3.period}"),
+    ]
+    assert check_codes([Say("Encontré {f3.count} {f3.period}.")], book) == []
+    assert tidy_reply(
+        ["Gastaste {f1.total}. En total hay {f3.count}.", "Hay {f3.count} {f3.period}."], book
+    ) == (
+        ["Gastaste {f1.total}."],
+        {"movements_beside_spend": 2},
+    )
+    assert tidy_reply(["Encontré {f3.count}."], book) == (["Encontré {f3.count}."], {})
+
+    reply = compose(fallback("answer", book, "es"), book, "es", "fallback")
+    assert [part["text"][:9] for part in reply.parts if part["type"] == "say"] == ["Gastaste "]
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "expected"),
+    [
+        ("es", "Tu cargo en {f1.merchant} está {f1.status}.", "Tu cargo en Primax está aprobado."),
+        ("es", "Tu compra está {f1.status}.", "Tu compra está aprobada."),
+        ("es", "Es un cargo. La compra está {f1.status}.", "Es un cargo. La compra está aprobada."),
+        ("pt-BR", "O pagamento está {f1.status}.", "O pagamento está aprovado."),
+        ("pt-BR", "A cobrança está {f1.status}.", "A cobrança está aprovada."),
+    ],
+)
+def test_a_charge_status_agrees_with_the_noun_that_names_the_charge(
+    locale: str, text: str, expected: str
+) -> None:
+    book = ledger()
+    book.add("movement", {"merchant": Merchant("Primax"), "status": Status("transaction", "Approved")})
+
+    assert render_text(text, book, locale) == expected

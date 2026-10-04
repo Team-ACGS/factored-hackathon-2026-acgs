@@ -7,7 +7,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from core.glossary import prompt_lines
+
 MILLION = Decimal(1_000_000)
+GLOSSARY_MARK = "<<glossary>>"
 
 
 class UnknownModel(LookupError):
@@ -45,9 +48,8 @@ class ModelProfile(_Row):
 
     @property
     def system_prompt(self) -> str:
-        return (
-            files("core.graphs").joinpath("prompts", f"{self.prompt}.md").read_text(encoding="utf-8").strip()
-        )
+        text = files("core.graphs").joinpath("prompts", f"{self.prompt}.md").read_text(encoding="utf-8")
+        return text.strip().replace(GLOSSARY_MARK, prompt_lines())
 
     def request_fields(self) -> dict[str, Any]:
         return {"output_config": {"effort": self.effort}} if self.effort else {}

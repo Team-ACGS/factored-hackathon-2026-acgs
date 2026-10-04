@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import type { ChatMessage, ViewPart } from "../../chat/conversation";
-import { initialPanel, panelMode, panelViews, reducePanel, shownView, specOf, type PanelState } from "./panel-state";
+import {
+  entityMode,
+  faceOf,
+  fromEarlier,
+  initialPanel,
+  panelMode,
+  panelViews,
+  reducePanel,
+  shownView,
+  specOf,
+  type PanelState,
+} from "./panel-state";
 
 function clara(id: string, view: ViewPart | null): ChatMessage {
   return {
@@ -43,14 +54,36 @@ describe("clara's panel", () => {
     expect(shownView(back, views)?.id).toBe("m1");
   });
 
-  it("shrinks to searching while Clara reads and docks once a view is shown", () => {
+  it("works alone in the panel while Clara reads and docks once a view is shown", () => {
     const shown = { id: "m1", spec: specOf(movements) ?? { kind: "cards", cards: [] } };
 
     expect([panelMode(null, false, false), panelMode(shown, false, false), panelMode(shown, true, false)]).toEqual([
       "hero",
       "docked",
-      "searching",
+      "working",
     ]);
     expect(panelMode(null, false, true)).toBe("docked");
+    expect(panelMode(null, true, true)).toBe("working");
+    expect(entityMode("working")).toBe("work");
+  });
+
+  it("checks while working, greets the reply, listens on an open ask and rests on a view", () => {
+    const calm = { typing: false, asking: false, arriving: false, working: "revisa" as const };
+
+    expect(faceOf("working", { ...calm, asking: true, arriving: true })).toBe("revisa");
+    expect(faceOf("working", { ...calm, working: "escucha" })).toBe("escucha");
+    expect(faceOf("docked", { ...calm, arriving: true })).toBe("hola");
+    expect(faceOf("docked", { ...calm, asking: true })).toBe("escucha");
+    expect(faceOf("docked", calm)).toBe("orden");
+    expect(faceOf("hero", { ...calm, typing: true })).toBe("escucha");
+  });
+
+  it("marks a view that is not the latest reply's own", () => {
+    const answered = [clara("m1", movements), clara("m2", null)];
+
+    expect(fromEarlier(answered, "m1")).toBe(true);
+    expect(fromEarlier([clara("m1", movements)], "m1")).toBe(false);
+    expect(fromEarlier([clara("m1", movements), clara("m2", cards)], "m1")).toBe(true);
+    expect(fromEarlier(answered, null)).toBe(false);
   });
 });

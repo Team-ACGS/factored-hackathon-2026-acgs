@@ -182,6 +182,7 @@ export const ptBR: Record<MessageKey, string> = {
   "clara.chat.label": "Conversa com a Clara",
   "clara.chat.fine": "A Clara é a assistente virtual do {bank}. Ela responde com os dados da sua conta.",
   "clara.chat.heroText": "Sou a Clara, sua assistente no {bank}. Como posso ajudar hoje?",
+  "clara.chat.earlier": "da sua mensagem anterior",
   "clara.chat.thinking": "Verificando suas informações",
   "clara.chat.source.page": "p. {page}",
   "clara.chat.source.open": "Abrir {title}, documento do banco",

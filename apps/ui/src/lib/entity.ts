@@ -10,7 +10,10 @@ export const entityStates = [
   "favor",
 ] as const;
 export type EntityState = (typeof entityStates)[number];
-export type EntityMode = "hero" | "dock" | "dot";
+export type EntityMode = "hero" | "dock" | "work";
+export const workingLooks = ["sweep", "warm", "read", "still"] as const;
+export type WorkingLook = (typeof workingLooks)[number];
+export type Aura = readonly [string, string];
 
 type Role = "calm" | "warm" | "trust" | "fresh";
 type Shape = "circle" | "small" | "pebble" | "egg" | "seal" | "droop" | "shield" | "phone";
@@ -48,7 +51,8 @@ export interface StateSpec {
   shape: Shape;
   eyes: Eyes;
   mouth: Mouth;
-  brow?: "raise" | "plead";
+  brow?: "raise" | "plead" | "focus";
+  aura?: Aura;
   effect?: Effect;
   phone?: boolean;
   lead: readonly Role[];
@@ -59,7 +63,15 @@ export interface StateSpec {
 export const stateSpecs: Record<EntityState, StateSpec> = {
   hola: { shape: "circle", eyes: "smile", mouth: "big", effect: "spark", lead: ["warm", "fresh"] },
   escucha: { shape: "circle", eyes: "open", mouth: "soft", effect: "rings", lead: ["fresh"], listens: true },
-  revisa: { shape: "small", eyes: "side", mouth: "flat", effect: "orbit", lead: ["trust", "calm"] },
+  revisa: {
+    shape: "small",
+    eyes: "side",
+    mouth: "flat",
+    brow: "focus",
+    aura: ["#6fd3b5", "#9be7ff"],
+    effect: "orbit",
+    lead: ["trust", "calm"],
+  },
   orden: { shape: "pebble", eyes: "closed", mouth: "soft", lead: ["calm"] },
   confirma: { shape: "egg", eyes: "wide", mouth: "o", brow: "raise", lead: ["warm"] },
   protege: { shape: "shield", eyes: "open", mouth: "flat", lead: ["calm", "trust"] },
@@ -282,7 +294,13 @@ export interface Geometry {
   lead: string;
 }
 
-export function geometryOf(state: EntityState, colors: Palette = palette): Geometry {
+export const lookAuras: Partial<Record<WorkingLook, Aura>> = { warm: ["#ffc56b", "#6fd3b5"] };
+
+export function auraOf(state: EntityState, look?: WorkingLook): Aura | undefined {
+  return (look && stateSpecs[state].aura && lookAuras[look]) || stateSpecs[state].aura;
+}
+
+export function geometryOf(state: EntityState, colors: Palette = palette, aura = auraOf(state)): Geometry {
   const spec = stateSpecs[state];
   const faceX = 100;
   const { faceY } = shapeSpecs[spec.shape];
@@ -315,9 +333,10 @@ export function geometryOf(state: EntityState, colors: Palette = palette): Geome
       r *= 0.7;
       opacity *= 0.85;
     }
-    return { x: faceX + dx, y: faceY + dy, r, opacity, color: blob.color };
+    const color = (aura && rank >= 0 ? aura[rank] : undefined) ?? blob.color;
+    return { x: faceX + dx, y: faceY + dy, r, opacity, color };
   });
-  const lead = colors.blobs[leads[0] ?? 0]?.color ?? "#000000";
+  const lead = aura?.[0] ?? colors.blobs[leads[0] ?? 0]?.color ?? "#000000";
   const light = luminance(lead);
   return {
     points: outlineOf(spec.shape),
@@ -428,7 +447,15 @@ export function faceOf(state: EntityState, faceX: number, faceY: number): FacePa
               d: `M${left - 9} ${eyeY - 13} Q${left - 1} ${eyeY - 16} ${left + 6} ${eyeY - 21}M${right + 9} ${eyeY - 13} Q${right + 1} ${eyeY - 16} ${right - 6} ${eyeY - 21}`,
             },
           ]
-        : [];
+        : spec.brow === "focus"
+          ? [
+              {
+                kind: "stroke",
+                width: 4.5,
+                d: `M${left - 2} ${eyeY - 16} Q${left + 4} ${eyeY - 18} ${left + 10} ${eyeY - 15}M${right + 10} ${eyeY - 16} Q${right + 4} ${eyeY - 18} ${right - 2} ${eyeY - 15}`,
+              },
+            ]
+          : [];
   const tear: FacePart[] =
     spec.effect === "tear" ? [{ kind: "tear", d: `M${right + 6} ${eyeY + 9} q-4 6 0 9 q4 -3 0 -9z` }] : [];
   return [...eyes[spec.eyes], ...brows, mouths[spec.mouth], ...tear];

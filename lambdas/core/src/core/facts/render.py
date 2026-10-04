@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from collections.abc import Sequence
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -10,9 +11,11 @@ from core.facts.catalog import (
     COUNTRY_NAMES,
     DATE_ARTICLE,
     DECIMAL_COMMA_COUNTRIES,
+    FEMININE_CHARGE_NOUNS,
     LABELS,
     LAST4,
     LIST_JOIN,
+    MASCULINE_CHARGE_NOUNS,
     MONEY_STYLES,
     MONTHS,
     NBSP,
@@ -53,6 +56,8 @@ from core.facts.values import (
 REFERENCE = re.compile(r"\{([fp]\d+)\.([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)*)\}")
 CITATION = re.compile(r"\[p:([^\[\]\s]+)\]")
 PREVIOUS_WORD = re.compile(r"(\w+)\s+$")
+SENTENCE_END = re.compile(r"[.!?]+\s")
+WORD = re.compile(r"\w+")
 SENTENCE_START = re.compile(r"(^|[.!?]\s+)([a-záéíóúñãõâêôç])")
 
 
@@ -104,9 +109,9 @@ def format_datetime(instant: datetime, ledger: Ledger, locale: str, article: boo
     return f"{format_date(local.date(), ledger, locale, article=article)} {at} {clock}"
 
 
-def format_period(start: date, end: date, ledger: Ledger, locale: str) -> str:
+def format_period(start: date, end: date, ledger: Ledger, locale: str, article: bool = True) -> str:
     if start == end:
-        return format_date(start, ledger, locale, standalone=False)
+        return format_date(start, ledger, locale, article=article)
     same_month = (start.year, start.month) == (end.year, end.month)
     last = format_date(end, ledger, locale, standalone=False)
     if locale == "en":
@@ -122,8 +127,11 @@ def format_period(start: date, end: date, ledger: Ledger, locale: str) -> str:
 
 def format_count(count: int, noun: str, locale: str) -> str:
     singular, plural = NOUNS[noun][locale]
-    one = count in (0, 1) if locale == "pt-BR" else count == 1
-    return f"{count} {singular if one else plural}"
+    return f"{count} {singular if is_singular(count, locale) else plural}"
+
+
+def is_singular(count: int, locale: str) -> bool:
+    return count in (0, 1) if locale == "pt-BR" else count == 1
 
 
 def format_ratio(ratio: Decimal, locale: str) -> str:
@@ -162,7 +170,7 @@ def render_value(value: Value, ledger: Ledger, locale: str, article: bool = True
         case Instant(instant):
             return format_datetime(instant, ledger, locale, article=article)
         case Period(start, end):
-            return format_period(start, end, ledger, locale)
+            return format_period(start, end, ledger, locale, article)
         case Count(count, noun):
             return format_count(count, noun, locale)
         case Last4(digits):
@@ -201,10 +209,30 @@ def render_text(text: str, ledger: Ledger, locale: str) -> str:
             raise KeyError(match.group(0))
         before = PREVIOUS_WORD.search(match.string, 0, match.start())
         article = before is None or before.group(1).lower() not in ARTICLE_DROPPED_AFTER[locale]
-        return render_value(value, ledger, locale, article)
+        rendered = render_value(value, ledger, locale, article)
+        if isinstance(value, Status) and value.domain == "transaction":
+            return _agreeing(rendered, match.string[: match.start()], locale)
+        return rendered
 
     without_citations = re.sub(r"\s*" + CITATION.pattern, "", text)
     return REFERENCE.sub(replace, without_citations)
+
+
+def _agreeing(status: str, before: str, locale: str) -> str:
+    masculine, feminine = MASCULINE_CHARGE_NOUNS.get(locale), FEMININE_CHARGE_NOUNS.get(locale)
+    if masculine is None or feminine is None or not status.endswith("a"):
+        return status
+    sentence = SENTENCE_END.split(before)[-1]
+    for word in reversed(WORD.findall(_folded(sentence))):
+        if word in masculine:
+            return status[:-1] + "o"
+        if word in feminine:
+            return status
+    return status
+
+
+def _folded(text: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", text.lower()) if not unicodedata.combining(c))
 
 
 def sentence_case(text: str) -> str:

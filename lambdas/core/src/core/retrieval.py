@@ -1,6 +1,6 @@
 import json
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from functools import cache
@@ -46,6 +46,10 @@ class Retriever(Protocol):
         self, query: str, country: str, k: int, filters: Mapping[str, str]
     ) -> list[RetrievedChunk]: ...
 
+    def search_each(
+        self, queries: Sequence[str], country: str, k: int, filters: Mapping[str, str]
+    ) -> Iterator[list[RetrievedChunk]]: ...
+
 
 @dataclass(frozen=True)
 class VectorRetriever:
@@ -53,9 +57,16 @@ class VectorRetriever:
     index: VectorIndex
 
     def search(self, query: str, country: str, k: int, filters: Mapping[str, str]) -> list[RetrievedChunk]:
-        [vector] = self.embedder.embed([query], SEARCH_QUERY)
-        matches = self.index.query(vector, max(k, POOL), where_equal({**filters, "country": country}))
-        return distinct([to_chunk(match) for match in matches], k)
+        return next(self.search_each([query], country, k, filters))
+
+    def search_each(
+        self, queries: Sequence[str], country: str, k: int, filters: Mapping[str, str]
+    ) -> Iterator[list[RetrievedChunk]]:
+        vectors = self.embedder.embed(list(queries), SEARCH_QUERY)
+        where = where_equal({**filters, "country": country})
+        for vector in vectors:
+            matches = self.index.query(vector, max(k, POOL), where)
+            yield distinct([to_chunk(match) for match in matches], k)
 
 
 def distinct(chunks: Sequence[RetrievedChunk], k: int) -> list[RetrievedChunk]:

@@ -91,6 +91,7 @@ class FakeS3Vectors:
     failures: int = 0
     writes: int = 0
     deletes: int = 0
+    queries: int = 0
 
     def __post_init__(self) -> None:
         if len(self.non_filterable) > NON_FILTERABLE_KEYS:
@@ -141,6 +142,7 @@ class FakeS3Vectors:
         returnDistance: bool = False,
     ) -> dict[str, Any]:
         self._maybe_fail("QueryVectors")
+        self.queries += 1
         query = queryVector["float32"]
         scored = sorted(
             (1.0 - sum(a * b for a, b in zip(query, data, strict=True)), key, metadata)

@@ -14,6 +14,7 @@ from core.facts.values import (
     Trace,
     Value,
 )
+from core.glossary import bank_terms
 from core.policies import figure, pdf_key, pdf_url
 from core.retrieval import PolicySearch, RetrievedChunk, policy_search
 from core.tools.context import ToolContext
@@ -33,11 +34,19 @@ class SearchPoliciesInput(Input):
 def search_policies(context: ToolContext, ledger: Ledger, args: SearchPoliciesInput) -> list[str]:
     search = context.policies or policy_search()
     filters = {name: value for name, value in (("group", args.topic), ("doc_type", args.doc_type)) if value}
-    chunks = [
-        chunk
-        for chunk in search.retriever.search(args.query, context.country, args.k, filters)
-        if chunk.country == context.country and chunk.similarity >= search.cut(context.country)
-    ]
+    mapped = bank_terms(args.query, context.language)
+    queries = [args.query] if mapped is None else [args.query, mapped]
+    chunks: list[RetrievedChunk] = []
+    searched = 0
+    for found in search.retriever.search_each(queries, context.country, args.k, filters):
+        searched += 1
+        chunks = [
+            chunk
+            for chunk in found
+            if chunk.country == context.country and chunk.similarity >= search.cut(context.country)
+        ]
+        if chunks:
+            break
     rows = [ledger.add(POLICY_CHUNK, chunk_fields(chunk, search), prefix="p") for chunk in chunks]
     aggregate = ledger.add(
         "policies",
@@ -45,6 +54,7 @@ def search_policies(context: ToolContext, ledger: Ledger, args: SearchPoliciesIn
             "count": Count(len(rows), "excerpt"),
             "ids": FactIds(tuple(row.id for row in rows)),
             "outcome": Trace("match" if rows else "no_match"),
+            "searched_as": Trace(mapped) if mapped is not None and searched > 1 else None,
         },
     )
     return [*(row.id for row in rows), aggregate.id]

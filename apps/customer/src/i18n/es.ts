@@ -182,6 +182,7 @@ export const es: Record<MessageKey, string> = {
   "clara.chat.label": "Conversación con Clara",
   "clara.chat.fine": "Clara es la asistente virtual de {bank}. Responde con los datos de tu cuenta.",
   "clara.chat.heroText": "Soy Clara, tu asistente en {bank}. ¿En qué te ayudo hoy?",
+  "clara.chat.earlier": "de tu mensaje anterior",
   "clara.chat.thinking": "Revisando tu información",
   "clara.chat.source.page": "pág. {page}",
   "clara.chat.source.open": "Abrir {title}, documento del banco",

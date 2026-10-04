@@ -179,6 +179,26 @@ describe("clara's views and asks", () => {
     expect(viewOf({ parts: [{ type: "view", view: "ledger", items: [] }] })).toBeNull();
   });
 
+  it("puts the bank's alert first among the reasons of a charge", () => {
+    const charge = viewOf({
+      parts: [
+        {
+          type: "view",
+          view: "charge",
+          items: [{ product_id: "p1", transaction_id: "t1" }],
+          readings: {
+            reasons: [
+              { reason: "new_merchant", text: "es tu primera compra en este comercio" },
+              { reason: "score_high", text: "el sistema de alertas del banco emitió una alerta" },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(charge?.readings.reasons?.map(({ reason }) => reason)).toEqual(["score_high", "new_merchant"]);
+  });
+
   it("reads an ask's options and ignores asks it does not know", () => {
     const parts = [
       { type: "ask", ask: "block_card", options: [{ id: "p1", label: "Bloquear" }] },

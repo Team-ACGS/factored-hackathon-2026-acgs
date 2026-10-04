@@ -96,6 +96,12 @@ DATE_PREPOSITIONS = {
     "en": frozenset(),
 }
 
+RELATIVE_DAY_LEADS = {
+    "es": {"al": "", "el": "", "del": "de"},
+    "pt-BR": {"ao": "", "no": "", "do": "de"},
+    "en": {"on": ""},
+}
+
 PERIOD_PREPOSITIONS = {
     "es": frozenset({"en", "de", "desde", "durante", "entre"}),
     "pt-BR": frozenset({"em", "no", "de", "desde", "durante", "entre"}),
@@ -153,6 +159,22 @@ NOUNS: dict[str, dict[str, tuple[str, str]]] = {
         "pt-BR": ("cobrança recorrente", "cobranças recorrentes"),
         "en": ("recurring charge", "recurring charges"),
     },
+}
+
+FEMININE_NOUNS = {
+    "es": frozenset({"purchase", "card", "credit_card", "debit_card", "memory"}),
+    "pt-BR": frozenset({"purchase", "movement", "memory", "subscription"}),
+}
+
+MASCULINE_CHARGE_NOUNS = {
+    "es": frozenset({"cargo", "cargos", "movimiento", "movimientos", "pago", "pagos", "cobro", "cobros"}),
+    "pt-BR": frozenset({"pagamento", "pagamentos", "movimento", "movimentos", "lancamento", "lancamentos"}),
+}
+FEMININE_CHARGE_NOUNS = {
+    "es": frozenset({"compra", "compras", "transaccion", "transacciones"}),
+    "pt-BR": frozenset(
+        {"compra", "compras", "cobranca", "cobrancas", "transacao", "transacoes", "movimentacao"}
+    ),
 }
 
 COUNT_SYNONYMS = {
@@ -317,9 +339,9 @@ LABELS: dict[str, dict[str, dict[str, str]]] = {
     },
     "reason": {
         "score_high": {
-            "es": "el sistema de alertas del banco la marcó",
-            "pt-BR": "o sistema de alertas do banco a sinalizou",
-            "en": "the bank's alert system flagged it",
+            "es": "el sistema de alertas del banco emitió una alerta",
+            "pt-BR": "o sistema de alertas do banco emitiu um alerta",
+            "en": "the bank's alert system raised an alert",
         },
         "foreign_country": {
             "es": "es en otro país",
@@ -524,7 +546,10 @@ INSTRUCTIONS = {
     "policy_figure_outside_reference": "State a policy figure only as {pN.figures.<group>.<key>}.",
     "digit_outside_reference": "Replace the number with a reference like {fN.field}.",
     "currency_outside_reference": "Write amounts only as references like {fN.amount}.",
-    "date_outside_reference": "Write dates only as references like {fN.date}.",
+    "date_outside_reference": (
+        "Write dates only as references like {fN.date}; hoy, ayer, today, weekdays and months are dates "
+        "too: reference the fact's date or drop the word."
+    ),
     "number_word_outside_reference": "Write counts and ordinals only as references like {fN.count}.",
     "merchant_outside_reference": "Write merchants as references like {fN.merchant} or exactly as stored.",
     "contact_outside_facts": "Remove the phone, URL or email; it is not in the facts.",
@@ -541,10 +566,20 @@ INSTRUCTIONS = {
     "ask_not_allowed": "That ask is not allowed now; send the reply without the ask.",
     "ask_fact_unknown": "An ask may use only facts a tool returned this turn.",
     "ask_fact_unfit": "That fact cannot be an option of this ask; see the reply tool for each ask.",
-    "ask_options_count": "which_one takes two to five candidate facts; show takes exactly one fact.",
-    "ask_options_partial": "More charges match than your options; ask for the date or the amount instead.",
+    "ask_options_count": (
+        "which_one takes two to five candidate facts; show takes exactly one fact. With one candidate, "
+        "send no ask and answer about it, with its view."
+    ),
+    "ask_options_partial": (
+        "More charges match than your options; drop the which_one, ask for the date or the amount in say, "
+        "and attach the movements view of the search."
+    ),
     "unseen_rows_claim": "You saw only some of these rows; say nothing about all of them.",
-    "show_with_view": "The view already shows the rows; send the reply without the show ask.",
+    "show_with_view": "The view already shows the rows; keep the view and drop the show ask.",
+    "movements_beside_spend": (
+        "In an answer about a spend, give the spend's own total and count; do not add the count or period of "
+        "the movements search, the view shows them."
+    ),
     "ask_options_repeated": "Each option of which_one must be a different charge or card.",
     "ask_options_mixed": "The options of which_one must all be charges or all be cards.",
 }

@@ -5,6 +5,7 @@ import pytest
 from clara_testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
 from core.facts import Ledger
 from core.facts.values import Count, Day, FactIds, Flag, Passage, Text, Trace
+from core.glossary import bank_terms, prompt_lines
 from core.policies import chunk_id, policy_facts
 from core.retrieval import (
     NON_FILTERABLE,
@@ -16,12 +17,12 @@ from core.retrieval import (
     thresholds,
 )
 from core.tools import TOOLS, ToolContext, search_policies
-from core.tools.registry import RETRIES
+from core.tools.registry import TOOLS as REGISTRY
 from core.vectors import (
+    POLICY_ATTEMPTS,
     SEARCH_CALLS,
     SEARCH_DOCUMENT,
     SEARCH_QUERY,
-    TURN_ATTEMPTS,
     TURN_SECONDS,
     WORST_SEARCH_SECONDS,
     Embedder,
@@ -190,13 +191,62 @@ def test_no_match_under_the_minimum_similarity(clients: tuple[FakeBedrockRuntime
     assert ledger.chunks() == {}
 
 
+BLOCKING = (
+    "PE",
+    "blocked-card-effects",
+    "card_security",
+    "policy",
+    2,
+    "Si decides bloquear tu tarjeta, tus suscripciones siguen cobrándose.",
+)
+
+
+def test_words_of_the_customer_that_miss_are_searched_once_more_in_the_banks_terms(
+    clients: tuple[FakeBedrockRuntime, FakeS3Vectors],
+) -> None:
+    put(clients, [BLOCKING])
+    ledger = Ledger("PE", NOW)
+
+    result = search_policies(
+        context(clients, minimum=cuts(es=0.4)), ledger, query="¿Qué pasa si cancelo mi tarjeta?"
+    )
+
+    assert [fact.fields["doc_id"] for fact in ledger.chunks().values()] == [Trace("pe-blocked-card-effects")]
+    aggregate = ledger.facts[result.ids[-1]]
+    assert aggregate.fields["searched_as"] == Trace("¿Qué pasa si bloquear mi tarjeta?")
+    assert [call["texts"] for call in clients[0].calls] == [
+        ["¿Qué pasa si cancelo mi tarjeta?", "¿Qué pasa si bloquear mi tarjeta?"]
+    ]
+
+
+def test_a_query_that_matches_in_the_customers_words_queries_the_index_once(
+    clients: tuple[FakeBedrockRuntime, FakeS3Vectors],
+) -> None:
+    put(clients, [BLOCKING])
+    ledger = Ledger("PE", NOW)
+
+    result = search_policies(context(clients), ledger, query="¿Qué pasa si cancelo mi tarjeta?")
+
+    assert ledger.chunks()
+    assert "searched_as" not in ledger.facts[result.ids[-1]].fields
+    assert clients[1].queries == 1
+
+
+def test_the_glossary_maps_the_customers_words_per_language_and_feeds_the_prompt() -> None:
+    assert bank_terms("quiero dar de baja la tarjeta", "es") == "quiero bloquear la tarjeta"
+    assert bank_terms("Se eu cancelar o cartão?", "pt-BR") == "Se eu bloquear o cartão?"
+    assert bank_terms("What if I freeze my card?", "en") == "What if I block my card?"
+    assert bank_terms("¿cuánto gasté?", "es") is None
+    assert "cancelar, anular, dar de baja" in prompt_lines()
+
+
 @pytest.mark.parametrize("failing", ["bedrock", "vectors"])
-def test_unavailable_after_two_retries_never_no_match(
+def test_unavailable_after_one_retry_never_no_match(
     clients: tuple[FakeBedrockRuntime, FakeS3Vectors], failing: str
 ) -> None:
     bedrock, vectors = clients
     ledger = Ledger("PE", NOW)
-    (bedrock if failing == "bedrock" else vectors).failures = 3
+    (bedrock if failing == "bedrock" else vectors).failures = 2
 
     result = search_policies(context(clients), ledger, query="revisión")
 
@@ -204,8 +254,8 @@ def test_unavailable_after_two_retries_never_no_match(
     assert (error.kind, error.fields["error"]) == ("error", Trace("unavailable"))
 
 
-def test_two_failures_are_retried_within_the_turn(clients: tuple[FakeBedrockRuntime, FakeS3Vectors]) -> None:
-    clients[1].failures = 2
+def test_a_failure_is_retried_within_the_turn(clients: tuple[FakeBedrockRuntime, FakeS3Vectors]) -> None:
+    clients[1].failures = 1
     ledger = Ledger("PE", NOW)
 
     search_policies(context(clients), ledger, query="revisión de mi aclaración")
@@ -226,9 +276,9 @@ def test_invalid_arguments_are_refused(
     assert ledger.facts[result.ids[0]].fields["error"] == Trace("invalid_argument")
 
 
-def test_three_attempts_of_both_calls_fit_in_half_the_turn() -> None:
-    assert TURN_ATTEMPTS == RETRIES + 1
-    assert SEARCH_CALLS == 2
+def test_two_attempts_of_the_three_calls_fit_in_half_the_turn() -> None:
+    assert REGISTRY["search_policies"].attempts == POLICY_ATTEMPTS == 2
+    assert SEARCH_CALLS == 3
     assert WORST_SEARCH_SECONDS <= TURN_SECONDS / 2
 
 

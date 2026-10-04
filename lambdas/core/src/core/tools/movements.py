@@ -99,9 +99,15 @@ def search_movements(context: ToolContext, ledger: Ledger, args: SearchMovements
             "period": Period(start, end),
             "merchant": echoed_merchant(args.merchant, rows),
             "clamped_from": Day(clamped_from) if clamped_from else None,
+            "recent": Flag(True) if _newest_first_page(args) else None,
         },
     )
     return [*(fact.id for fact in facts), aggregate.id]
+
+
+def _newest_first_page(args: SearchMovementsInput) -> bool:
+    filters = args.model_dump(exclude={"card_ref", "sort", "limit"}, exclude_none=True)
+    return args.sort == "date_desc" and not filters
 
 
 def merchant_history(context: ToolContext, ledger: Ledger, args: MerchantHistoryInput) -> list[str]:

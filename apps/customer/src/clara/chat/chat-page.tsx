@@ -11,6 +11,7 @@ import { useViewMeta } from "./meta";
 import { ChatPanel } from "./panel";
 import {
   faceOf,
+  fromEarlier,
   initialPanel,
   panelMode,
   panelViews,
@@ -19,6 +20,7 @@ import {
   type PanelView,
 } from "./panel-state";
 import { useStatusText } from "./status";
+import { useWorking, useWorkingPhase } from "./use-working";
 
 const MAX_TEXT = 600;
 
@@ -34,7 +36,10 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
   const input = useRef<HTMLTextAreaElement>(null);
   const views = panelViews(chat.messages);
   const latest = views.at(-1)?.id ?? null;
-  const asked = chat.thinking ? null : openAsk(chat.messages);
+  const phase = useWorkingPhase(chat.thinking);
+  const working = phase.kind === "working";
+  const work = useWorking(chat.status, chat.statusAt);
+  const asked = working ? null : openAsk(chat.messages);
 
   const [seenAsk, setSeenAsk] = useState<string | null>(null);
 
@@ -48,9 +53,10 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
   }
 
   const shown = shownView(panel, views);
-  const mode = panelMode(shown, chat.thinking, asked !== null);
+  const mode = panelMode(shown, working, asked !== null);
   const typing = draft.trim() !== "";
-  const face = faceOf(mode, typing, asked !== null);
+  const face = faceOf(mode, { typing, asking: asked !== null, arriving: phase.kind === "arriving", working: work.face });
+  const look = working ? work.look : undefined;
 
   function resize() {
     const element = input.current;
@@ -96,15 +102,15 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
         />
         <div className="flex-none px-4 pb-[calc(16px+env(safe-area-inset-bottom))] sm:px-5">
           <div className="mx-auto grid max-w-[680px] gap-2.5">
-            {(shown || chat.thinking || asked) && (
+            {(shown || working || asked) && (
               <button
                 type="button"
                 className="chat-peek grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 rounded-[20px] border border-line bg-surface px-3 py-2 text-left shadow-bank"
                 onClick={() => setSheet("open")}
                 aria-label={t("clara.chat.showPanel")}
               >
-                <ClaraEntity state={face} motion={chat.thinking ? "thinking" : undefined} className="size-10" />
-                <Peek shown={shown} thinking={chat.thinking} status={chat.status} asking={asked !== null} />
+                <ClaraEntity state={face} motion={working ? "thinking" : undefined} look={look} className="size-10" />
+                <Peek shown={shown} thinking={working} status={chat.status} asking={asked !== null} />
                 <ChevronUp className="size-[18px] text-ink-3" aria-hidden />
               </button>
             )}
@@ -149,6 +155,8 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
         shown={shown}
         mode={mode}
         face={face}
+        look={look}
+        earlier={!working && fromEarlier(chat.messages, panel.selected)}
         asked={asked}
         nav={nav}
         sheet={sheet}

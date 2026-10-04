@@ -655,6 +655,31 @@ def test_charge_facts_reads_the_charge_its_card_the_habit_and_the_signals(
     assert "verdict.decision" not in model
 
 
+def test_the_bank_s_alert_is_the_first_reason_of_a_flagged_charge_at_a_new_merchant(
+    account: dict[str, str],
+) -> None:
+    _, [charge] = run("charge_facts", transaction_ref=account["flagged"])
+
+    reasons = plain(charge)["verdict.reasons"]["values"]
+    assert reasons[0] == "score_high"
+    assert "new_merchant" in reasons[1:]
+
+
+def test_only_an_unfiltered_newest_first_search_is_marked_as_the_recent_movements(
+    account: dict[str, str],
+) -> None:
+    recent: list[dict[str, Any]] = [{}, {"card_ref": account["credit"]}, {"limit": 5}]
+    filtered: list[dict[str, Any]] = [
+        {"merchant": "primax"},
+        {"date_from": "2031-03-01"},
+        {"sort": "amount_desc"},
+        {"status": "Approved"},
+    ]
+    for arguments in recent + filtered:
+        _, facts = run("search_movements", **arguments)
+        assert ("recent" in facts[-1].fields) == (arguments in recent), arguments
+
+
 @pytest.mark.parametrize(
     ("status", "age", "explanation"),
     [

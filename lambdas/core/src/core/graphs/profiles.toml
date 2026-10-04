@@ -4,7 +4,7 @@ version = 1
 id = "us.anthropic.claude-sonnet-4-6"
 key = "sonnet-4-6"
 name = "Claude Sonnet 4.6"
-prompt = "system.v3"
+prompt = "system.v4"
 max_output_tokens = 1024
 effort = "low"
 thinking = "off"
@@ -15,8 +15,8 @@ prices = { input = "3.30", output = "16.50", cache_read = "0.33", cache_write = 
 id = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 key = "haiku-4-5"
 name = "Claude Haiku 4.5"
-prompt = "system.v3"
+prompt = "system.v4"
 max_output_tokens = 1024
 thinking = "off"
-cache = { min_prefix_tokens = 4096, note = "the cached prefix (tool schemas and system.v3, about 5.2k tokens) is above the minimum since system.v3" }
+cache = { min_prefix_tokens = 4096, note = "the cached prefix (tool schemas and system.v4, about 5.2k tokens) is above the minimum since system.v4" }
 prices = { input = "1.10", output = "5.50", cache_read = "0.11", cache_write = "1.375", source = "AWS Price List API, AmazonBedrockFoundationModels, us-east-1, regional cross-region inference, USD per 1M tokens", date = "2026-10-03" }

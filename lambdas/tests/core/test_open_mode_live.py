@@ -8,8 +8,9 @@ import pytest
 
 from clara_testing.converse import Recorder
 from core.graphs.profiles import ModelProfile, profiles
+from core.messaging import Message
 from core.turn import Turn, run_turn
-from demo import DEMO, NOW, RECORDINGS, demo_turn_message, policy_index
+from demo import DEMO, NOW, RECORDINGS, demo_turn, planted_charge, policy_index, tap
 from harness import Aws
 
 pytestmark = pytest.mark.skipif(
@@ -19,10 +20,16 @@ pytestmark = pytest.mark.skipif(
 
 
 def live_turn(aws: Aws, name: str, profile: ModelProfile) -> tuple[Turn, Recorder]:
-    message = demo_turn_message(aws, name)
+    message, history = demo_turn(aws, name)
+    return record(name, message, history, profile)
+
+
+def record(
+    name: str, message: Message, history: list[Message], profile: ModelProfile
+) -> tuple[Turn, Recorder]:
     recorder = Recorder(boto3.Session(profile_name=os.environ.get("CLARA_LIVE_PROFILE", "personal")))
-    policies = policy_index(DEMO[name][0])
-    result = run_turn(message, [], NOW, profile=profile, clients=recorder.client, policies=policies)
+    policies = policy_index(DEMO[name.removesuffix("_tap")].country)
+    result = run_turn(message, history, NOW, profile=profile, clients=recorder.client, policies=policies)
     if os.environ.get("CLARA_RECORD") == "1":
         recorder.save(RECORDINGS / profile.key / f"{name}.json")
     transcripts = os.environ.get("CLARA_TRANSCRIPTS")
@@ -129,3 +136,51 @@ def test_a_single_charge_question_shows_a_charge_or_asks_which_one(aws: Aws, pro
     views = [part["view"] for part in parts_of(result, "view")]
     asks = [part["ask"] for part in parts_of(result, "ask")]
     assert set(views) & {"charge", "movement", "movements", "history"} or asks == ["which_one"]
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["unrecognized_es", "unrecognized_pt"])
+def test_an_unrecognized_charge_is_picked_from_the_newest_movements_and_its_tap_shows_the_alert(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    question, history = demo_turn(aws, name)
+    first, _ = record(name, question, history, profile)
+
+    assert first.reply.source in ("composed", "repaired")
+    [ask] = parts_of(first, "ask")
+    assert ask["ask"] == "which_one"
+    assert len(ask["options"]) == 5
+    assert not parts_of(first, "view")
+    planted = planted_charge(aws, question.customer_id)
+    assert ask["options"][0]["id"] == planted["transaction_id"]
+
+    tapped, earlier = tap(question, history, first.reply, planted["transaction_id"])
+    second, _ = record(f"{name}_tap", tapped, earlier, profile)
+
+    assert second.reply.source in ("composed", "repaired")
+    assert "search_movements" not in [call["tool"] for call in second.summary()["tool_calls"]]
+    [view] = parts_of(second, "view")
+    assert view["view"] == "charge"
+    assert view["readings"]["reasons"][0]["reason"] == "score_high"
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["cancel_es", "cancel_again_es"])
+def test_cancelling_a_card_answers_from_the_blocking_policy_and_names_the_series_by_reference(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, name, profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    cited = [citation["chunk_id"] for part in parts_of(result, "say") for citation in part["citations"]]
+    assert any("blocked-card-effects" in chunk for chunk in cited)
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["that_one_es", "what_now_es"])
+def test_the_follow_ups_of_the_second_prd_session_answer_composed(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, name, profile)
+
+    assert result.reply.source in ("composed", "repaired")

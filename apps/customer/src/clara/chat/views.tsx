@@ -1,6 +1,6 @@
 import { cn } from "@clara/ui/lib/cn";
 import { useInfiniteQuery, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { AlertCircle, ChevronRight, Globe, ShieldAlert, Smartphone, Store } from "lucide-react";
+import { AlertCircle, ChevronRight, Globe, Siren, Smartphone, Store } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useNow } from "../../app/use-now";
@@ -308,7 +308,7 @@ const reasonIcons: Record<string, typeof Store> = {
   new_merchant: Store,
   foreign_country: Globe,
   unusual_channel: Smartphone,
-  score_high: ShieldAlert,
+  score_high: Siren,
 };
 
 function ChargeView({ spec }: ViewProps<"charge">) {

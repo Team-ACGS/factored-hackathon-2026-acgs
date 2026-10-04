@@ -4,12 +4,14 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from functools import cache
 
+from core.countries import zone
 from core.facts.catalog import (
     CARDINALS,
     COUNT_NOUNS,
     DATE_HOMONYMS,
     DATE_PREPOSITIONS,
     DATE_WORDS,
+    FEMININE_NOUNS,
     FORBIDDEN,
     INSTRUCTIONS,
     MONTHS,
@@ -18,17 +20,19 @@ from core.facts.catalog import (
     NUMBER_VALUES,
     ORDINALS,
     PERIOD_PREPOSITIONS,
+    RELATIVE_DAY_LEADS,
     UNSEEN_CLAIMS,
     WEEKDAYS,
 )
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.parts import Ask, Part, Say, View
-from core.facts.render import CITATION, REFERENCE, is_renderable, render_value, resolve
+from core.facts.render import CITATION, REFERENCE, is_renderable, is_singular, render_value, resolve
 from core.facts.targets import SHOWN_ROWS, Unfit, ask_options, view_items
-from core.facts.values import Channel, Count, Day, Instant, Json, Ledger, Money, Percent, Period, Url
+from core.facts.values import Channel, Count, Day, Instant, Json, Ledger, Money, Percent, Period, Url, Value
 
 POLICY_FIGURES = (Count, Money, Percent, Channel, Url)
 SENTENCE_END = re.compile(r"[.!?]+(?=\s|$)")
+SENTENCE = re.compile(r".*?(?:[.!?]+(?=\s|$)|$)\s*", re.DOTALL)
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 URL = re.compile(
@@ -48,6 +52,7 @@ MISSING_PREPOSITION = {
         r"(?:quer|gostaria de) saber\b"
     ),
 }
+PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d)(os|as|o|a)(?!\w)")
 DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
 
@@ -87,17 +92,60 @@ def check(
                 try:
                     view_items(part, ledger)
                 except Unfit as unfit:
-                    errors.append(_error(unfit.code, index, (0, 0), unfit.fact_id))
+                    errors.append(_part_error(unfit.code, index, unfit.fact_id, part))
             case Ask(ask) if ask not in allowed_asks:
-                errors.append(_error("ask_not_allowed", index, (0, 0), ask))
+                errors.append(_part_error("ask_not_allowed", index, ask, part))
             case Ask("show") if any(isinstance(other, View) for other in parts):
-                errors.append(_error("show_with_view", index, (0, 0), "show"))
+                errors.append(_part_error("show_with_view", index, "show", part))
             case Ask():
                 try:
                     ask_options(part, ledger)
                 except Unfit as unfit:
-                    errors.append(_error(unfit.code, index, (0, 0), unfit.fact_id))
+                    errors.append(_part_error(unfit.code, index, unfit.fact_id, part))
+    errors.extend(_movements_beside_spend(parts, ledger))
     return sorted(errors, key=lambda error: (error.part, error.span))
+
+
+def tidy_reply(texts: Sequence[str], ledger: Ledger) -> tuple[list[str], dict[str, int]]:
+    kinds = {fact_id: fact.kind for fact_id, fact in ledger.facts.items()}
+
+    def referenced(text: str) -> set[str | None]:
+        return {kinds.get(match.group(1)) for match in REFERENCE.finditer(text)}
+
+    if not any("spend" in referenced(text) for text in texts):
+        return list(texts), {}
+    kept: list[str] = []
+    dropped = 0
+    for text in texts:
+        sentences = [match.group(0) for match in SENTENCE.finditer(text) if match.group(0)]
+        others = [sentence for sentence in sentences if referenced(sentence) != {"movements"}]
+        dropped += len(sentences) - len(others)
+        if "".join(others).strip():
+            kept.append("".join(others).strip())
+    if not kept:
+        return list(texts), {}
+    return kept, {"movements_beside_spend": dropped} if dropped else {}
+
+
+def _movements_beside_spend(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
+    said = [(index, part.text) for index, part in enumerate(parts) if isinstance(part, Say)]
+    kinds = {fact_id: fact.kind for fact_id, fact in ledger.facts.items()}
+    references = [(index, match) for index, text in said for match in REFERENCE.finditer(text)]
+    if not any(kinds.get(match.group(1)) == "spend" for _, match in references):
+        return []
+    return [
+        _error("movements_beside_spend", index, match.span(), match.group(0))
+        for index, match in references
+        if kinds.get(match.group(1)) == "movements"
+    ]
+
+
+def repair_instruction(errors: Sequence[CheckError]) -> str:
+    codes = list(dict.fromkeys(error.code for error in errors))
+    return (
+        f"Call reply again once, with all {len(codes)} kinds of error below fixed together "
+        f"({', '.join(codes)}); keep every part that had no error."
+    )
 
 
 def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
@@ -105,7 +153,9 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
     text, numbers = _counts_as_references(text, ledger, locale)
     text, nouns = _drop_doubled_nouns(text, ledger, locale)
     text, periods = _drop_prepositions(text, ledger, (Period,), PERIOD_PREPOSITIONS[locale])
+    text, relative = _relative_day_leads(text, ledger, locale)
     text, dates = _drop_prepositions(text, ledger, (Day, Instant), DATE_PREPOSITIONS[locale])
+    text, agreement = _agree_after_counts(text, ledger, locale)
     text, dashes = DASH.subn(", ", text)
     text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
     edits = {
@@ -113,6 +163,8 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
         "doubled_noun": nouns,
         "period_preposition": periods,
         "date_preposition": dates,
+        "relative_day": relative,
+        "agreement": agreement,
         "dash": dashes,
         "grammar": grammar,
         "citation_placement": citations,
@@ -162,6 +214,50 @@ def _drop_prepositions(
     return text, len(cuts)
 
 
+def _relative_day_leads(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    leads = RELATIVE_DAY_LEADS[locale]
+    swaps = []
+    for match in REFERENCE.finditer(text):
+        before = WORD_BEFORE.search(text, 0, match.start())
+        value = resolve(ledger, match.group(1), match.group(2))
+        if before and fold(before.group(1)) in leads and _relative(value, ledger):
+            lead = leads[fold(before.group(1))]
+            swaps.append((before.start(), before.end(), f"{lead} " if lead else ""))
+    for start, end, lead in reversed(swaps):
+        text = text[:start] + lead + text[end:]
+    return text, len(swaps)
+
+
+def _relative(value: Value | None, ledger: Ledger) -> bool:
+    if isinstance(value, Period) and value.start == value.end:
+        day = value.start
+    elif isinstance(value, Day):
+        day = value.value
+    elif isinstance(value, Instant):
+        day = value.value.astimezone(zone(ledger.country)).date()
+    else:
+        return False
+    return (ledger.today - day).days in (0, 1)
+
+
+def _agree_after_counts(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    if locale not in FEMININE_NOUNS:
+        return text, 0
+    swaps = []
+    for match in REFERENCE.finditer(text):
+        count = resolve(ledger, match.group(1), match.group(2))
+        participle = PARTICIPLE.match(text, match.end())
+        if not isinstance(count, Count) or participle is None:
+            continue
+        vowel = "a" if count.noun in FEMININE_NOUNS[locale] else "o"
+        ending = vowel if is_singular(count.value, locale) else vowel + "s"
+        if participle.group(2) != ending:
+            swaps.append((participle.start(2), participle.end(2), ending))
+    for start, end, ending in reversed(swaps):
+        text = text[:start] + ending + text[end:]
+    return text, len(swaps)
+
+
 def _drop_doubled_nouns(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
     cuts = []
     for match in REFERENCE.finditer(text):
@@ -205,6 +301,12 @@ def _fold_char(char: str) -> str:
 
 def _error(code: str, part: int, span: tuple[int, int], text: str) -> CheckError:
     return CheckError(code, part, span, text, INSTRUCTIONS[code])
+
+
+def _part_error(code: str, part: int, text: str, shown: View | Ask) -> CheckError:
+    kind, name = ("view", shown.view) if isinstance(shown, View) else ("ask", shown.ask)
+    described = f"{kind} {name} with facts {', '.join(shown.facts)}"
+    return CheckError(code, part, (0, 0), text, INSTRUCTIONS[code], described)
 
 
 def bounded(alternatives: Iterable[str]) -> re.Pattern[str]:
