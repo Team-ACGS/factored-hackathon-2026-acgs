@@ -1019,6 +1019,7 @@ def test_which_one_over_the_newest_rows_of_a_recent_search_passes_though_more_ma
         ("es", "subscription", 2, "Veo {f1.count} detectadas.", "Veo 2 cargos recurrentes detectados."),
         ("es", "purchase", 1, "Hay {f1.count} registrado.", "Hay 1 compra registrada."),
         ("es", "movement", 3, "Hay {f1.count} aprobadas.", "Hay 3 movimientos aprobados."),
+        ("es", "subscription", 2, "Tienes {f1.count} activas.", "Tienes 2 cargos recurrentes activos."),
         (
             "pt-BR",
             "subscription",

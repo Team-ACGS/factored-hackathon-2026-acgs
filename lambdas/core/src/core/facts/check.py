@@ -57,7 +57,7 @@ MISSING_PREPOSITION = {
 }
 VOSEO_FORMS = re.compile(r"(?<!\w)(?:" + "|".join(VOSEO) + r")(?!\w)", re.IGNORECASE)
 SPEND_SCOPE = frozenset({"merchant", "period", "compare_period", "last4"})
-PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d)(os|as|o|a)(?!\w)")
+PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d|activ)(os|as|o|a)(?!\w)")
 DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
 
