@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-03
+updated: 2026-10-04
 source: 0020_rich_parts
 ---
 
@@ -136,6 +136,9 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-10-03 | The Clara button counts every high-score charge (no reviewed list) | when B4 asks about a flagged charge in the chat |
 | assistant | 2026-10-03 | `unseen_rows_claim` knows listed phrasings of "all" only | when C finds generalizations the list misses |
 | assistant | 2026-10-03 | The tidy patterns before the check are lists per locale | when C measures `check.tidied` at scale |
+| assistant | 2026-10-04 | The policy glossary is hand-written; `search_policies` retries one transient failure fewer | when C finds vocabulary misses or `unavailable` rises |
+| assistant | 2026-10-04 | An elaboration inside a cited sentence is held only by the prompt | when C's judge reads cited sentences against their excerpts |
+| assistant | 2026-10-04 | "Composing" is inferred on the client from 1.5 s without a status | when the server publishes a composing status |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |
 | identity | 2026-09-29 | The credentials cache of `core.access` and its resources are not thread safe | when a handler runs work on threads |

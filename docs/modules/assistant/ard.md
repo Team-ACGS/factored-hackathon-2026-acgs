@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-03
-source: 0020_rich_parts
+updated: 2026-10-04
+source: 0021_open_mode_polish
 ---
 
 # assistant: architecture and debt
@@ -507,3 +507,67 @@ source: 0020_rich_parts
 - Debt created: none.
 - Revisit when: the bank offers more than one line per country.
 - Source: 0020_rich_parts
+
+## 2026-10-04: an unrecognized charge is picked from the five newest movements
+
+- Decision: amends "the model is shown five rows of a search" (2026-10-03). A `search_movements` with no filter but the card, newest first and no cursor marks its `movements` fact `recent`; a `which_one` whose options are exactly that page's newest rows, in order (up to five), passes `ask_options_partial` though more matched, and the tool's note invites it with a date-or-amount line. Options span every card and status; there is no "none of these" option. Option labels say hoy and ayer as the answers do.
+- Alternatives rejected: asking for a date or amount first (the slower path a judge saw); dropping `ask_options_partial` (the model would offer any two of thirteen rows).
+- Reason: the customer taps instead of typing, and the rule still refuses a partial pick of a filtered search.
+- Debt created: none.
+- Revisit when: B4 adds "not among these" as a write path.
+- Source: 0021_open_mode_polish
+
+## 2026-10-04: `search_policies` retries once with the bank's terms, in two attempts
+
+- Decision: `core.glossary` maps the customer's words per locale (cancelar, anular, dar de baja to bloquear; the pt-BR and en equivalents); when the query changes, one Cohere call embeds both texts and the index is queried with the mapped one only if the first finds nothing above the cut (`searched_as` on the aggregate). The prompt's glossary block is rendered from the same table. The registry gives `search_policies` two attempts instead of three, so one embed and two index queries per attempt stay within half a turn.
+- Alternatives rejected: the model rephrasing the search (a second tool round, and it did not on prd); lexical or hybrid retrieval (out of scope; the gap is vocabulary).
+- Reason: measured with Cohere v4 on the real blocking section, the customer's words scored 0.45 to 0.54 against the 0.5744 cut and the mapped query 0.60 to 0.63.
+- Debt created: the glossary is a hand-written list; one transient failure fewer is retried.
+- Revisit when: C finds questions that miss the corpus on vocabulary, or `unavailable` rates rise.
+- Source: 0021_open_mode_polish
+
+## 2026-10-04: the fallback answers from the last tool round only
+
+- Decision: the template fallback uses the facts of the last tool round that read something (a tap's read counts as the first); memory facts only when every call of the turn was `recall`; a `policies_empty` sentence stands alone; no movements sentence beside a spend. A repair names every error code and, for a view or ask, the part it is in.
+- Alternatives rejected: every fact of the turn (it recited the ledger, `recall` included, under "no information").
+- Reason: the fallback answers the last thing the model was checking, not everything it touched.
+- Debt created: none.
+- Revisit when: C measures fallback answers at scale.
+- Source: 0021_open_mode_polish
+
+## 2026-10-04: process, promise, location and risk talk are checked; bare slips are dropped by tidy
+
+- Decision: new check codes: `uncited_process` (what the customer can do or the bank does, without a citation in that sentence), `told_promise` (the bank will answer or contact the customer), `location_talk` (phrases that point at the screen), `risk_talk` (a risk or score level outside the rendered reasons), `card_without_series` (a card with no series named beside the subscriptions), `movements_beside_spend`. Before the check, a reply-level tidy drops a sentence that carries no reference and is only uncited advice or a pointer at the screen, and a sentence that only restates the movements search beside a spend; each drop is counted. The prompt adds that a cited sentence says only what its excerpt says.
+- Alternatives rejected: prompt rules alone (Sonnet broke each in recorded turns); a repair for every slip (2 to 4 s each, and a cancel answer went past 9 s).
+- Reason: the demo's key turns must not state a process, a promise or a risk the bank's documents and facts do not.
+- Debt created: phrase lists per locale; an elaboration inside a cited sentence is held only by the prompt.
+- Revisit when: C's judge reads cited sentences against their excerpts.
+- Source: 0021_open_mode_polish
+
+## 2026-10-04: code fixes dates, agreement and register it can know
+
+- Decision: a one-day period renders as a date with its article ("el 3 de octubre", "hoy"); tidy drops "al", "el", "del" (es) and "ao", "no", "do" (pt-BR) before a reference that renders hoy or ayer; a participle or "activo" after a count agrees with the counted noun; a charge's status agrees with the nearest charge noun before it ("el cargo ... aprobado"); listed voseo forms become tú in es; a present-tense "hoy tienes" is not a date. The bank's alert reads "el sistema de alertas del banco emitió una alerta", with no pronoun to agree.
+- Alternatives rejected: prompt rules alone (each slip appeared in a prd session or a recording).
+- Reason: wording the code renders or can fix in one way is wording the code owns.
+- Debt created: none beyond the per-locale lists already recorded (2026-10-03).
+- Revisit when: a fourth locale is added.
+- Source: 0021_open_mode_polish
+
+## 2026-10-04: the panel hides the view while Clara works
+
+- Decision: while a turn runs (held at least 800 ms) the view and its head hide and the entity sits centered at work size (240 px box desktop, 180 px drawer, a body of about 128 and 96 px) with the status and a magnifier badge beside it, the group centered by measuring the status; `revisa` has focused brows and the `#6fd3b5` to `#9be7ff` aura, and a look per status key (movements and cards sweep, cases warmer, policies read, memory shows `escucha`). After 1.5 s without a new status the client treats Clara as composing (still, slow pulse). The reply arrives with Hola's spark for 1.8 s; an open ask shows `escucha`. A view that is not the latest reply's own carries "de tu mensaje anterior". The dot mode is gone.
+- Alternatives rejected: dimming the view or a skeleton over it (Sebastian); clearing the panel when the answer brings no view (the last view is the conversation's context).
+- Reason: the panel's motion is the feedback, and a stale view read as Clara's answer.
+- Debt created: "composing" is inferred on the client from silence.
+- Revisit when: the server publishes a status for the composing step.
+- Source: 0021_open_mode_polish
+
+## 2026-10-04: recorded demo turns carry history, a planted charge and the bank's real passages
+
+- Decision: the recorded set adds the unrecognized-charge pick and its tap (es, pt-BR) and the four prd fallbacks (two cancel questions, "esa es", "¿y ahora qué pasa?") with their conversation history and a flagged TEMU.COM 2979 charge planted with a deterministic id; the demo policy index holds the real dispute and blocking passages the answers cite, with a 0.0 cut, so recordings test composition and the glossary retry is tested by units and the Cohere measurement.
+- Alternatives rejected: one-turn questions only (the prd fallbacks came from context).
+- Reason: the turns that failed in front of Sebastian are replayed on every change.
+- Debt created: none.
+- Revisit when: the demo corpus drifts from `docs/policies` at the docs root.
+- Source: 0021_open_mode_polish
+
