@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-04
-source: 0022_story_actions
+source: 0023_open_mode_polish_2
 ---
 
 # Architecture and Debt Record

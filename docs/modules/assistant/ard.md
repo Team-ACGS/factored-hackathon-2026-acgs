@@ -193,6 +193,7 @@ source: 0023_open_mode_polish_2
 - Debt created: `crud` and `messages` duplicate the claims and body parsing of their handlers.
 - Revisit when: a third API lambda appears.
 - Source: 0006_customer_data_onboarding
+- Amended by: 0023_open_mode_polish_2, 2026-10-04: `products.expiration_date`, `transactions.transaction_type` and `response_code` left the allow-lists (2026-10-04 entry below).
 
 ## 2026-09-29: an added transaction is a placeholder in the cached ledger until the server answers
 
@@ -325,6 +326,7 @@ source: 0023_open_mode_polish_2
 - Debt created: none
 - Revisit when: the measured check failure rate (C) points at the policy rules.
 - Source: 0013_policy_search
+- Amended by: 0023_open_mode_polish_2, 2026-10-04: `text` stays trace-only for the model, but the fallback of a failed policy answer quotes it (2026-10-04 entry below).
 
 ## 2026-10-01: `search_policies` fails as `unavailable` within half a turn
 
@@ -563,6 +565,7 @@ source: 0023_open_mode_polish_2
 - Debt created: "composing" is inferred on the client from silence.
 - Revisit when: the server publishes a status for the composing step.
 - Source: 0021_open_mode_polish
+- Amended by: 0023_open_mode_polish_2, 2026-10-04: the panel shows only the latest reply's view and the "de tu mensaje anterior" marker is gone (2026-10-04 entry below).
 
 ## 2026-10-04: recorded demo turns carry history, a planted charge and the bank's real passages
 
@@ -581,6 +584,7 @@ source: 0023_open_mode_polish_2
 - Debt created: none.
 - Revisit when: the watcher writes an ask Clara did not answer in the turn.
 - Source: 0022_story_actions
+- Amended by: 0023_open_mode_polish_2, 2026-10-04: an open `recognize_charge` may also close on the graph's `answer`, written by `core.story` (2026-10-04 entry below).
 
 ## 2026-10-04: memory rows snapshot the charge, and a merchant is remembered on the third recognition
 
