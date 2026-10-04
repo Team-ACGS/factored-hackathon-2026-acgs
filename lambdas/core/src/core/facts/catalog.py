@@ -96,6 +96,12 @@ DATE_PREPOSITIONS = {
     "en": frozenset(),
 }
 
+RELATIVE_DAY_LEADS = {
+    "es": {"al": "", "el": "", "del": "de"},
+    "pt-BR": {"ao": "", "no": "", "do": "de"},
+    "en": {"on": ""},
+}
+
 PERIOD_PREPOSITIONS = {
     "es": frozenset({"en", "de", "desde", "durante", "entre"}),
     "pt-BR": frozenset({"em", "no", "de", "desde", "durante", "entre"}),
@@ -153,6 +159,22 @@ NOUNS: dict[str, dict[str, tuple[str, str]]] = {
         "pt-BR": ("cobrança recorrente", "cobranças recorrentes"),
         "en": ("recurring charge", "recurring charges"),
     },
+}
+
+FEMININE_NOUNS = {
+    "es": frozenset({"purchase", "card", "credit_card", "debit_card", "memory"}),
+    "pt-BR": frozenset({"purchase", "movement", "memory", "subscription"}),
+}
+
+MASCULINE_CHARGE_NOUNS = {
+    "es": frozenset({"cargo", "cargos", "movimiento", "movimientos", "pago", "pagos", "cobro", "cobros"}),
+    "pt-BR": frozenset({"pagamento", "pagamentos", "movimento", "movimentos", "lancamento", "lancamentos"}),
+}
+FEMININE_CHARGE_NOUNS = {
+    "es": frozenset({"compra", "compras", "transaccion", "transacciones"}),
+    "pt-BR": frozenset(
+        {"compra", "compras", "cobranca", "cobrancas", "transacao", "transacoes", "movimentacao"}
+    ),
 }
 
 COUNT_SYNONYMS = {
@@ -317,9 +339,9 @@ LABELS: dict[str, dict[str, dict[str, str]]] = {
     },
     "reason": {
         "score_high": {
-            "es": "el sistema de alertas del banco la marcó",
-            "pt-BR": "o sistema de alertas do banco a sinalizou",
-            "en": "the bank's alert system flagged it",
+            "es": "el sistema de alertas del banco emitió una alerta",
+            "pt-BR": "o sistema de alertas do banco emitiu um alerta",
+            "en": "the bank's alert system raised an alert",
         },
         "foreign_country": {
             "es": "es en otro país",
@@ -452,6 +474,42 @@ DATE_WORDS = {
 
 DATE_HOMONYMS = {"en": ("may", "march")}
 
+VOSEO = {
+    "llevás": "llevas",
+    "tenés": "tienes",
+    "querés": "quieres",
+    "podés": "puedes",
+    "sabés": "sabes",
+    "hacés": "haces",
+    "gastás": "gastas",
+    "pagás": "pagas",
+    "usás": "usas",
+    "necesitás": "necesitas",
+    "reconocés": "reconoces",
+    "decime": "dime",
+    "contame": "cuéntame",
+    "fijate": "fíjate",
+}
+
+PRESENT_TODAY = {
+    "es": r"hoy (tienes|tiene|hay|estas|esta|llevas|ves|sigues|sigue|cuentas)",
+    "pt-BR": r"hoje (voce tem|voce esta|tem|ha|esta)",
+    "en": r"today (you have|you are|you're|there is|there are)",
+}
+
+PROCESS_ACTIONS = (
+    r"(puedes|podrias|debes|deberias|tendrias que|tienes que|necesitas|conviene|te recomiendo) (\w+ ){0,2}"
+    r"(abrir\w*|iniciar\w*|presentar\w*|cancelar\w*|dar\w* de baja|llamar\w*|comunicarte|contactar\w*"
+    r"|solicitar\w*|pedir\w*|reclamar\w*|bloquear\w*)",
+    r"(comunicate|llama al|llamanos|contacta|escribe al|acude)",
+    r"(voce )?(pode|poderia|deve|deveria|precisa|tem que) (\w+ ){0,2}"
+    r"(abrir|iniciar|registrar|cancelar\w*|ligar|entrar em contato|contatar|solicitar|pedir|bloquear)",
+    r"(ligue|entre em contato|contate|procure o banco)",
+    r"you (can|could|should|need to|have to|must) (\w+ ){0,2}"
+    r"(open|start|file|cancel|call|contact|request|block)",
+    r"(call|contact) the bank",
+)
+
 FORBIDDEN = {
     "fraud_word": (r"fraud\w*",),
     "safety_claim": (
@@ -485,6 +543,37 @@ FORBIDDEN = {
         r"money back",
         r"(get|receive|recover) your money",
         r"guarante\w*",
+    ),
+    "told_promise": (
+        r"te (va a |van a )?(respond|contest|inform|avis|notific|contact|llam|escrib)\w*",
+        r"(respondera|responderan|contestara|informara|avisara|notificara|contactara)n?",
+        r"(recibiras|tendras) (una |su )?respuesta",
+        r"(vai|ira|vao) (te |lhe )?(responder|informar|avisar|notificar|contatar|ligar)\w*",
+        r"(te|lhe) (responde|informa|avisa|notifica|contata|liga)\w*",
+        r"(voce )?(vai|ira) receber (uma |a )?resposta",
+        r"(will|'ll|is going to) "
+        r"(get back to|respond to|reply to|answer|notify|inform|contact|call|tell) you",
+        r"you (will|'ll) (hear|get an answer|receive an answer|be told|be informed|be notified|be contacted)",
+    ),
+    "location_talk": (
+        r"(aparecen|estan|ves|veras|te muestro|listad\w*|mostrad\w*) "
+        r"(aqui |mas )?(a continuacion|abajo|debajo)",
+        r"(mas|aqui) abajo",
+        r"aqui (puedes|podras|tienes|estan|aparecen|te muestro)",
+        r"(a la derecha|en (el|este) panel|en (la|esta) pantalla)",
+        r"(estao|aparecem|veja|mostro|listad\w*|mostrad\w*) (aqui )?(a seguir|abaixo)",
+        r"(logo|aqui) abaixo",
+        r"aqui (voce pode|estao|aparecem)",
+        r"(a direita|no painel|na tela)",
+        r"(see|listed|shown) (them |it |\w+ )?(below|here)",
+        r"(below|here) you can",
+        r"(on the right|in the panel|on (the|your) screen)",
+    ),
+    "risk_talk": (
+        r"(riesgo|puntaje|puntuacion|score|risco|pontuacao) (\w+ ){0,3}(alt[oa]s?|elevad[oa]s?)",
+        r"(alto|elevado) (nivel de )?(riesgo|risco)",
+        r"(high|elevated) risk",
+        r"risk (\w+ ){0,2}(high|elevated)",
     ),
     "promise_talk": (
         r"promet\w*",
@@ -524,7 +613,10 @@ INSTRUCTIONS = {
     "policy_figure_outside_reference": "State a policy figure only as {pN.figures.<group>.<key>}.",
     "digit_outside_reference": "Replace the number with a reference like {fN.field}.",
     "currency_outside_reference": "Write amounts only as references like {fN.amount}.",
-    "date_outside_reference": "Write dates only as references like {fN.date}.",
+    "date_outside_reference": (
+        "Write dates only as references like {fN.date}; hoy, ayer, today, weekdays and months are dates "
+        "too: reference the fact's date or drop the word."
+    ),
     "number_word_outside_reference": "Write counts and ordinals only as references like {fN.count}.",
     "merchant_outside_reference": "Write merchants as references like {fN.merchant} or exactly as stored.",
     "contact_outside_facts": "Remove the phone, URL or email; it is not in the facts.",
@@ -533,6 +625,24 @@ INSTRUCTIONS = {
     "money_promise": "Never promise money back; describe the next step of the process instead.",
     "legal_term": "Avoid legal terms; describe the bank's process in plain words.",
     "promise_talk": "Never say what you can or cannot promise; state the bank's process with its citation.",
+    "risk_talk": (
+        "Say what the bank saw only as {fN.verdict.reasons}; never describe a risk, score or alert level."
+    ),
+    "told_promise": (
+        "Never say the bank will answer, contact or inform the customer; state the review and its cited "
+        "timeframe only."
+    ),
+    "location_talk": (
+        "Never say where the rows or options are (here, below, on the right); the panel shows them."
+    ),
+    "uncited_process": (
+        "A sentence about what the customer can do or what the bank does is said only with the citation "
+        "[p:<chunk_id>] of the excerpt that says it; without one, remove the sentence."
+    ),
+    "card_without_series": (
+        "Next to the subscriptions, name a card only as the `last4` of a series' own `recurring` fact; "
+        "remove the cards that carry no series."
+    ),
     "noun_after_count": "A count renders with its noun; remove the noun you wrote after the reference.",
     "view_unknown": "Use one of the view types of the reply tool.",
     "view_fact_unknown": "A view may show only facts a tool returned this turn.",
@@ -541,10 +651,20 @@ INSTRUCTIONS = {
     "ask_not_allowed": "That ask is not allowed now; send the reply without the ask.",
     "ask_fact_unknown": "An ask may use only facts a tool returned this turn.",
     "ask_fact_unfit": "That fact cannot be an option of this ask; see the reply tool for each ask.",
-    "ask_options_count": "which_one takes two to five candidate facts; show takes exactly one fact.",
-    "ask_options_partial": "More charges match than your options; ask for the date or the amount instead.",
+    "ask_options_count": (
+        "which_one takes two to five candidate facts; show takes exactly one fact. With one candidate, "
+        "send no ask and answer about it, with its view."
+    ),
+    "ask_options_partial": (
+        "More charges match than your options; drop the which_one, ask for the date or the amount in say, "
+        "and attach the movements view of the search."
+    ),
     "unseen_rows_claim": "You saw only some of these rows; say nothing about all of them.",
-    "show_with_view": "The view already shows the rows; send the reply without the show ask.",
+    "show_with_view": "The view already shows the rows; keep the view and drop the show ask.",
+    "movements_beside_spend": (
+        "In an answer about a spend, give the spend's own total and count; do not add the count or period of "
+        "the movements search, the view shows them."
+    ),
     "ask_options_repeated": "Each option of which_one must be a different charge or card.",
     "ask_options_mixed": "The options of which_one must all be charges or all be cards.",
 }

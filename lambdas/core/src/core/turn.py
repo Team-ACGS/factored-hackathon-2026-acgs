@@ -129,7 +129,7 @@ def run_turn(
         on_status=on_status,
     )
     if picked:
-        run.tool_facts.extend(picked.ids)
+        run.read_rounds.append(list(picked.ids))
     return done(run_open_mode(run), run.metrics)
 
 

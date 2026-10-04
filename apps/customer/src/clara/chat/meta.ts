@@ -3,6 +3,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { chargeOf, useRow } from "../../bank/rows";
 import { bankQueries } from "../../bank/services";
 import { useI18n } from "../../i18n";
+import type { Readings } from "../../chat/conversation";
 import type { ViewSpec } from "./panel-state";
 import { cardLabel } from "./text";
 
@@ -30,7 +31,7 @@ export function useViewMeta(spec: ViewSpec): ViewMeta {
     case "movements":
       return {
         kicker: t("clara.chat.view.movements.kicker"),
-        title: spec.readings.merchant ?? t("clara.chat.view.movements.title"),
+        title: movementsTitle(spec.readings, t),
         label: t("clara.chat.view.movements.label"),
       };
     case "cards":
@@ -67,4 +68,11 @@ export function useViewMeta(spec: ViewSpec): ViewMeta {
         label: t("clara.chat.view.case.label"),
       };
   }
+}
+
+function movementsTitle(readings: Readings, t: ReturnType<typeof useI18n>["t"]): string {
+  if (readings.merchant) return readings.merchant;
+  if (readings.kind === "series") return t("clara.chat.view.movements.series");
+  const period = readings.period ?? "";
+  return period.charAt(0).toLocaleUpperCase() + period.slice(1) || t("clara.chat.view.movements.title");
 }

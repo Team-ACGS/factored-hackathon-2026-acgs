@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-03
-source: 0020_rich_parts
+updated: 2026-10-04
+source: 0021_open_mode_polish
 ---
 
 # assistant: flows
@@ -25,10 +25,10 @@ flowchart TD
     SUP -- tool calls within budget --> STATUS[status event and turn status per round]
     STATUS --> TOOLS[tools under the read-only session, five rows shown]
     TOOLS --> SUP
-    SUP -- reply: say, view, ask --> TIDY[tidy, counted] --> CHK{facts_check with allowed_asks}
+    SUP -- reply: say, view, ask --> TIDY[tidy the reply and each say, counted] --> CHK{facts_check with allowed_asks}
     CHK -- pass --> FIN[render says, views with readings, asks with labels]
     CHK -- first failure --> SUP
-    CHK -- second failure --> FB[template from what the tools read]
+    CHK -- second failure --> FB[template from the last tool round]
     SUP -- budget out, model down or crash --> FB
     FB --> FIN
     ST --> FIN

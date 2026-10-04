@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from core import answers
 from core.answers import SayKey
 from core.facts import Ask, Part, Say, View, check, fallback
-from core.facts.check import tidy
+from core.facts.check import CheckError, repair_instruction, tidy, tidy_reply
 from core.facts.parts import AskType, ViewType
 from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS
 from core.facts.values import Ledger
@@ -49,6 +49,7 @@ RETRYABLE = frozenset(
     }
 )
 CACHE_POINT = {"cachePoint": {"type": "default"}}
+MEMORY_KINDS = frozenset({"memory", "memories"})
 
 Exhausted = Literal["steps", "time", "input_tokens", "model_unavailable", "no_reply", "crashed"]
 Next = Literal["tools", "facts_check", "supervisor", "fallback", "finalize"]
@@ -99,6 +100,10 @@ class Metrics:
     tidied: dict[str, int] = field(default_factory=dict)
     exhausted: Exhausted | None = None
 
+    def count_tidied(self, edits: dict[str, int]) -> None:
+        for kind, count in edits.items():
+            self.tidied[kind] = self.tidied.get(kind, 0) + count
+
     def tokens(self) -> dict[str, int]:
         keys = ("input_tokens", "output_tokens", "cache_read", "cache_write")
         return {key: sum(int(step.get(key, 0)) for step in self.steps) for key in keys}
@@ -121,7 +126,8 @@ class OpenModeRun:
     tool_calls: int = 0
     repairs: int = 0
     input_tokens: int = 0
-    tool_facts: list[str] = field(default_factory=list)
+    read_rounds: list[list[str]] = field(default_factory=list)
+    called: list[str] = field(default_factory=list)
     metrics: Metrics = field(default_factory=Metrics)
     reply: Reply | None = None
 
@@ -183,7 +189,11 @@ def tools(state: State, runtime: Runtime[OpenModeRun]) -> State:
     assert isinstance(last, AIMessage)
     run.rounds += 1
     _announce(run, [call["name"] for call in last.tool_calls if call["name"] in TOOLS])
-    return {"messages": [_run_tool(run, tool_call) for tool_call in last.tool_calls], "next": "supervisor"}
+    read: list[str] = []
+    messages: list[BaseMessage] = [_run_tool(run, tool_call, read) for tool_call in last.tool_calls]
+    if read:
+        run.read_rounds.append(read)
+    return {"messages": messages, "next": "supervisor"}
 
 
 def _announce(run: OpenModeRun, names: list[str]) -> None:
@@ -207,11 +217,13 @@ def facts_check(state: State, runtime: Runtime[OpenModeRun]) -> State:
     run.metrics.steps.append({"node": "facts_check", "ms": round((run.clock() - started) * 1000)})
     if not errors:
         return {"parts": parts, "source": source, "next": "finalize"}
-    run.metrics.check_errors.extend(error["code"] for error in errors)
+    run.metrics.check_errors.extend(error.code for error in errors)
     if run.repairs or run.model_steps >= MAX_STEPS or run.remaining() < MIN_CALL_SECONDS:
         return {"next": "fallback"}
     run.repairs += 1
-    content = json.dumps({"errors": errors, "instruction": "Call reply again with every error fixed."})
+    content = json.dumps(
+        {"errors": [error.to_repair() for error in errors], "instruction": repair_instruction(errors)}
+    )
     repair = ToolMessage(content=content, tool_call_id=reply_call["id"], status="error")
     return {"messages": [repair], "next": "supervisor"}
 
@@ -221,7 +233,13 @@ def fallback_answer(state: State, runtime: Runtime[OpenModeRun]) -> State:
 
 
 def _from_what_was_read(run: OpenModeRun) -> list[Part]:
-    facts = {fact_id: run.ledger.facts[fact_id] for fact_id in run.tool_facts}
+    last = run.read_rounds[-1] if run.read_rounds else []
+    about_memory = bool(run.called) and all(name == "recall" for name in run.called)
+    facts = {
+        fact_id: fact
+        for fact_id in last
+        if (fact := run.ledger.facts[fact_id]).kind not in MEMORY_KINDS or about_memory
+    }
     return fallback(
         "answer", Ledger(run.ledger.country, run.ledger.now, facts, run.ledger.owners), run.context.locale
     )
@@ -305,7 +323,7 @@ def _invoke(run: OpenModeRun, messages: list[BaseMessage], forced: bool) -> AIMe
     raise ModelUnavailable("attempts")
 
 
-def _run_tool(run: OpenModeRun, tool_call: ToolCall) -> ToolMessage:
+def _run_tool(run: OpenModeRun, tool_call: ToolCall, read: list[str]) -> ToolMessage:
     name, tool_call_id = tool_call["name"], str(tool_call["id"])
     if name == REPLY:
         return _refused(run, name, tool_call_id, "ignored", "Call reply alone, after reading the results.")
@@ -316,7 +334,8 @@ def _run_tool(run: OpenModeRun, tool_call: ToolCall) -> ToolMessage:
     started = run.clock()
     result = call(name, tool_call["args"], run.tools, run.ledger)
     run.tool_calls += 1
-    run.tool_facts.extend(result.ids)
+    run.called.append(name)
+    read.extend(result.ids)
     body = shown_rows(run.ledger, result.ids)
     facts = body["facts"]
     error = next((fact for fact in facts if fact["kind"] == "error"), None)
@@ -342,31 +361,27 @@ def _refused(run: OpenModeRun, name: str, tool_call_id: str, outcome: str, detai
     )
 
 
-def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source, list[dict[str, Any]]]:
+def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source, list[CheckError]]:
     locale = run.context.locale
     try:
         args = ReplyArgs.model_validate(reply_call["args"])
     except ValidationError as error:
         detail = "; ".join(issue["msg"] for issue in error.errors()[:3])
-        return [], "composed", [{"code": "invalid_reply", "text": "", "instruction": detail}]
+        return [], "composed", [CheckError("invalid_reply", 0, (0, 0), "", detail)]
     if args.say_key is not None:
         parts = answers.say_key(args.say_key, run.ledger, locale)
         source: Source = "say_key"
     else:
+        texts, edits = tidy_reply(args.say or (), run.ledger)
+        run.metrics.count_tidied(edits)
         parts = []
-        for text in args.say or ():
+        for text in texts:
             tidied, edits = tidy(text, run.ledger, locale)
             parts.append(Say(tidied))
-            for kind, count in edits.items():
-                run.metrics.tidied[kind] = run.metrics.tidied.get(kind, 0) + count
+            run.metrics.count_tidied(edits)
         source = "repaired" if run.repairs else "composed"
     if args.view is not None:
         parts.append(View(args.view.type, args.view.facts))
     if args.ask is not None:
         parts.append(Ask(args.ask.type, args.ask.facts))
-    errors = check(parts, run.ledger, locale, allowed_asks(run.state, run.ledger))
-    return (
-        parts,
-        source,
-        [error.to_repair() for error in errors],
-    )
+    return parts, source, check(parts, run.ledger, locale, allowed_asks(run.state, run.ledger))

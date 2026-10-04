@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SAMPLES,
+  auraOf,
   entityStates,
   faceOf,
   geometryOf,
@@ -12,6 +13,7 @@ import {
   smoothPath,
   stateSpecs,
   type Point,
+  type WorkingLook,
 } from "./entity";
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -66,6 +68,16 @@ describe("the color that leads", () => {
     expect(lead).toBe(palette.blobs.find((blob) => blob.role === "trust")?.color);
   });
 
+  it("lights Revisando with its own aura, and a warmer one while it reads the cases", () => {
+    const leads = (look?: WorkingLook) =>
+      [...geometryOf("revisa", palette, auraOf("revisa", look)).blobs].sort((a, b) => b.r - a.r).map((blob) => blob.color);
+    expect(leads().slice(0, 2)).toEqual(["#6fd3b5", "#9be7ff"]);
+    expect(leads("sweep").slice(0, 2)).toEqual(["#6fd3b5", "#9be7ff"]);
+    expect(leads("warm").slice(0, 2)).toEqual(["#ffc56b", "#6fd3b5"]);
+    expect(geometryOf("revisa").lead).toBe("#6fd3b5");
+    expect(auraOf("hola", "warm")).toBeUndefined();
+  });
+
   it("darkens the veil behind the face more when the lead color is lighter", () => {
     const light = geometryOf("escucha");
     const dark = geometryOf("orden");
@@ -94,6 +106,14 @@ describe("interpolate", () => {
 });
 
 describe("faces", () => {
+  it("draws the brows a state declares, focused for Revisando", () => {
+    for (const state of entityStates) {
+      const brows = faceOf(state, 100, 104).filter((part) => part.kind === "stroke" && part.width === 4.5);
+      expect(brows.length > 0).toBe(stateSpecs[state].brow !== undefined);
+    }
+    expect(stateSpecs.revisa.brow).toBe("focus");
+  });
+
   it("sheds a tear only when Clara asks a favor", () => {
     for (const state of entityStates) {
       const parts = faceOf(state, 100, 104);

@@ -1,5 +1,7 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+
+import pytest
 
 from core.facts import Ask, Ledger, Say, View
 from core.facts.values import (
@@ -187,3 +189,39 @@ def test_a_date_in_a_label_has_no_article_but_a_standalone_one_does() -> None:
     reply = compose([Say("Fue {f6.date}.")], book, "es", "composed")
 
     assert reply.text == "Fue el 2 de septiembre."
+
+
+@pytest.mark.parametrize(
+    ("locale", "days"),
+    [("es", ("hoy", "ayer")), ("pt-BR", ("hoje", "ontem")), ("en", ("today", "yesterday"))],
+)
+def test_an_option_of_today_or_yesterday_says_so_like_the_answer_does(
+    locale: str, days: tuple[str, str]
+) -> None:
+    book = Ledger("PE", NOW)
+    for index, hours in ((1, 2), (2, 26)):
+        book.add(
+            "movement",
+            {
+                "transaction_ref": Ref("transaction", f"tx-{index}"),
+                "card_ref": Ref("card", "card-1"),
+                "merchant": Merchant("Primax"),
+                "amount": Money(Decimal("120"), "PEN"),
+                "date": Instant(NOW - timedelta(hours=hours)),
+            },
+        )
+
+    [ask] = [part for part in compose([Ask("which_one", ("f1", "f2"))], book, locale, "composed").parts]
+
+    assert [option["label"].rsplit(" · ", 1)[1] for option in ask["options"]] == list(days)
+
+
+def test_a_view_of_the_series_says_it_lists_them_and_counts_them() -> None:
+    book = Ledger("PE", NOW)
+    book.locate("tx-1", "card-1")
+    series = book.add("recurring", {"merchant": Merchant("Movistar"), "ids": Refs("transaction", ("tx-1",))})
+    book.add("recurring_list", {"count": Count(1, "subscription"), "ids": FactIds((series.id,))})
+
+    [view] = compose([View("movements", ("f2",))], book, "es", "composed").parts
+
+    assert view["readings"] == {"kind": "series", "count": "1 cargo recurrente"}

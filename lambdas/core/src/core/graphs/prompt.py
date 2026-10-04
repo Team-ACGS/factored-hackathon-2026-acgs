@@ -5,7 +5,7 @@ from typing import Any
 
 from core.answers import SAY_KEYS
 from core.facts.parts import ASK_TYPES, VIEW_TYPES
-from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS, SHOWN_ROWS
+from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS, SHOWN_ROWS, newest_page
 from core.facts.values import Count, Fact, Ledger
 from core.tools import TOOLS
 
@@ -13,6 +13,11 @@ REPLY = "reply"
 UNSEEN_NOTE = (
     "You see {shown} of {matched} matching rows. Say nothing about all of them (no 'todas', 'all'), and "
     "do not offer them in which_one: to find one, ask the customer for its date or amount."
+)
+RECENT_NOTE = (
+    "You see the newest {shown} of {matched} rows. Say nothing about all of them (no 'todas', 'all'). To "
+    "find a charge the customer does not recognize, offer these rows in which_one, newest first, and invite "
+    "its date or amount in case it is not among them."
 )
 MAX_SAYS = 3
 MAX_SAY_CHARS = 800
@@ -50,14 +55,16 @@ DESCRIPTIONS = {
     "recurring_charges": "Charges that repeat monthly or weekly (subscriptions) on the customer's cards. A "
     "series is at least two charges at the same merchant on the same card, about a month (26 to 35 days) or "
     "a week (6 to 8 days) apart, with amounts within 15% of each other; charges on different cards or at "
-    "other intervals are not a series yet, so say you do not see a repeating charge yet.",
+    "other intervals are not a series yet, so say you do not see a repeating charge yet. Each series' "
+    "`merchant` is the name the bank stored (such as NETFLIX.COM): name it only as {fN.merchant}.",
     "charge_facts": "One charge in detail: the row, its status explanation, the customer's habit at that "
     "merchant and similar charges.",
     "case_status": "The customer's cases (disputes and security cases): with no argument the open ones, "
     "or one case by `case_ref`, or the case of one `transaction_ref`; stage, dates and the next step.",
     "recall": "What the customer told Clara before about a charge or a merchant.",
     "search_policies": "Excerpts of the bank's own documents (processes, timeframes, card security, "
-    "disputes) for the customer's country. Pass the question in the customer's words. Each excerpt is "
+    "disputes) for the customer's country. Pass the question in the customer's words; when they find "
+    "nothing, the tool searches once more with the bank's words (`searched_as`). Each excerpt is "
     "a `pN` fact; cite it as [p:<chunk_id>] in every sentence that uses it.",
 }
 
@@ -178,11 +185,12 @@ def shown_rows(ledger: Ledger, ids: Sequence[str]) -> dict[str, Any]:
     rows = sum(1 for fact_id in shown if ledger.facts[fact_id].kind == "movement")
     matched = max((_matched(ledger.facts[fact_id]) for fact_id in ids), default=0)
     if matched > rows:
+        recent = any(newest_page(ledger.facts[fact_id]) for fact_id in ids)
         body.update(
             {
                 "rows_shown": rows,
                 "rows_not_shown": matched - rows,
-                "note": UNSEEN_NOTE.format(shown=rows, matched=matched),
+                "note": (RECENT_NOTE if recent else UNSEEN_NOTE).format(shown=rows, matched=matched),
             }
         )
     return body

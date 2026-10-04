@@ -1,7 +1,7 @@
 import json
 import subprocess
 import sys
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -20,7 +20,8 @@ from core.facts import (
     render_value,
 )
 from core.facts.catalog import LABELS, LOCALES, NOUNS, STATUS_LABELS
-from core.facts.check import tidy
+from core.facts.check import repair_instruction, tidy, tidy_reply
+from core.facts.fallback import FIELD, TEMPLATES
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.render import format_money
 from core.facts.values import (
@@ -368,7 +369,7 @@ def with_chunk(book: Ledger) -> Ledger:
         ("Compraste en primax.", "es", ["merchant_outside_reference"]),
         ("Compraste en Netflix.", "es", ["merchant_outside_reference"]),
         ("Claro, te ayudo.", "es", []),
-        ("Llama al +51 999 888 777.", "es", ["contact_outside_facts"]),
+        ("Llama al +51 999 888 777.", "es", ["uncited_process", "contact_outside_facts"]),
         ("Entra a www.banco.pe/ayuda.", "es", ["contact_outside_facts"]),
         ("Escribe a ayuda@banco.pe.", "es", ["contact_outside_facts"]),
         ("Revisa bancolatam.com.", "es", ["contact_outside_facts"]),
@@ -400,6 +401,30 @@ def with_chunk(book: Ledger) -> Ledger:
         ("No puedo anticipar el resultado.", "es", ["promise_talk"]),
         ("Não posso antecipar o resultado.", "pt-BR", ["promise_talk"]),
         ("No pude revisar eso ahora.", "es", []),
+        ("Hoy tienes 2 tarjetas.", "es", ["digit_outside_reference"]),
+        ("Hoy tienes tus tarjetas activas.", "es", []),
+        ("Hoje você tem seus cartões ativos.", "pt-BR", []),
+        ("Fue hoy.", "es", ["date_outside_reference"]),
+        ("Los más recientes aparecen a continuación.", "es", ["location_talk"]),
+        ("Aquí puedes verlos todos.", "es", ["location_talk"]),
+        ("As mais recentes estão abaixo.", "pt-BR", ["location_talk"]),
+        ("You can see them below.", "en", ["location_talk"]),
+        ("Este cargo está por debajo de lo habitual.", "es", []),
+        ("A continuación te explico el proceso.", "es", []),
+        ("Ese cargo está muy por debajo de tu promedio y aquí no veo otro.", "es", []),
+        ("It is below your usual spend.", "en", []),
+        ("Here is what I found.", "en", []),
+        ("O valor ficou abaixo do habitual.", "pt-BR", []),
+        ("El banco le asignó un nivel de riesgo elevado.", "es", ["risk_talk"]),
+        ("O nível de risco detectado foi alto.", "pt-BR", ["risk_talk"]),
+        ("The bank flagged it as high risk.", "en", ["risk_talk"]),
+        ("El banco la revisará y te responderá pronto.", "es", ["told_promise"]),
+        ("O banco vai te responder.", "pt-BR", ["told_promise"]),
+        ("The bank will get back to you.", "en", ["told_promise"]),
+        ("Para hacerlo, comunícate directamente con el banco.", "es", ["uncited_process"]),
+        ("Necesitas cancelarlas directamente con cada proveedor.", "es", ["uncited_process"]),
+        ("Você precisa cancelar com cada empresa.", "pt-BR", ["uncited_process"]),
+        ("You should call the bank.", "en", ["uncited_process"]),
     ],
 )
 def test_the_check_applies_each_rule_outside_references(text: str, locale: str, expected: list[str]) -> None:
@@ -648,7 +673,7 @@ def test_the_fallback_answers_from_the_same_ledger_and_passes_the_check(locale: 
     assert check(parts, book, locale) == []
     reply = compose(parts, book, locale, "fallback")
     says = [part for part in reply.parts if part["type"] == "say"]
-    assert len(says) == 13
+    assert len(says) == 12
     assert all("{" not in say["text"] for say in says)
     assert {
         "type": "view",
@@ -913,3 +938,251 @@ def test_a_comparison_direction_reads_with_its_preposition_in_portuguese() -> No
     assert render_text("Gastaste {f1.delta} {f1.direction} que el mes pasado.", book, "es") == (
         f"Gastaste {format_money(Decimal('145.31'), 'BRL', 'es')} menos que el mes pasado."
     )
+
+
+DAY = date(2026, 9, 14)
+TEMPLATE_VALUES: dict[str, Value] = {
+    "count": Count(1, "movement"),
+    "last4": Last4("4141"),
+    "merchant": Merchant("Primax"),
+    "total": Money(Decimal(240), "PEN"),
+    "compare_total": Money(Decimal(180), "PEN"),
+    "period": Period(DAY, DAY),
+    "compare_period": Period(DAY, DAY),
+    "last_date": Day(DAY),
+}
+DATED = [
+    (key, locale, text)
+    for key, texts in TEMPLATES.items()
+    for locale, text in texts.items()
+    if locale != "en" and {"period", "compare_period", "last_date"} & set(FIELD.findall(text))
+]
+
+
+@pytest.mark.parametrize(("key", "locale", "template"), DATED, ids=[f"{k}-{loc}" for k, loc, _ in DATED])
+def test_every_template_renders_its_dates_with_the_article(key: str, locale: str, template: str) -> None:
+    book = ledger()
+    book.add(key, {name: TEMPLATE_VALUES[name] for name in FIELD.findall(template)})
+
+    rendered = render_text(FIELD.sub(lambda match: f"{{f1.{match.group(1)}}}", template), book, locale)
+
+    day = {"es": "14 de septiembre", "pt-BR": "14 de setembro"}[locale]
+    article = {"es": "el ", "pt-BR": "em "}[locale]
+    assert day in rendered
+    assert rendered.count(day) == rendered.count(article + day)
+
+
+def recent_ledger(matched: int = 12) -> Ledger:
+    book = ledger()
+    rows = [
+        book.add(
+            "movement",
+            {
+                "transaction_ref": Ref("transaction", f"tx-{index}"),
+                "card_ref": Ref("card", "card-1" if index % 2 else "card-2"),
+                "merchant": Merchant(f"Shop {index}"),
+            },
+        )
+        for index in range(1, 11)
+    ]
+    book.add(
+        "movements",
+        {
+            "count": Count(matched, "movement"),
+            "ids": FactIds(tuple(row.id for row in rows)),
+            "recent": Flag(True),
+        },
+    )
+    return book
+
+
+def test_which_one_over_the_newest_rows_of_a_recent_search_passes_though_more_matched() -> None:
+    allowed = frozenset({"which_one"})
+
+    assert check_codes([Ask("which_one", ("f1", "f2", "f3", "f4", "f5"))], recent_ledger(), allowed) == []
+    assert check_codes([Ask("which_one", ("f2", "f3", "f4", "f5", "f6"))], recent_ledger(), allowed) == [
+        ("ask_options_partial", "f2")
+    ]
+    assert check_codes([Ask("which_one", ("f1", "f2"))], recent_ledger(), allowed) == [
+        ("ask_options_partial", "f1")
+    ]
+    filtered = recent_ledger()
+    filtered.facts["f11"] = Fact("f11", "movements", {**filtered.facts["f11"].fields, "recent": Flag(False)})
+    assert check_codes([Ask("which_one", ("f1", "f2", "f3", "f4", "f5"))], filtered, allowed) == [
+        ("ask_options_partial", "f1")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("locale", "noun", "value", "text", "expected"),
+    [
+        ("es", "subscription", 2, "Veo {f1.count} detectadas.", "Veo 2 cargos recurrentes detectados."),
+        ("es", "purchase", 1, "Hay {f1.count} registrado.", "Hay 1 compra registrada."),
+        ("es", "movement", 3, "Hay {f1.count} aprobadas.", "Hay 3 movimientos aprobados."),
+        ("es", "subscription", 2, "Tienes {f1.count} activas.", "Tienes 2 cargos recurrentes activos."),
+        (
+            "pt-BR",
+            "subscription",
+            2,
+            "Vejo {f1.count} detectados.",
+            "Vejo 2 cobranças recorrentes detectadas.",
+        ),
+        ("pt-BR", "card", 2, "Você tem {f1.count} bloqueadas.", "Você tem 2 cartões bloqueados."),
+    ],
+)
+def test_a_participle_after_a_count_agrees_with_the_counted_noun(
+    locale: str, noun: str, value: int, text: str, expected: str
+) -> None:
+    book = ledger()
+    book.add("recurring_list", {"count": Count(value, noun)})
+
+    tidied, edits = tidy(text, book, locale)
+
+    assert render_text(tidied, book, locale) == expected
+    assert edits == {"agreement": 1}
+    assert tidy("Hay {f1.count} cada mes.", book, locale)[1] == {}
+
+
+def test_a_relative_day_never_follows_a_contracted_article() -> None:
+    book = ledger()
+    book.add("movement", {"date": Instant(NOW - timedelta(hours=1)), "day": Day(date(2026, 9, 14))})
+
+    tidied, edits = tidy("Es el cargo correspondiente al {f1.date}.", book, "es")
+
+    assert render_text(tidied, book, "es") == "Es el cargo correspondiente hoy a las 09:00."
+    assert edits == {"relative_day": 1}
+    assert tidy("Desde el 1 hasta el día al {f1.day}.", book, "es")[1] == {}
+
+
+def test_a_repair_names_every_kind_of_error_and_the_part_each_part_error_is_in() -> None:
+    book = view_ledger()
+    parts: list[Part] = [
+        Say("Fue ayer."),
+        View("movements", ("f5",)),
+        Ask("show", ("f8",)),
+    ]
+
+    errors = check(parts, book, "es", frozenset({"show", "which_one"}))
+
+    assert [error.code for error in errors] == ["date_outside_reference", "show_with_view"]
+    assert errors[1].to_repair()["in"] == "ask show with facts f8"
+    assert "date_outside_reference, show_with_view" in repair_instruction(errors)
+
+
+def spend_and_search() -> Ledger:
+    book = spend_ledger()
+    book.add(
+        "movements",
+        {"count": Count(14, "movement"), "ids": FactIds(("f2",)), "period": Period(date(2026, 8, 1), DAY)},
+    )
+    return book
+
+
+def test_an_answer_about_a_spend_never_adds_the_count_of_the_movements_search() -> None:
+    book = spend_and_search()
+
+    assert check_codes([Say("Gastaste {f1.total}."), Say("En total hay {f3.count} {f3.period}.")], book) == [
+        ("movements_beside_spend", "{f3.count}"),
+        ("movements_beside_spend", "{f3.period}"),
+    ]
+    assert check_codes([Say("Encontré {f3.count} {f3.period}.")], book) == []
+    assert tidy_reply(
+        ["Gastaste {f1.total}. En total hay {f3.count}.", "Hay {f3.count} {f3.period}."], book
+    ) == (
+        ["Gastaste {f1.total}."],
+        {"movements_beside_spend": 2},
+    )
+    assert tidy_reply(["Encontré {f3.count}."], book) == (["Encontré {f3.count}."], {})
+    assert tidy_reply(
+        ["Gastaste {f1.total}.", "Hay {f3.count} en {f1.merchant} en esos dos meses."], book
+    ) == (
+        ["Gastaste {f1.total}."],
+        {"movements_beside_spend": 1},
+    )
+
+    reply = compose(fallback("answer", book, "es"), book, "es", "fallback")
+    assert [part["text"][:9] for part in reply.parts if part["type"] == "say"] == ["Gastaste "]
+
+
+def test_a_process_sentence_passes_with_its_citation_and_a_card_beside_the_series_needs_a_series() -> None:
+    book = with_chunk(ledger())
+    cited = f"Puedes abrir una aclaración llamando al banco [p:{CHUNK}]."
+    assert codes(cited, book) == []
+
+    for index, digits in ((1, "5529"), (2, "0355")):
+        book.add(
+            "card",
+            {
+                "card_ref": Ref("card", f"card-{index}"),
+                "last4": Last4(digits),
+                "status": Status("card", "Active"),
+            },
+        )
+    book.add(
+        "recurring",
+        {"merchant": Merchant("Movistar"), "card_ref": Ref("card", "card-1"), "last4": Last4("5529")},
+    )
+
+    assert check_codes(
+        [
+            Say("Si bloqueas tu tarjeta {f2.last4}, se rechaza."),
+            Say("Tienes {f3.merchant} en tu tarjeta {f3.last4}."),
+        ],
+        book,
+    ) == [("card_without_series", "{f2.last4}")]
+    assert check_codes(
+        [Say("Tu tarjeta {f1.last4} y tu tarjeta {f2.last4}."), Say("Tienes {f3.merchant}.")], book
+    ) == [("card_without_series", "{f2.last4}")]
+    assert (
+        check_codes([Say("Tu tarjeta {f2.last4} está {f2.status}."), Say("Tienes {f3.merchant}.")], book)
+        == []
+    )
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "expected"),
+    [
+        ("es", "Tu cargo en {f1.merchant} está {f1.status}.", "Tu cargo en Primax está aprobado."),
+        ("es", "Tu compra está {f1.status}.", "Tu compra está aprobada."),
+        ("es", "Es un cargo. La compra está {f1.status}.", "Es un cargo. La compra está aprobada."),
+        ("pt-BR", "O pagamento está {f1.status}.", "O pagamento está aprovado."),
+        ("pt-BR", "A cobrança está {f1.status}.", "A cobrança está aprovada."),
+    ],
+)
+def test_a_charge_status_agrees_with_the_noun_that_names_the_charge(
+    locale: str, text: str, expected: str
+) -> None:
+    book = ledger()
+    book.add("movement", {"merchant": Merchant("Primax"), "status": Status("transaction", "Approved")})
+
+    assert render_text(text, book, locale) == expected
+
+
+def test_a_bare_pointer_or_uncited_advice_is_dropped_before_the_check_and_counted() -> None:
+    book = with_chunk(spend_ledger())
+
+    texts, edits = tidy_reply(
+        [
+            "Gastaste {f1.total}. Aquí puedes ver los más recientes.",
+            "Si no lo reconoces, puedes llamar al banco para abrir una aclaración.",
+            f"Puedes abrir una aclaración llamando al banco [p:{CHUNK}].",
+        ],
+        book,
+    )
+
+    assert texts == ["Gastaste {f1.total}.", f"Puedes abrir una aclaración llamando al banco [p:{CHUNK}]."]
+    assert edits == {"location_talk": 1, "uncited_process": 1}
+    ordinary = ["Gastaste {f1.total}.", "Es un monto por debajo de lo habitual."]
+    assert tidy_reply(ordinary, book) == (ordinary, {})
+    assert tidy_reply(["Puedes cancelar {f1.merchant} con el comercio."], book) == (
+        ["Puedes cancelar {f1.merchant} con el comercio."],
+        {},
+    )
+
+
+def test_a_voseo_form_becomes_its_tu_form_in_spanish_only() -> None:
+    assert tidy("Este mes llevás {f1.total}. ¿Querés verlos?", spend_ledger(), "es") == (
+        "Este mes llevas {f1.total}. ¿Quieres verlos?",
+        {"voseo": 2},
+    )
+    assert tidy("Você tem {f1.total}.", spend_ledger(), "pt-BR")[1] == {}

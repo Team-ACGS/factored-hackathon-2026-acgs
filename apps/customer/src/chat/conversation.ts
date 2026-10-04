@@ -39,6 +39,7 @@ export interface Reason {
 }
 
 export interface Readings {
+  kind?: string;
   count?: string;
   period?: string;
   last4?: string;
@@ -182,7 +183,7 @@ function strings(value: unknown): string[] {
 function readingsOf(value: unknown): Readings {
   const fields = record(value) ?? {};
   const readings: Readings = {};
-  for (const name of ["count", "period", "last4", "merchant", "typical_amount", "explanation", "habit", "compared"] as const) {
+  for (const name of ["kind", "count", "period", "last4", "merchant", "typical_amount", "explanation", "habit", "compared"] as const) {
     const text = fields[name];
     if (typeof text === "string") readings[name] = text;
   }

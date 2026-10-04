@@ -1,6 +1,6 @@
 import { cn } from "@clara/ui/lib/cn";
 import { useInfiniteQuery, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { AlertCircle, ChevronRight, Globe, ShieldAlert, Smartphone, Store } from "lucide-react";
+import { AlertCircle, ChevronRight, Globe, Siren, Smartphone, Store } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useNow } from "../../app/use-now";
@@ -143,7 +143,7 @@ function MovementsView({ spec, nav }: ViewProps<"movements">) {
       <div className="flex flex-wrap gap-2">
         <Pill>{count ?? t("clara.chat.view.movements.shown", { count: String(spec.rows.length) })}</Pill>
         {last4 && <Pill>{last4}</Pill>}
-        {period && <Pill>{period}</Pill>}
+        {period && spec.readings.merchant && <Pill>{period}</Pill>}
       </div>
       <MovementRows rows={spec.rows} nav={nav} />
       <Hint>{t("clara.chat.view.movements.hint")}</Hint>
@@ -308,7 +308,7 @@ const reasonIcons: Record<string, typeof Store> = {
   new_merchant: Store,
   foreign_country: Globe,
   unusual_channel: Smartphone,
-  score_high: ShieldAlert,
+  score_high: Siren,
 };
 
 function ChargeView({ spec }: ViewProps<"charge">) {

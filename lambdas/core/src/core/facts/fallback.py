@@ -122,7 +122,7 @@ LEADS = {
     "spend": {"es": "Gastaste ", "pt-BR": "Você gastou ", "en": "You spent "},
 }
 
-_FIELD = re.compile(r"\{([a-z_][a-z0-9_.]*)\}")
+FIELD = re.compile(r"\{([a-z_][a-z0-9_.]*)\}")
 _VIEWS = ("movements", "case", "charge")
 
 
@@ -136,8 +136,12 @@ def fallback(step_key: str, ledger: Ledger, locale: str) -> list[Part]:
         if key is None or template is None:
             continue
         group = groups.setdefault(key.removesuffix("_empty"), [])
-        if _FIELD.search(template) or all(existing != template for existing, _ in group):
+        if FIELD.search(template) or all(existing != template for existing, _ in group):
             group.append((template, fact))
+    if "policies" in groups:
+        return [Say(_sentence(groups["policies"], "policies", locale))]
+    if "spend" in groups or "spend_compare" in groups:
+        groups.pop("movements", None)
     parts: list[Part] = [Say(_sentence(group, key, locale)) for key, group in groups.items()]
     view = _view(ledger)
     if parts and view is not None:
@@ -190,13 +194,13 @@ def _template_key(fact: Fact) -> str | None:
 def _fitting(key: str | None, fact: Fact, locale: str) -> str | None:
     for candidate in (f"{key}_card", key, f"{key}_bare"):
         template = TEMPLATES.get(candidate or "", {}).get(locale)
-        if template is not None and all(name in fact.fields for name in _FIELD.findall(template)):
+        if template is not None and all(name in fact.fields for name in FIELD.findall(template)):
             return template
     return None
 
 
 def _bind(template: str, fact: Fact) -> str:
-    return _FIELD.sub(lambda match: f"{{{fact.id}.{match.group(1)}}}", template)
+    return FIELD.sub(lambda match: f"{{{fact.id}.{match.group(1)}}}", template)
 
 
 def _view(ledger: Ledger) -> View | None:

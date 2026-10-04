@@ -24,7 +24,7 @@ from core.tools.movements import (
     spend_summary,
 )
 from core.tools.policies import SearchPoliciesInput, search_policies
-from core.vectors import VectorStoreError
+from core.vectors import POLICY_ATTEMPTS, VectorStoreError
 
 RETRIES = 2
 
@@ -35,6 +35,7 @@ class Tool:
     family: str
     input_model: type[Input]
     run: Callable[[ToolContext, Ledger, Any], list[str]]
+    attempts: int = RETRIES + 1
 
     def input_schema(self) -> dict[str, Any]:
         return self.input_model.model_json_schema()
@@ -52,7 +53,7 @@ TOOLS: dict[str, Tool] = {
         Tool("charge_facts", "movements", ChargeFactsInput, charge_facts),
         Tool("case_status", "cases", CaseStatusInput, case_status),
         Tool("recall", "memory", RecallInput, recall),
-        Tool("search_policies", "policies", SearchPoliciesInput, search_policies),
+        Tool("search_policies", "policies", SearchPoliciesInput, search_policies, POLICY_ATTEMPTS),
     )
 }
 
@@ -65,7 +66,7 @@ def call(name: str, arguments: Mapping[str, Any], context: ToolContext, ledger: 
         args = tool.input_model.model_validate(dict(arguments))
     except ValidationError as error:
         return _error(ledger, name, "invalid_argument", _describe(error))
-    for attempt in range(RETRIES + 1):
+    for attempt in range(tool.attempts):
         try:
             return ToolResult(name, tuple(tool.run(context, ledger, args)))
         except NotFound:
@@ -73,7 +74,7 @@ def call(name: str, arguments: Mapping[str, Any], context: ToolContext, ledger: 
         except InvalidArgument as error:
             return _error(ledger, name, "invalid_argument", str(error))
         except (ClientError, BotoCoreError, ReadIncomplete, VectorStoreError):
-            if attempt == RETRIES:
+            if attempt + 1 == tool.attempts:
                 return _error(ledger, name, "unavailable", "the data could not be read")
     raise AssertionError("unreachable")
 

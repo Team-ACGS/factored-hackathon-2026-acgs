@@ -2,7 +2,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from core.facts.parts import Ask, View
-from core.facts.values import Count, Fact, FactIds, Json, Ledger, Merchant, Period, Ref, Refs, Trace
+from core.facts.values import Count, Fact, FactIds, Flag, Json, Ledger, Merchant, Period, Ref, Refs, Trace
 
 MAX_VIEW_ITEMS = 25
 SHOWN_ROWS = 5
@@ -107,10 +107,24 @@ def _which_one(facts: list[Fact], ledger: Ledger) -> list[Option]:
         options.append(option)
     if len(kinds) > 1:
         raise Unfit("ask_options_mixed", facts[-1].id)
+    if _newest_of_recent(facts, ledger):
+        return options
     for fact in facts:
         if _matched(fact, ledger) > len(options):
             raise Unfit("ask_options_partial", fact.id)
     return options
+
+
+def newest_page(fact: Fact) -> tuple[str, ...] | None:
+    ids = fact.fields.get("ids")
+    if fact.kind == "movements" and fact.fields.get("recent") == Flag(True) and isinstance(ids, FactIds):
+        return ids.values[:MAX_OPTIONS]
+    return None
+
+
+def _newest_of_recent(facts: list[Fact], ledger: Ledger) -> bool:
+    chosen = tuple(fact.id for fact in facts)
+    return any(newest_page(fact) == chosen for fact in ledger.facts.values())
 
 
 def _matched(row: Fact, ledger: Ledger) -> int:

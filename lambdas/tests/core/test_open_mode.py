@@ -753,3 +753,129 @@ def test_which_one_over_some_of_more_matching_charges_is_sent_back(account: Demo
 
     assert result.summary()["check"]["errors"] == ["ask_options_partial"]
     assert result.reply.source == "repaired"
+
+
+def broken_replies() -> list[dict[str, Any]]:
+    return [reply("Gastaste 120 soles."), reply("Gastaste ciento veinte soles.")]
+
+
+def test_the_fallback_of_a_movements_question_emits_no_memory_line(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [response(tool_use("search_movements", SEARCH), tool_use("recall", {})), *broken_replies()]
+    )
+
+    result = turn(model, "¿Qué compras hice en Primax?")
+
+    assert result.reply.source == "fallback"
+    assert result.reply.text.startswith(f"Encontré {len(primax_rows(account))} movimientos")
+    assert "contado" not in result.reply.text
+    assert "nota" not in result.reply.text
+
+
+def test_the_fallback_answers_from_the_last_tool_round_only(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [
+            response(tool_use("spend_summary", PRIMAX)),
+            response(tool_use("search_movements", SEARCH)),
+            *broken_replies(),
+        ]
+    )
+
+    result = turn(model, "¿Qué compras hice en Primax?")
+
+    assert result.reply.source == "fallback"
+    assert "Gastaste" not in result.reply.text
+    assert result.reply.text.startswith("Encontré")
+
+
+def test_a_policy_search_without_match_stands_alone_in_the_fallback(account: DemoAccount) -> None:
+    strict = policy_index()
+    model = FakeConverse(
+        [
+            response(
+                tool_use("search_policies", {"query": "¿Qué pasa si cancelo mi tarjeta?"}),
+                tool_use("recurring_charges", {}),
+            ),
+            *broken_replies(),
+        ]
+    )
+
+    result = turn(
+        model,
+        "¿Qué pasa si cancelo mi tarjeta?",
+        policies=PolicySearch(strict.retriever, {"es": 0.99, "pt": 0.99, "en": 0.99}, "docs.test"),
+    )
+
+    assert result.reply.source == "fallback"
+    assert result.reply.text == "No tengo información del banco sobre eso."
+
+
+def test_a_repair_names_every_error_of_a_reply_that_mixes_them(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [
+            response(tool_use("search_movements", SEARCH)),
+            reply_with(
+                "Es una de hoy, {f8.count}.",
+                view={"type": "movements", "facts": ["f8"]},
+                ask={"type": "show", "facts": ["f6"]},
+            ),
+            reply_with("Encontré {f8.count}.", view={"type": "movements", "facts": ["f8"]}),
+        ]
+    )
+
+    result = turn(model, "es una de hoy")
+
+    repair = json.loads(last_tool_result(model.requests[2])["content"][0]["text"])
+    codes = [error["code"] for error in repair["errors"]]
+    assert set(codes) >= {"date_outside_reference", "show_with_view"}
+    assert all(code in repair["instruction"] for code in codes)
+    assert result.reply.source == "repaired"
+
+
+def test_an_unrecognized_charge_is_picked_from_the_newest_movements_and_the_tap_opens_its_charge(
+    account: DemoAccount,
+) -> None:
+    newest = sorted(
+        account.transactions, key=lambda item: (item["transaction_date"], item["transaction_id"])
+    )[-5:][::-1]
+    asking = FakeConverse(
+        [
+            response(tool_use("search_movements", {"limit": 5})),
+            reply_with(
+                "Estos son tus movimientos más recientes, ¿cuál no reconoces? Si no está, dime su fecha.",
+                ask={"type": "which_one", "facts": ["f6", "f7", "f8", "f9", "f10"]},
+            ),
+        ]
+    )
+    question = says("hay una transacción que no reconozco")
+    first = run_turn(question, [], NOW, profile=DEFAULT, clients=asking.client)
+
+    note = json.loads(last_tool_result(asking.requests[1])["content"][0]["text"])["note"]
+    assert "which_one" in note
+    assert first.reply.source == "composed"
+    [ask] = [part for part in first.reply.parts if part["type"] == "ask"]
+    assert [option["id"] for option in ask["options"]] == [row["transaction_id"] for row in newest]
+    asked = reply_to(
+        question, "assistant", first.reply.text, NOW, first.reply.parts, first.reply.facts, first.reply.draft
+    )
+    tapped_at = NOW - timedelta(milliseconds=500)
+    tap = customer_message(
+        CUSTOMER,
+        question.room_id,
+        uuid7(int(tapped_at.timestamp() * 1000)),
+        ask["options"][2]["label"],
+        tapped_at,
+        input={"ask_id": asked.message_id, "option": newest[2]["transaction_id"]},
+    )
+    answering = FakeConverse(
+        [reply_with("Es tu compra en {f6.charge.merchant}.", view={"type": "charge", "facts": ["f6"]})]
+    )
+
+    second = run_turn(tap, [question, asked], NOW, profile=DEFAULT, clients=answering.client)
+
+    assert second.summary()["tool_calls"] == []
+    [view] = [part for part in second.reply.parts if part["type"] == "view"]
+    assert view["view"] == "charge"
+    assert view["items"] == [
+        {"product_id": newest[2]["product_id"], "transaction_id": newest[2]["transaction_id"]}
+    ]

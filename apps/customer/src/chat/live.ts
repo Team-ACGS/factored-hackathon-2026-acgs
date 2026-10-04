@@ -15,6 +15,7 @@ export interface LiveChat {
   messages: ChatMessage[];
   thinking: boolean;
   status: string | null;
+  statusAt: number | null;
   notice: MessageKey | null;
   send: (text: string) => void;
   choose: (asked: ChatMessage, option: AskOption) => void;
@@ -46,6 +47,7 @@ export function useLiveChat(customerId: string): LiveChat {
     messages,
     thinking: loaded && left > 0,
     status: liveTurn(state, now)?.status ?? null,
+    statusAt: liveTurn(state, now)?.at ?? null,
     notice: problem === "load" ? "chat.loadFailed" : problem === "live" ? "chat.liveUpdatesLost" : null,
     send: (text) => void send(text.slice(0, MAX_TEXT_LENGTH)),
     choose: (asked, option) => void send(option.label.slice(0, MAX_TEXT_LENGTH), { ask_id: asked.messageId, option: option.id }),

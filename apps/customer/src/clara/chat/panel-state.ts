@@ -78,21 +78,34 @@ export function shownView(state: PanelState, views: readonly PanelView[]): Panel
   return drilled ? { id: `${base.id}#${state.trail.length}`, spec: drilled } : base;
 }
 
-export type PanelMode = "hero" | "docked" | "searching";
+export type PanelMode = "hero" | "docked" | "working";
 
-export function panelMode(shown: PanelView | null, thinking: boolean, asking: boolean): PanelMode {
-  if (thinking) return "searching";
+export function panelMode(shown: PanelView | null, working: boolean, asking: boolean): PanelMode {
+  if (working) return "working";
   return shown || asking ? "docked" : "hero";
 }
 
 export function entityMode(mode: PanelMode): EntityMode {
-  if (mode === "searching") return "dot";
+  if (mode === "working") return "work";
   return mode === "docked" ? "dock" : "hero";
 }
 
-export function faceOf(mode: PanelMode, typing: boolean, asking: boolean): EntityState {
-  if (mode === "searching") return "revisa";
-  if (asking) return "confirma";
+interface FaceInputs {
+  typing: boolean;
+  asking: boolean;
+  arriving: boolean;
+  working: EntityState;
+}
+
+export function faceOf(mode: PanelMode, { typing, asking, arriving, working }: FaceInputs): EntityState {
+  if (mode === "working") return working;
+  if (arriving) return "hola";
+  if (asking) return "escucha";
   if (mode === "docked") return "orden";
   return typing ? "escucha" : "hola";
+}
+
+export function fromEarlier(messages: readonly ChatMessage[], selected: string | null): boolean {
+  const reply = messages.findLast((message) => message.senderType === "assistant");
+  return selected !== null && reply !== undefined && reply.messageId !== selected;
 }

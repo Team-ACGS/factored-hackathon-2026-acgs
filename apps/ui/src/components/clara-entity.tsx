@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 
 import { cn } from "../lib/cn";
 import {
+  auraOf,
   ease,
   faceOf,
   geometryOf,
@@ -14,6 +15,7 @@ import {
   type EntityState,
   type FacePart,
   type Geometry,
+  type WorkingLook,
 } from "../lib/entity";
 
 export type EntityMotion = "idle" | "thinking";
@@ -22,6 +24,7 @@ interface ClaraEntityProps {
   state: EntityState;
   mode?: EntityMode;
   motion?: EntityMotion;
+  look?: WorkingLook;
   label?: string;
   className?: string;
 }
@@ -59,20 +62,22 @@ function apply(svg: SVGSVGElement, geometry: Geometry) {
   highlight?.setAttribute("transform", `rotate(-30 ${spec.cx} ${spec.cy})`);
 }
 
-export function ClaraEntity({ state, mode, motion, label, className }: ClaraEntityProps) {
+export function ClaraEntity({ state, mode, motion, look, label, className }: ClaraEntityProps) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const svg = useRef<SVGSVGElement>(null);
-  const [initial] = useState(() => geometryOf(state));
+  const aura = auraOf(state, look);
+  const [initial] = useState(() => geometryOf(state, palette, aura));
   const shown = useRef(initial);
-  const target = useRef(state);
+  const target = useRef(`${state}/${aura?.join() ?? ""}`);
   const [face, setFace] = useState(state);
 
   useEffect(() => {
     const element = svg.current;
-    if (!element || target.current === state) return;
-    target.current = state;
+    const key = `${state}/${aura?.join() ?? ""}`;
+    if (!element || target.current === key) return;
+    target.current = key;
     const from = shown.current;
-    const to = geometryOf(state);
+    const to = geometryOf(state, palette, aura);
     const start = performance.now();
     let frame = 0;
     const step = (now: number) => {
@@ -83,7 +88,7 @@ export function ClaraEntity({ state, mode, motion, label, className }: ClaraEnti
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-  }, [state]);
+  }, [state, aura]);
 
   useEffect(() => {
     if (face === state) return;
@@ -136,6 +141,7 @@ export function ClaraEntity({ state, mode, motion, label, className }: ClaraEnti
       className={cn("clara-entity", className)}
       data-mode={mode}
       data-motion={activeMotion}
+      data-look={look}
       style={paletteVars}
       role={label ? "img" : undefined}
       aria-label={label}
@@ -180,7 +186,7 @@ export function ClaraEntity({ state, mode, motion, label, className }: ClaraEnti
         </defs>
         <ellipse className="ce-shadow" cx="100" cy="188" rx="52" ry="7" fill="#0f2a24" opacity=".12" filter={filter("b6")} />
         <g className="ce-fx">
-          <Effect state={state} />
+          <Effect state={state} aura={aura} />
         </g>
         <g transform="translate(100 104) scale(1.24) translate(-100 -104)">
           <g className="ce-breathe">
@@ -242,7 +248,7 @@ function FaceShape({ part }: { part: FacePart }) {
   }
 }
 
-function Effect({ state }: { state: EntityState }) {
+function Effect({ state, aura }: { state: EntityState; aura?: readonly [string, string] }) {
   switch (stateSpecs[state].effect) {
     case "rings":
       return (
@@ -255,9 +261,9 @@ function Effect({ state }: { state: EntityState }) {
     case "orbit":
       return (
         <g className="ce-orbit">
-          <circle cx="100" cy="20" r="6" fill={calm} />
-          <circle cx="172" cy="146" r="5" fill={warm} />
-          <circle cx="28" cy="146" r="4.5" fill={trust} />
+          <circle cx="100" cy="20" r="6" fill={aura?.[0] ?? calm} />
+          <circle cx="172" cy="146" r="5" fill={aura?.[1] ?? warm} />
+          <circle cx="28" cy="146" r="4.5" fill={aura ? calm : trust} opacity={aura ? 0.7 : 1} />
         </g>
       );
     case "spark":
