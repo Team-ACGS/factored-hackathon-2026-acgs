@@ -103,10 +103,16 @@ def _about_the_charge(story: Story, answer: Answer) -> Step:
         return Step([thanks], answered, Composing("recognized", 0, facts), writes)
     if charge is None:
         return _unavailable(story)
-    if asked.ask == rules.WAS_IT_YOU or answer.by == "floor" or rules.protect_signals(charge):
+    if asked.ask == rules.WAS_IT_YOU or answer.by in ("floor", "graph") or rules.protect_signals(charge):
         step = protect(story, charge)
     else:
-        step = Step([fixed("have_card", story.locale), Ask(rules.HAVE_CARD, (charge.id,))])
+        step = Step(
+            [
+                fixed("have_card", story.locale),
+                View("charge", (charge.id,)),
+                Ask(rules.HAVE_CARD, (charge.id,)),
+            ]
+        )
     step.writes = writes + step.writes
     step.effects = answered + step.effects
     return step

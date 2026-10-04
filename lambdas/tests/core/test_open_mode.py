@@ -372,6 +372,60 @@ def test_about_you_is_rendered_by_code_from_the_profile_and_the_cards(account: D
     )
 
 
+def test_the_same_fixed_answer_is_never_given_twice_in_a_row(account: DemoAccount) -> None:
+    first = turn(FakeConverse([reply(say_key="about_you")]), "¿qué sabes de mí?")
+    question = says("¿qué sabes de mí?")
+    answered = reply_to(
+        question, "assistant", first.reply.text, NOW, first.reply.parts, (), first.reply.draft
+    )
+    model = FakeConverse(
+        [
+            reply(say_key="about_you"),
+            reply("No tengo acceso a tu documento ni a tu dirección."),
+        ]
+    )
+    sent = NOW + timedelta(seconds=5)
+    again = customer_message(
+        CUSTOMER, question.room_id, uuid7(int(sent.timestamp() * 1000)), "¿y mi dirección?", sent
+    )
+
+    result = run_turn(again, [question, answered], NOW, profile=DEFAULT, clients=model.client)
+
+    assert {"type": "say_key", "key": "about_you"} in first.reply.draft
+    assert result.summary()["check"]["errors"] == ["say_key_repeated"]
+    repair = json.loads(last_tool_result(model.requests[1])["content"][0]["text"])
+    [fixed] = repair["facts"]
+    assert fixed["kind"] == "fixed_answer"
+    assert fixed["fields"]["says"]["value"].startswith("Eres Ana, cliente de LATAM Bank en Perú.")
+    assert result.reply.source == "repaired"
+    assert result.reply.text == "No tengo acceso a tu documento ni a tu dirección."
+    assert not any(part.get("type") == "say_key" for part in result.reply.draft)
+
+
+def test_the_card_expiry_never_reaches_the_model_the_ledger_or_the_reply(
+    aws: Aws, account: DemoAccount
+) -> None:
+    stored = aws.products.scan()["Items"]
+    expiries = {str(item["expiration_date"]) for item in stored}
+    assert expiries
+    model = FakeConverse(
+        [
+            response(
+                tool_use("list_cards", {}), tool_use("card_status", {"card_ref": stored[0]["product_id"]})
+            ),
+            reply_with("Tienes {f5.count}.", view={"type": "cards", "facts": ["f5"]}),
+        ]
+    )
+
+    result = turn(model, "¿cuándo vencen mis tarjetas?")
+
+    seen = json.dumps(
+        [model.requests, result.reply.parts, result.reply.facts, result.reply.draft], default=str
+    )
+    assert "expiration" not in seen
+    assert not [expiry for expiry in expiries if expiry in seen]
+
+
 def test_a_reply_sent_with_other_tools_waits_for_their_results(account: DemoAccount) -> None:
     model = FakeConverse(
         [
@@ -454,8 +508,13 @@ def test_a_case_answer_cites_the_bank_s_process_with_the_document_and_its_page(a
     result = turn(model, "¿cuándo me devuelven la plata de mi aclaración?", policies=policy_index())
 
     assert result.reply.source == "composed"
-    case, process, person = result.reply.parts
+    case, process, handoff, person = result.reply.parts
     assert person["ask"] == "talk_to_person"
+    assert (handoff["view"], handoff["items"]) == ("handoff", [])
+    assert handoff["readings"]["points"] == [
+        "Pregunta por la devolución de su dinero.",
+        "Pregunta abierta: ¿de qué cargo o caso espera la devolución?",
+    ]
     assert case["citations"] == []
     assert process["citations"] == [
         {
@@ -467,6 +526,41 @@ def test_a_case_answer_cites_the_bank_s_process_with_the_document_and_its_page(a
     ]
     assert f"[p:{CHUNK}]" not in process["text"]
     assert {fact["id"] for fact in result.reply.facts} == {"f6", "p1"}
+
+
+def test_advice_cited_after_its_period_keeps_its_words(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [
+            response(tool_use("search_policies", {"query": "qué hago si no resuelven en el plazo"})),
+            reply(
+                f"Si el plazo vence sin respuesta, puedes contactar a la defensoría del banco. [p:{CHUNK}]"
+            ),
+        ]
+    )
+
+    result = turn(model, "¿qué hago si no resuelven en el plazo?", policies=policy_index())
+
+    assert result.reply.source == "composed"
+    [said] = result.reply.parts
+    assert said["text"] == "Si el plazo vence sin respuesta, puedes contactar a la defensoría del banco."
+    assert [citation["chunk_id"] for citation in said["citations"]] == [CHUNK]
+    assert result.summary()["check"]["tidied"] == {"citation_placement": 1}
+
+
+def test_a_say_without_words_is_sent_back_and_never_reaches_the_customer(account: DemoAccount) -> None:
+    model = FakeConverse(
+        [
+            response(tool_use("search_policies", {"query": "cuánto tarda mi aclaración"})),
+            reply(f"[p:{CHUNK}]"),
+            reply(f"El banco revisa la aclaración en {{p1.figures.claims.review_time}} [p:{CHUNK}]."),
+        ]
+    )
+
+    result = turn(model, "¿cuánto tarda mi aclaración?", policies=policy_index())
+
+    assert result.summary()["check"]["errors"] == ["empty_say"]
+    assert result.reply.source == "repaired"
+    assert all(part["text"].strip() for part in result.reply.parts if part["type"] == "say")
 
 
 def test_a_crash_inside_the_graph_answers_from_what_was_read_and_is_counted(
@@ -809,6 +903,29 @@ def test_a_policy_search_without_match_stands_alone_in_the_fallback(account: Dem
 
     assert result.reply.source == "fallback"
     assert result.reply.text == "No tengo información del banco sobre eso."
+
+
+def test_a_policy_answer_that_fails_twice_quotes_the_cited_excerpt_never_unavailable(
+    account: DemoAccount,
+) -> None:
+    uncited = "El banco revisa tu aclaración en {p1.figures.claims.review_time}."
+    model = FakeConverse(
+        [
+            response(tool_use("search_policies", {"query": "cuánto tarda mi aclaración"})),
+            reply(f"Tu aclaración se revisa [p:{CHUNK}]. {uncited}"),
+            reply(f"Tu aclaración se revisa [p:{CHUNK}]. {uncited}"),
+        ]
+    )
+
+    result = turn(model, "¿cuánto tarda mi aclaración?", policies=policy_index())
+
+    assert result.reply.source == "fallback"
+    [said] = result.reply.parts
+    assert said["text"] == (
+        "Esto dice el banco en «Ciclo de una aclaración»: El banco revisa tu aclaración y te responde "
+        "dentro del plazo de revisión."
+    )
+    assert [citation["chunk_id"] for citation in said["citations"]] == [CHUNK]
 
 
 def test_a_repair_names_every_error_of_a_reply_that_mixes_them(account: DemoAccount) -> None:

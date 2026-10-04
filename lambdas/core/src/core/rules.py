@@ -21,6 +21,7 @@ HAVE_CARD = "have_card"
 BLOCK = "block_card"
 CLAIM = "open_claim"
 PERSON = "talk_to_person"
+SAY_KEY = "say_key"
 STORY_ASKS = frozenset({RECOGNIZE, WAS_IT_YOU, HAVE_CARD, BLOCK, CLAIM, PERSON})
 ABOUT_THE_CHARGE = frozenset({RECOGNIZE, WAS_IT_YOU})
 WRITES = frozenset({BLOCK, CLAIM, PERSON})
@@ -28,7 +29,7 @@ PROTECT_REASONS = frozenset({"foreign_country", "unusual_channel"})
 MERCHANT_AFTER = 3
 MAX_CHARGE_MEMORIES = 500
 
-AnsweredBy = Literal["tap", "lexicon", "floor"]
+AnsweredBy = Literal["tap", "lexicon", "floor", "graph"]
 Closed = Literal["written", "redelivered", "already", "missing"]
 Purpose = Literal["lost", "not_me"]
 
@@ -81,6 +82,9 @@ class TurnState:
     choice: str | None = None
     asking: str | None = None
     open_cases: frozenset[str] = frozenset()
+    said_key: str | None = None
+    open_charge: str | None = None
+    answerable: bool = False
 
 
 def allowed_asks(state: TurnState, ledger: Ledger) -> frozenset[str]:
@@ -160,6 +164,13 @@ def resolve_choice(message: Message, asked: Message | None) -> Choice | None:
                     bool(part.get("recent")),
                     str(part["purpose"]) if part.get("purpose") else None,
                 )
+    return None
+
+
+def said_key(asked: Message | None) -> str | None:
+    for part in asked.draft if asked else ():
+        if part.get("type") == SAY_KEY:
+            return str(part.get("key"))
     return None
 
 
@@ -287,6 +298,14 @@ def _learn_merchant(
         },
     )
     return created
+
+
+def answerable(message: Message, asked: OpenAsk | None, abstained: bool) -> bool:
+    return asked is not None and asked.ask == RECOGNIZE and "?" not in message.text and not abstained
+
+
+def graph_answer(message: Message, asked: OpenAsk, option: str) -> Answer:
+    return Answer(asked, option, _note(message.text) if option == "yes" else None, "graph")
 
 
 def _note(value: object) -> str | None:

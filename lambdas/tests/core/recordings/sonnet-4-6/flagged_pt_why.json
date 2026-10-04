@@ -70,11 +70,11 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_BIWvn8ksHSb95Rev6WcS00",
+         "toolUseId": "tooluse_0Vyj8qw8dx0vRXalK014nT",
          "name": "say",
          "input": {
           "say": [
-           "Estou perguntando sobre sua compra em {f2.charge.merchant} porque o banco observou o seguinte nela: {f2.verdict.reasons}."
+           "Estou perguntando sobre sua compra em {f2.charge.merchant} porque o banco notou o seguinte: {f2.verdict.reasons}."
           ]
          },
          "type": "tool_use"
@@ -86,13 +86,13 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 1882,
-     "outputTokens": 72,
-     "totalTokens": 1954,
+     "outputTokens": 70,
+     "totalTokens": 1952,
      "cacheReadInputTokens": 0,
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 1130
+     "latencyMs": 1219
     }
    }
   }

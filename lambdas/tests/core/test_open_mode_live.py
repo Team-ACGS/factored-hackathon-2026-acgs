@@ -14,13 +14,16 @@ from core.turn import Turn, run_turn
 from demo import (
     DEMO,
     FLAGGED,
+    FREE,
     KEPT,
+    NOT_ME_FREE,
     NOTES,
     NOW,
     RECORDINGS,
     base,
     demo_id,
     demo_turn,
+    forget,
     kept,
     planted_charge,
     policy_index,
@@ -216,6 +219,20 @@ def test_an_unrecognized_charge_is_picked_from_the_newest_movements_and_its_tap_
     assert fifth.reply.source == "story"
     assert not parts_of(fifth, "ask")
 
+    forget(aws, question.customer_id)
+    denied, before_denial = kept(picked, before, third.reply, NOT_ME_FREE[name])
+    floored, _ = record(f"{name}_free_no", denied, before_denial, profile)
+
+    assert [part["ask"] for part in parts_of(floored, "ask")] == ["block_card"]
+
+    forget(aws, question.customer_id)
+    owned, before_owning = kept(picked, before, third.reply, FREE[name])
+    free, _ = record(f"{name}_free", owned, before_owning, profile)
+
+    assert free.reply.source == "story"
+    assert free.summary()["writes"] == ["memory:graph"]
+    assert not parts_of(free, "ask")
+
 
 @pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
 @pytest.mark.parametrize("name", ["cancel_es", "cancel_again_es"])
@@ -336,3 +353,70 @@ def test_the_deterministic_story_paths_for_the_transcripts(
     blocked, _ = record(f"lost_{locale}_block", said_yes, after_pick, profile, country)
 
     assert [effect["type"] for effect in blocked.reply.effects] == ["card_blocked", "case_opened"]
+
+
+def says_of(result: Turn) -> str:
+    return " ".join(part["text"] for part in parts_of(result, "say"))
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["ten_days_pt", "ten_days_again_pt"])
+def test_what_to_do_after_the_bank_s_timeframe_is_answered_with_the_escalation_step_and_its_citation(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, name, profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    cited = [citation["chunk_id"] for part in parts_of(result, "say") for citation in part["citations"]]
+    assert any("-s9-" in chunk for chunk in cited)
+    assert all(part["text"].strip() for part in parts_of(result, "say"))
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+def test_what_clara_knows_about_the_customer_is_the_fixed_answer(aws: Aws, profile: ModelProfile) -> None:
+    result, _ = live_turn(aws, "about_you_pt", profile)
+
+    assert result.reply.source == "say_key"
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["document_pt", "cannot_tell_pt"])
+def test_personal_data_and_what_clara_cannot_tell_are_composed_refusals(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, name, profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    assert "acesso" in says_of(result)
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+def test_a_spanish_message_on_a_portuguese_account_is_answered_in_portuguese(
+    aws: Aws, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, "spanish_pt", profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    assert "cartões" in says_of(result) or "cartão" in says_of(result)
+    assert "tarjeta" not in says_of(result)
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+def test_the_largest_purchase_is_one_row_with_its_view(aws: Aws, profile: ModelProfile) -> None:
+    result, _ = live_turn(aws, "largest_pt", profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    calls = result.summary()["tool_calls"]
+    assert [call["tool"] for call in calls] == ["search_movements"]
+    assert [part["view"] for part in parts_of(result, "view")] in (["movement"], ["movements"])
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["rio_pt", "rio_again_pt"])
+def test_where_several_rows_were_is_answered_by_city_counts(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, name, profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    assert any("by_city}" in part["text"] for part in result.reply.draft if part["type"] == "say")

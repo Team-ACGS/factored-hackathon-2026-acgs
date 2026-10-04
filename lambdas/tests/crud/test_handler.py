@@ -20,7 +20,7 @@ from harness import STAFF_POOL_ID, Aws, LambdaContext, api_event, claims, uuid7
 
 SUB = "0f3c5e1a-0000-4000-8000-000000000001"
 OTHER = "0f3c5e1a-0000-4000-8000-000000000002"
-HIDDEN = ("origin", "suspicious_suffixes", "setup_claimed_at")
+HIDDEN = ("origin", "suspicious_suffixes", "setup_claimed_at", "expiration")
 
 
 def call(
@@ -359,7 +359,6 @@ def test_a_transaction_detail_comes_from_the_read_model(
         "transaction_id",
         "product_id",
         "transaction_date",
-        "transaction_type",
         "transaction_category",
         "amount",
         "currency",
@@ -369,7 +368,6 @@ def test_a_transaction_detail_comes_from_the_read_model(
         "transaction_country",
         "transaction_city",
         "transaction_status",
-        "response_code",
         "fraud_score",
     }
     missing = call("GET", f"/crud/cards/{stored['product_id']}/transactions/{uuid7()}", context)

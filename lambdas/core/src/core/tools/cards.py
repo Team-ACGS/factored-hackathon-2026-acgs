@@ -1,10 +1,7 @@
-from datetime import date
-
 from pydantic import Field
 
 from core.facts.values import (
     Count,
-    Day,
     FactIds,
     Flag,
     Instant,
@@ -84,5 +81,4 @@ def card_fields(card: Card) -> dict[str, Value | None]:
         "last4": Last4(card.last4),
         "currency": Trace(card.currency),
         "status": Status("card", card.status),
-        "expiration_date": Day(date.fromisoformat(card.expiration_date)) if card.expiration_date else None,
     }

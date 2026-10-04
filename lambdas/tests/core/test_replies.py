@@ -174,8 +174,9 @@ def test_a_card_option_names_the_card_by_type_and_last_digits() -> None:
         {"card_ref": Ref("card", "card-2"), "type": Label("card_type", "credit"), "last4": Last4("5555")},
     )
 
-    [ask] = compose([Ask("which_one", ("f4", "f6"))], book, "en", "composed").parts
+    view, ask = compose([Ask("which_one", ("f4", "f6"))], book, "en", "composed").parts
 
+    assert (view["view"], [item["product_id"] for item in view["items"]]) == ("cards", ["card-1", "card-2"])
     assert [option["label"] for option in ask["options"]] == [
         "Debit card ending in 4141",
         "Credit card ending in 5555",
@@ -236,3 +237,32 @@ def test_a_view_of_the_series_says_it_lists_them_and_counts_them() -> None:
     [view] = compose([View("movements", ("f2",))], book, "es", "composed").parts
 
     assert view["readings"] == {"kind": "series", "count": "1 cargo recurrente"}
+
+
+def test_a_person_ask_brings_the_handoff_card_of_its_subject_in_place_of_any_other_view() -> None:
+    book = charge_ledger()
+    case = book.add(
+        "case", {"case_ref": Ref("case", "case-1"), "transaction_ref": Ref("transaction", "tx-1")}
+    )
+    person = Ask("talk_to_person", (), target={"reason": "refund", "area": "service"})
+
+    view, ask = compose([View("case", (case.id,)), person], book, "es", "composed").parts
+
+    assert (view["view"], view["items"]) == ("handoff", [{"complaint_id": "case-1"}])
+    assert view["readings"]["points"] == [
+        "Pregunta por la devolución de su dinero.",
+        "Pregunta abierta: ¿de qué cargo o caso espera la devolución?",
+    ]
+    assert ask["ask"] == "talk_to_person"
+
+
+def test_a_person_ask_about_a_charge_lists_what_the_bank_noticed_in_the_third_person() -> None:
+    book = charge_ledger()
+    book.facts["f1"].fields["card.last4"] = Last4("4141")
+    person = Ask("talk_to_person", ("f1",), target={"reason": "card_blocked", "area": "fraud"})
+
+    view, _ = compose([person], book, "es", "composed").parts
+
+    assert view["items"] == [{"product_id": "card-1", "transaction_id": "tx-1"}]
+    assert view["readings"]["points"][:1] == ["Dice que no hizo este cargo."]
+    assert "Lo que notó el banco: es en otro país." in view["readings"]["points"]

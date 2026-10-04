@@ -112,6 +112,12 @@ REMEMBERED = {
     "note": {"es": " Me dijiste: {note}.", "pt-BR": " Você me disse: {note}.", "en": " You told me: {note}."},
 }
 
+CLOSER = {
+    "es": "Aquí estoy si necesitas algo más.",
+    "pt-BR": "Qualquer coisa, estou aqui.",
+    "en": "I'm here if you need anything else.",
+}
+
 CUSTOMER = "customer"
 
 

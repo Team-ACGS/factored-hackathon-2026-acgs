@@ -1213,3 +1213,84 @@ def test_a_voseo_form_becomes_its_tu_form_in_spanish_only() -> None:
         {"voseo": 2},
     )
     assert tidy("Você tem {f1.total}.", spend_ledger(), "pt-BR")[1] == {}
+
+
+def test_a_say_with_no_word_but_a_citation_fails_and_a_cited_sentence_after_its_period_is_kept() -> None:
+    book = with_chunk(ledger())
+
+    assert check_codes([Say(f"[p:{CHUNK}]")], book) == [("empty_say", f"[p:{CHUNK}]")]
+    assert check_codes([Say(" . ")], book) == [("empty_say", " . ")]
+    assert check_codes([Say("Gastaste {f1.total}.")], spend_ledger()) == []
+    assert tidy_reply([f"Puedes llamar al banco para abrir una aclaración. [p:{CHUNK}]"], book) == (
+        [f"Puedes llamar al banco para abrir una aclaración [p:{CHUNK}]."],
+        {"citation_placement": 1},
+    )
+
+
+def test_the_policy_fallback_quotes_the_cited_section_as_plain_text_with_its_title() -> None:
+    book = ledger()
+    for index, title in ((1, "Plazos"), (2, "Escalamiento")):
+        book.add(
+            "policy_chunk",
+            {
+                "chunk_id": Trace(f"pe-doc-s{index}-c1"),
+                "title": Text(title),
+                "text": Passage(f"## {title}\n\n- **Paso:** escribe a la defensoría.\n- Llama al banco."),
+            },
+            prefix="p",
+        )
+
+    cited = compose(fallback("answer", book, "es", ["pe-doc-s2-c1"]), book, "es", "fallback")
+    top = compose(fallback("answer", book, "es"), book, "es", "fallback")
+
+    assert cited.text == (
+        "Esto dice el banco en «Escalamiento»: Escalamiento Paso: escribe a la defensoría. Llama al banco."
+    )
+    assert [entry["chunk_id"] for entry in cited.parts[0]["citations"]] == ["pe-doc-s2-c1"]
+    assert top.text.startswith("Esto dice el banco en «Plazos»")
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "failed"),
+    [
+        ("pt-BR", "Tu tarjeta {f1.last4} está {f1.status} y no tiene cargos pendientes.", True),
+        ("pt-BR", "Seu cartão {f1.last4} está {f1.status} e não tem cobranças pendentes.", False),
+        ("pt-BR", "Your card {f1.last4} is {f1.status} and has no pending charges.", True),
+        ("es", "Seu cartão {f1.last4} está {f1.status} e não tem cobranças pendentes.", True),
+        ("es", "Tu tarjeta {f1.last4} está {f1.status}.", False),
+        ("pt-BR", "A compra em Tienda de la Esquina y los Amigos foi no seu cartão {f1.last4}.", False),
+        ("pt-BR", "Segundo «Ciclo de una aclaración y los pasos del banco», é isso [p:pe-doc-s1-c1].", False),
+        ("pt-BR", "Beleza!", False),
+        (
+            "es",
+            "Este mes gastaste {f1.last4} en {f2.merchant}, comparado con el mes pasado. "
+            "Eso es que el mes pasado.",
+            False,
+        ),
+    ],
+)
+def test_a_say_in_another_language_than_the_account_s_fails_but_names_and_titles_do_not_count(
+    locale: str, text: str, failed: bool
+) -> None:
+    book = Ledger("BR", NOW)
+    book.add(
+        "card", {"card_ref": Ref("card", "c1"), "last4": Last4("1234"), "status": Status("card", "Active")}
+    )
+    book.add("movement", {"merchant": Merchant("Tienda de la Esquina y los Amigos")})
+    book.add("policy_chunk", {"chunk_id": Trace("pe-doc-s1-c1"), "title": Text("Ciclo")}, prefix="p")
+
+    assert ("wrong_language" in [error.code for error in check([Say(text)], book, locale)]) is failed
+
+
+def test_a_charge_ask_without_its_charge_view_is_sent_back_but_code_views_need_none() -> None:
+    book = ledger()
+    charge = book.add(
+        "charge",
+        {"charge.transaction_ref": Ref("transaction", "tx-1"), "charge.card_ref": Ref("card", "card-1")},
+    )
+    asked = Ask("recognize_charge", (charge.id,))
+    allowed = frozenset({"recognize_charge", "talk_to_person"})
+
+    assert check_codes([asked], book, allowed) == [("ask_without_view", "recognize_charge")]
+    assert check_codes([View("charge", (charge.id,)), asked], book, allowed) == []
+    assert check_codes([Ask("talk_to_person", (charge.id,))], book, allowed) == []

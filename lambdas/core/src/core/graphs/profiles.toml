@@ -4,7 +4,7 @@ version = 1
 id = "us.anthropic.claude-sonnet-4-6"
 key = "sonnet-4-6"
 name = "Claude Sonnet 4.6"
-prompt = "system.v6"
+prompt = "system.v7"
 max_output_tokens = 1024
 effort = "low"
 thinking = "off"
@@ -15,7 +15,7 @@ prices = { input = "3.30", output = "16.50", cache_read = "0.33", cache_write = 
 id = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 key = "haiku-4-5"
 name = "Claude Haiku 4.5"
-prompt = "system.v6"
+prompt = "system.v7"
 max_output_tokens = 1024
 thinking = "off"
 cache = { min_prefix_tokens = 4096, note = "the cached prefix (tool schemas and the system prompt, about 5.2k tokens since system.v4) is above the minimum" }

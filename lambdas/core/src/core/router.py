@@ -17,10 +17,20 @@ FLOOR: dict[FloorClass, tuple[str, ...]] = {
         "eu nao fiz",
         "nao fiz essa compra",
         "nao autorizei",
+        "no fue yo",
+        "no he sido yo",
+        "no hice ese cargo",
+        "nao foi eu",
+        "nao fiz isso",
         "wasn't me",
         "was not me",
         "i didn't make",
         "i did not make",
+        "i didn't buy",
+        "i did not buy",
+        "i didn't do it",
+        "i did not do it",
+        "not my purchase",
     ),
     "lost_stolen": (
         "me robaron",
@@ -105,7 +115,49 @@ ABSTAIN: dict[AbstainClass, tuple[str, ...]] = {
     ),
 }
 
+CLOSERS = (
+    "ok",
+    "okay",
+    "okey",
+    "oki",
+    "vale",
+    "dale",
+    "listo",
+    "perfecto",
+    "genial",
+    "entendido",
+    "de acuerdo",
+    "gracias",
+    "muchas gracias",
+    "mil gracias",
+    "beleza",
+    "blz",
+    "certo",
+    "entendi",
+    "ta bom",
+    "ta otimo",
+    "otimo",
+    "perfeito",
+    "valeu",
+    "obrigado",
+    "obrigada",
+    "muito obrigado",
+    "muito obrigada",
+    "thanks",
+    "thank you",
+    "thx",
+    "great",
+    "got it",
+    "cool",
+    "perfect",
+)
+
 _SPACES = re.compile(r"\s+")
+_NOT_WORDS = re.compile(r"[^\w\s]+")
+_CLOSER = re.compile(
+    r"(?:" + "|".join(sorted(map(re.escape, CLOSERS), key=len, reverse=True)) + r")"
+    r"(?: (?:" + "|".join(sorted(map(re.escape, CLOSERS), key=len, reverse=True)) + r"))*"
+)
 _PATTERNS = {kind: bounded(re.escape(phrase) for phrase in phrases) for kind, phrases in FLOOR.items()}
 _ABSTAIN_PATTERNS = {
     kind: bounded(re.escape(phrase) for phrase in phrases) for kind, phrases in ABSTAIN.items()
@@ -160,12 +212,15 @@ _OPENING = "¡\"'«“ "
 
 @dataclass(frozen=True)
 class Route:
-    mode: Literal["safety", "open_mode", "choice", "topic", "story"]
+    mode: Literal["safety", "open_mode", "choice", "topic", "story", "closer"]
     floor: FloorClass | None = None
 
 
+_CONTRACTED = re.compile(r"\b(was|were|did|do|does|is|are|has|have|had|could|would|should)nt\b")
+
+
 def normalize(text: str) -> str:
-    return _SPACES.sub(" ", fold(text)).strip()
+    return _CONTRACTED.sub(r"\1n't", _SPACES.sub(" ", fold(text)).strip())
 
 
 def floor(text: str) -> FloorClass | None:
@@ -174,6 +229,10 @@ def floor(text: str) -> FloorClass | None:
         if pattern.search(normalized):
             return kind
     return None
+
+
+def closer(text: str) -> bool:
+    return bool(_CLOSER.fullmatch(_SPACES.sub(" ", _NOT_WORDS.sub(" ", normalize(text))).strip()))
 
 
 def abstain(text: str) -> AbstainClass | None:

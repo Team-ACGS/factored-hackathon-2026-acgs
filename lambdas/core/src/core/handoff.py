@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from core.facts.catalog import LIST_JOIN
+from core.facts.parts import Ask
 from core.facts.render import render_text
-from core.facts.values import Fact, Labels, Ledger
+from core.facts.values import Fact, Labels, Ledger, Status
 from core.ids import format_instant
 from core.receipts import bind
 
@@ -58,9 +60,9 @@ POINTS = {
     },
     "card": {"es": "Tarjeta {k.last4}.", "pt-BR": "Cartão {k.last4}.", "en": "Card {k.last4}."},
     "reasons": {
-        "es": "Lo que notó el banco: {c.verdict.reasons}.",
-        "pt-BR": "O que o banco notou: {c.verdict.reasons}.",
-        "en": "What the bank noticed: {c.verdict.reasons}.",
+        "es": "Lo que notó el banco: {reasons}.",
+        "pt-BR": "O que o banco notou: {reasons}.",
+        "en": "What the bank noticed: {reasons}.",
     },
     "note": {
         "es": "Sus palabras: {c.memory.note}.",
@@ -81,6 +83,34 @@ POINTS = {
         "es": "El bloqueo de la tarjeta {k.last4} no se pudo confirmar.",
         "pt-BR": "O bloqueio do cartão {k.last4} não pôde ser confirmado.",
         "en": "The block of card {k.last4} could not be confirmed.",
+    },
+}
+
+REASONS = {
+    "score_high": {
+        "es": "el sistema de alertas del banco emitió una alerta",
+        "pt-BR": "o sistema de alertas do banco emitiu um alerta",
+        "en": "the bank's alert system raised an alert",
+    },
+    "foreign_country": {
+        "es": "es en otro país",
+        "pt-BR": "é em outro país",
+        "en": "it is in another country",
+    },
+    "unusual_channel": {
+        "es": "es por un canal que no suele usar",
+        "pt-BR": "é por um canal que não costuma usar",
+        "en": "it is through a channel they do not usually use",
+    },
+    "new_merchant": {
+        "es": "es su primera compra en este comercio",
+        "pt-BR": "é a primeira compra nesse estabelecimento",
+        "en": "it is their first purchase at this merchant",
+    },
+    "several_unrecognized": {
+        "es": "hay varios cargos que no reconoce",
+        "pt-BR": "há várias cobranças que não reconhece",
+        "en": "there are several charges they do not recognize",
     },
 }
 
@@ -122,7 +152,7 @@ QUESTIONS = {
 class Package:
     kind: Kind
     request: str
-    case: Fact
+    case: Fact | None
     charge: Fact | None = None
     card: Fact | None = None
     block: BlockOutcome | None = None
@@ -138,8 +168,14 @@ def points(package: Package, locale: str) -> list[str]:
     if charge is not None:
         found.append(bind(POINTS["charge"][locale], c=charge))
         reasons = charge.fields.get("verdict.reasons")
-        if isinstance(reasons, Labels) and reasons.values:
-            found.append(bind(POINTS["reasons"][locale], c=charge))
+        known = (
+            [REASONS[reason][locale] for reason in reasons.values if reason in REASONS]
+            if isinstance(reasons, Labels)
+            else []
+        )
+        if known:
+            joined = known[0] if len(known) == 1 else ", ".join(known[:-1]) + LIST_JOIN[locale] + known[-1]
+            found.append(POINTS["reasons"][locale].format(reasons=joined))
         if "memory.note" in charge.fields:
             found.append(bind(POINTS["note"][locale], c=charge))
     elif card is not None:
@@ -148,6 +184,40 @@ def points(package: Package, locale: str) -> list[str]:
         found.append(bind(POINTS[package.block][locale], k=card))
     found.append(QUESTIONS[_question(package)][locale])
     return found
+
+
+def handoff_points(subjects: list[Fact], asked: Ask | None, ledger: Ledger, locale: str) -> list[str]:
+    target = (asked.target if asked else None) or {}
+    subject = subjects[0] if subjects else None
+    charge = subject if subject is not None and subject.kind == "charge" else None
+    card = subject if subject is not None and subject.kind == "card" else _card_of(charge, ledger)
+    fraud = target.get("area") == "fraud"
+    reason = str(target.get("reason") or "")
+    if fraud:
+        request = "not_me" if charge is not None else "lost"
+    else:
+        request = reason if reason in ("unblock", "refund", "human") else "other"
+    blocked = card is not None and card.fields.get("status") == Status("card", "Blocked")
+    block: BlockOutcome | None = "blocked_before" if fraud and blocked else None
+    case = subject if subject is not None and subject.kind == "case" else None
+    preview = Package("fraud" if fraud else "service", request, case, charge, card, block)
+    shown = []
+    for point in points(preview, locale):
+        try:
+            shown.append(render_text(point, ledger, locale))
+        except KeyError:
+            continue
+    return shown
+
+
+def _card_of(charge: Fact | None, ledger: Ledger) -> Fact | None:
+    wanted = charge.fields.get("charge.card_ref") if charge else None
+    cards = [
+        fact
+        for fact in ledger.facts.values()
+        if fact.kind == "card" and fact.fields.get("card_ref") == wanted
+    ]
+    return cards[-1] if wanted and cards else None
 
 
 def summary_template(package: Package, locale: str) -> str:

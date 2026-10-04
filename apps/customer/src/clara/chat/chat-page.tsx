@@ -11,8 +11,8 @@ import { useViewMeta } from "./meta";
 import { ChatPanel } from "./panel";
 import {
   faceOf,
-  fromEarlier,
   initialPanel,
+  latestView,
   panelMode,
   panelViews,
   pickIds,
@@ -37,7 +37,7 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
   const [sheet, setSheet] = useState<"open" | "closed">("closed");
   const input = useRef<HTMLTextAreaElement>(null);
   const views = panelViews(chat.messages);
-  const latest = views.at(-1)?.id ?? null;
+  const latest = latestView(chat.messages, views);
   const phase = useWorkingPhase(chat.thinking);
   const working = phase.kind === "working";
   const work = useWorking(chat.status, chat.statusAt);
@@ -180,7 +180,6 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
         mode={mode}
         face={face}
         look={look}
-        earlier={!working && fromEarlier(chat.messages, panel.selected)}
         asked={asked}
         nav={nav}
         sheet={sheet}

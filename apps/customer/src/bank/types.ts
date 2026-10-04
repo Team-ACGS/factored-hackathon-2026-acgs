@@ -23,7 +23,6 @@ export interface Card {
   current_balance: string | null;
   credit_limit: string | null;
   product_status: string;
-  expiration_date: string;
   balance_as_of: string | null;
   blocked_at?: string | null;
 }
@@ -32,7 +31,6 @@ export interface Transaction {
   transaction_id: string;
   product_id: string;
   transaction_date: string;
-  transaction_type: string;
   transaction_category: string | null;
   amount: string;
   currency: string;
@@ -42,7 +40,6 @@ export interface Transaction {
   transaction_country: string;
   transaction_city: string | null;
   transaction_status: TransactionStatus;
-  response_code: string;
   fraud_score: string | null;
 }
 

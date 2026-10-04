@@ -7,7 +7,7 @@ import { useNow } from "../../app/use-now";
 import { materialOf } from "../../bank/card-display";
 import { CardFace, CardUsage } from "../../bank/card-face";
 import { caseOfTransaction, stageKey, stepsOf } from "../../bank/cases";
-import { formatExpiration, formatMoney } from "../../bank/format";
+import { formatMoney } from "../../bank/format";
 import { cardTypeKey, isCredit, labelOf } from "../../bank/labels";
 import { entriesOf, isPending } from "../../bank/ledger";
 import { MovementContent, movementRowClass } from "../../bank/movement-row";
@@ -58,6 +58,8 @@ export function PanelView({ spec, nav }: { spec: ViewSpec; nav: Navigation }) {
         return <HistoryView spec={spec} nav={nav} />;
       case "case":
         return <CaseView spec={spec} nav={nav} />;
+      case "handoff":
+        return <HandoffView spec={spec} nav={nav} />;
     }
   })();
   return (
@@ -234,12 +236,11 @@ function CardView({ spec, nav }: ViewProps<"card">) {
       ? [
           [t("card.available"), money(Number(card.credit_limit) - Number(card.current_balance ?? 0))],
           [t("clara.chat.view.card.limit"), money(card.credit_limit)],
-          [t("clara.chat.view.card.expires"), formatExpiration(card.expiration_date)],
+          [t("clara.chat.view.card.type"), t(cardTypeKey(card))],
         ]
       : [
           [t("card.available"), money(card.current_balance ?? 0)],
           [t("clara.chat.view.card.type"), t(cardTypeKey(card))],
-          [t("clara.chat.view.card.expires"), formatExpiration(card.expiration_date)],
         ];
   const rows = entriesOf(ledger.data)
     .filter((entry): entry is Transaction => !isPending(entry))
@@ -255,7 +256,7 @@ function CardView({ spec, nav }: ViewProps<"card">) {
             <CardUsage card={card} tone="clara" />
           </div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3 sm:gap-2.5">
+        <div className={cn("grid gap-2 sm:gap-2.5", stats.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
           {stats.map(([term, value]) => (
             <div
               key={term}
@@ -452,6 +453,37 @@ function CaseCard({ item }: { item: Case }) {
   );
 }
 
+function HandoffView({ spec, nav }: ViewProps<"handoff">) {
+  const { t } = useI18n();
+  const subject = spec.subject;
+  return (
+    <>
+      {spec.points.length > 0 && (
+        <div className={cn(box, "grid gap-2.5 p-[22px]")}>
+          <b className="text-[14.5px]">{t("clara.chat.view.handoff.points")}</b>
+          <Points points={spec.points} />
+        </div>
+      )}
+      {subject?.kind === "case" && <CaseView spec={subject} nav={nav} />}
+      {subject?.kind === "charge" && <ChargeView spec={subject} nav={nav} />}
+      {subject?.kind === "card" && <CardView spec={subject} nav={nav} />}
+    </>
+  );
+}
+
+function Points({ points }: { points: string[] }) {
+  return (
+    <ul className="grid gap-1.5">
+      {points.map((point) => (
+        <li key={point} className="grid grid-cols-[14px_minmax(0,1fr)] gap-2 text-[14px] text-ink-2">
+          <span className="mt-[9px] size-1.5 rounded-full bg-ink-3" aria-hidden />
+          <span>{point}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Known({ item }: { item: Case }) {
   const { t } = useI18n();
   const points = item.summary_points ?? [];
@@ -459,14 +491,7 @@ function Known({ item }: { item: Case }) {
   return (
     <div className="grid gap-2.5 border-t border-line pt-3.5">
       <b className="text-[14.5px]">{t(handedOff ? "clara.chat.view.case.known" : "clara.chat.view.case.recorded")}</b>
-      <ul className="grid gap-1.5">
-        {points.map((point) => (
-          <li key={point} className="grid grid-cols-[14px_minmax(0,1fr)] gap-2 text-[14px] text-ink-2">
-            <span className="mt-[9px] size-1.5 rounded-full bg-ink-3" aria-hidden />
-            <span>{point}</span>
-          </li>
-        ))}
-      </ul>
+      <Points points={points} />
       {handedOff && (
         <p className="flex items-center gap-2 rounded-[14px] bg-muted px-3.5 py-3 text-[13.5px] font-semibold text-ink-2">
           <Headset className="size-[17px] flex-none" aria-hidden />

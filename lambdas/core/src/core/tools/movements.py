@@ -2,7 +2,7 @@ import base64
 import binascii
 import hashlib
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 from itertools import pairwise
@@ -12,6 +12,7 @@ from pydantic import Field
 
 from core.facts.lexicon import CATALOG_MERCHANTS
 from core.facts.values import (
+    CityCounts,
     Count,
     Day,
     FactIds,
@@ -75,14 +76,19 @@ class RecurringChargesInput(Input):
 
 
 def search_movements(context: ToolContext, ledger: Ledger, args: SearchMovementsInput) -> list[str]:
+    by_amount = args.sort != "date_desc"
     end = args.date_to or context.today
-    start = args.date_from or end - timedelta(days=DEFAULT_DAYS - 1)
+    start = args.date_from or (context.window_start if by_amount else end - timedelta(days=DEFAULT_DAYS - 1))
     start, end, clamped_from = _window(context, start, end)
     offset = _decode_cursor(args.cursor, args) if args.cursor else 0
     reader = Reader(context)
     cards = reader.cards_for(args.card_ref)
     rows, scan_truncated = reader.movements(cards, start, end)
-    matched = _sorted([row for row in rows if _matches(row, args)], args.sort)
+    purchases_only = by_amount and args.status is None
+    matched = _sorted(
+        [row for row in rows if _matches(row, args) and (counts_as_spending(row) or not purchases_only)],
+        args.sort,
+    )
     page = matched[offset : offset + args.limit]
     more = offset + len(page) < len(matched)
     by_id = {card.product_id: card for card in cards}
@@ -93,6 +99,7 @@ def search_movements(context: ToolContext, ledger: Ledger, args: SearchMovements
         {
             **chosen_card(args.card_ref, cards),
             "count": Count(len(matched), "movement"),
+            "by_city": by_city(matched),
             "ids": FactIds(tuple(fact.id for fact in facts)),
             "truncated": Flag(more or scan_truncated),
             "cursor": Trace(_encode_cursor(offset + len(page), args)) if more else None,
@@ -103,6 +110,13 @@ def search_movements(context: ToolContext, ledger: Ledger, args: SearchMovements
         },
     )
     return [*(fact.id for fact in facts), aggregate.id]
+
+
+def by_city(rows: list[Movement]) -> CityCounts | None:
+    counts = Counter(row.city for row in rows if row.city)
+    if not counts:
+        return None
+    return CityCounts(tuple(sorted(counts.items(), key=lambda entry: (-entry[1], entry[0]))))
 
 
 def _newest_first_page(args: SearchMovementsInput) -> bool:

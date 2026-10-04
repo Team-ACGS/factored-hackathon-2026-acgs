@@ -4,8 +4,8 @@ import type { AskKind, ChatMessage, ViewPart } from "../../chat/conversation";
 import {
   entityMode,
   faceOf,
-  fromEarlier,
   initialPanel,
+  latestView,
   panelMode,
   panelViews,
   pickIds,
@@ -81,13 +81,37 @@ describe("clara's panel", () => {
     expect(faceOf("hero", { ...calm, typing: true })).toBe("escucha");
   });
 
-  it("marks a view that is not the latest reply's own", () => {
+  it("follows only the latest reply's view, so a reply without one leaves the panel to Clara", () => {
     const answered = [clara("m1", movements), clara("m2", null)];
+    const latest = (messages: ChatMessage[]) => latestView(messages, panelViews(messages));
 
-    expect(fromEarlier(answered, "m1")).toBe(true);
-    expect(fromEarlier([clara("m1", movements)], "m1")).toBe(false);
-    expect(fromEarlier([clara("m1", movements), clara("m2", cards)], "m1")).toBe(true);
-    expect(fromEarlier(answered, null)).toBe(false);
+    expect(latest(answered)).toBeNull();
+    expect(latest([clara("m1", movements)])).toBe("m1");
+    expect(latest([clara("m1", movements), clara("m2", cards)])).toBe("m2");
+    const followed = reducePanel(reducePanel(initialPanel, { type: "follow", id: "m1" }), {
+      type: "follow",
+      id: latest(answered),
+    });
+    expect(shownView(followed, panelViews(answered))).toBeNull();
+    const reopened = reducePanel(followed, { type: "restore", id: "m1" });
+    expect(shownView(reopened, panelViews(answered))?.id).toBe("m1");
+  });
+
+  it("shows a handoff card with its subject and the points the person gets", () => {
+    const handoff: ViewPart = {
+      kind: "handoff",
+      rows: [],
+      cards: [],
+      cases: ["c1"],
+      readings: { points: ["Pide hablar con una persona."] },
+    };
+
+    expect(specOf(handoff)).toEqual({
+      kind: "handoff",
+      subject: { kind: "case", cases: ["c1"] },
+      points: ["Pide hablar con una persona."],
+    });
+    expect(specOf({ ...handoff, cases: [], readings: {} })).toEqual({ kind: "handoff", subject: null, points: [] });
   });
 });
 

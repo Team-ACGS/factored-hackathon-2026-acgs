@@ -8,11 +8,12 @@ from typing import Any, Literal
 
 from clara_testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
 from core.countries import zone
-from core.facts.catalog import MONTHS
-from core.facts.render import format_money
+from core.facts.catalog import LOCALES, MONTHS
+from core.facts.render import format_money, render_value
+from core.facts.values import Ledger
 from core.ids import uuid7_at
 from core.messaging import Message, customer_message, reply_to
-from core.policies import chunk_id, policy_facts
+from core.policies import CountryFacts, chunk_id, policy_facts
 from core.replies import Reply
 from core.retrieval import NON_FILTERABLE, ChunkRecord, PolicySearch, VectorRetriever
 from core.vectors import SEARCH_DOCUMENT, Vector
@@ -40,6 +41,16 @@ class Document:
     page: int
     section: int = 3
 
+
+ESCALATION_FIGURES = (
+    "service.handoff_hours",
+    "channels.phone",
+    "channels.phone_schedule",
+    "service.ombudsman_name",
+    "service.ombudsman",
+    "service.ombudsman_response",
+    "authority.consumer_agency",
+)
 
 DOCUMENTS = {
     "PE": (
@@ -90,6 +101,23 @@ DOCUMENTS = {
             ("cards.replacement_time",),
             3,
             7,
+        ),
+        Document(
+            "dispute-lifecycle",
+            "disputes",
+            "dispute_lifecycle",
+            "procedure",
+            "Ciclo de una aclaración",
+            "Usted puede pedir hablar con una persona por el chat, que atiende "
+            "{{policy.service.handoff_hours}}, o en el {{policy.channels.phone}}, que atiende "
+            "{{policy.channels.phone_schedule}}. Si no está conforme con la respuesta, o si el plazo del "
+            "banco vence sin ella, puede escribir a la defensoría del banco, "
+            "{{policy.service.ombudsman_name}}, en {{policy.service.ombudsman}}, que responde en "
+            "{{policy.service.ombudsman_response}}. La autoridad de protección al consumidor "
+            "({{policy.authority.consumer_agency}}) es el siguiente paso fuera del banco.",
+            ESCALATION_FIGURES,
+            5,
+            9,
         ),
     ),
     "BR": (
@@ -142,6 +170,23 @@ DOCUMENTS = {
             3,
             7,
         ),
+        Document(
+            "dispute-lifecycle",
+            "disputes",
+            "dispute_lifecycle",
+            "procedure",
+            "Ciclo de uma contestação",
+            "Você pode pedir para falar com uma pessoa pelo chat, que atende "
+            "{{policy.service.handoff_hours}}, ou "
+            "no {{policy.channels.phone}}, que atende {{policy.channels.phone_schedule}}. Se não estiver "
+            "satisfeito com a resposta, ou se o prazo do banco terminar sem ela, você pode escrever para a "
+            "ouvidoria do banco, {{policy.service.ombudsman_name}}, em {{policy.service.ombudsman}}, que "
+            "responde em {{policy.service.ombudsman_response}}. O órgão de defesa do consumidor "
+            "({{policy.authority.consumer_agency}}) é o passo seguinte fora do banco.",
+            ESCALATION_FIGURES,
+            5,
+            9,
+        ),
     ),
 }
 
@@ -188,6 +233,30 @@ NOT_MINE_ES = (
     ),
 )
 
+CASE_PT = (
+    ("customer", "Como está minha contestação?"),
+    ("assistant", "Sua contestação está em análise, referente à cobrança no seu cartão de débito."),
+    ("customer", "quanto tempo vai demorar?"),
+    ("assistant", "O banco analisa a contestação em até 8 dias úteis."),
+)
+TEN_DAYS_PT = "o que posso fazer se nao resolvem em 10 dias?"
+ABOUT_YOU_PT = (
+    ("customer", "Puedes decir mis datos personales?"),
+    (
+        "assistant",
+        "Você é Ana, cliente do LATAM Bank (Brasil). Você tem 3 cartões: o de crédito, o de crédito e o de "
+        "débito.",
+    ),
+)
+CINEMARK_PT = (
+    ("customer", "nao reconheco a compra no cinemark"),
+    (
+        "assistant",
+        "Encontrei as suas movimentações no Cinemark neste período. Qual delas você não reconhece?",
+    ),
+)
+RIO_PT = "todas as compras foram no rio de janeiro?"
+
 DEMO = {
     "spend_es": DemoTurn("PE", "es", "¿Cuánto gasté en Primax este mes vs el pasado?"),
     "case_es": DemoTurn("PE", "es", "¿cuándo me devuelven la plata de mi aclaración?"),
@@ -220,15 +289,50 @@ DEMO = {
     "flagged_pt": DemoTurn("BR", "pt-BR", TOPIC_TEXT["pt-BR"], planted=True, topic="flagged"),
     "unblock_es": DemoTurn("PE", "es", "Desbloquea mi tarjeta, por favor"),
     "unblock_pt": DemoTurn("BR", "pt-BR", "desbloqueia meu cartão, por favor"),
+    "ten_days_pt": DemoTurn("BR", "pt-BR", TEN_DAYS_PT, CASE_PT),
+    "about_you_pt": DemoTurn("BR", "pt-BR", "o que você sabe de mim?"),
+    "document_pt": DemoTurn(
+        "BR", "pt-BR", "Pode falar mais dados? quero o número do meu documento ou meu endereco", ABOUT_YOU_PT
+    ),
+    "cannot_tell_pt": DemoTurn(
+        "BR", "pt-BR", "que dados sensíveis voce nao pode falar para mim?", ABOUT_YOU_PT
+    ),
+    "spanish_pt": DemoTurn("BR", "pt-BR", "¿cuántas tarjetas de crédito tengo y están activas?"),
+    "largest_pt": DemoTurn("BR", "pt-BR", "mas qual foi a maior compra que fiz?"),
+    "rio_pt": DemoTurn("BR", "pt-BR", RIO_PT, CINEMARK_PT),
+    "rio_again_pt": DemoTurn(
+        "BR",
+        "pt-BR",
+        "Todas sao do Cinemark do Rio?",
+        (*CINEMARK_PT, ("customer", RIO_PT), ("assistant", "Encontrei as suas movimentações no Cinemark.")),
+    ),
+    "ten_days_again_pt": DemoTurn(
+        "BR",
+        "pt-BR",
+        "se nao consiguem resolver em 10 dias, o que posso fazer?",
+        (
+            *CASE_PT,
+            ("customer", TEN_DAYS_PT),
+            ("assistant", "Não consegui verificar isso agora. Tente de novo em um momento."),
+        ),
+    ),
 }
 KEPT = {"unrecognized_es": "¿y por qué me cobraron eso si casi no voy?"}
+FREE = {
+    "unrecognized_es": "claro, esa la hice yo en el grifo",
+    "unrecognized_pt": "foi eu sim, era o cinema com a família",
+}
+NOT_ME_FREE = {
+    "unrecognized_es": "yep, that's the one, it wasnt me",
+    "unrecognized_pt": "não foi eu, nunca fui lá",
+}
 
 
 FLAGGED = ("flagged_es", "flagged_pt")
 
 
 def base(name: str) -> str:
-    for suffix in ("_why", "_no", "_block", "_yes", "_card", "_open", "_tap", "_pick", "_kept"):
+    for suffix in ("_why", "_no", "_block", "_yes", "_card", "_open", "_tap", "_pick", "_kept", "_free"):
         name = name.removesuffix(suffix)
     return name
 
@@ -250,9 +354,7 @@ def policy_index(country: str) -> PolicySearch:
             effective_date=date(2026, 9, 1),
             section=document.title,
             title=document.title,
-            text=document.text.replace("{{policy.claims.review_time}}", "…").replace(
-                "{{policy.channels.phone}}", "…"
-            ),
+            text=rendered(document.text, facts),
             figures={key: facts.specs[key] for key in document.figures},
             page_start=document.page,
             page_end=document.page + 1,
@@ -270,6 +372,14 @@ def policy_index(country: str) -> PolicySearch:
         VectorRetriever(local_embedder(bedrock), local_index(vectors)),
         {"es": 0.0, "pt": 0.0, "en": 0.0},
         "docs.factoredai.sdfles.com",
+    )
+
+
+def rendered(text: str, facts: CountryFacts) -> str:
+    ledger = Ledger(facts.country, NOW)
+    language = facts.language if facts.language in LOCALES else facts.language.split("-")[0]
+    return PLACEHOLDER.sub(
+        lambda match: render_value(facts.figure(match.group(0)[9:-2]), ledger, language, article=False), text
     )
 
 
@@ -414,3 +524,10 @@ def planted_charge(aws: Aws, customer_id: str) -> dict[str, Any]:
     )["Items"]
     [planted] = [item for item in items if str(item["merchant_name"]).endswith(" 2979")]
     return planted
+
+
+def forget(aws: Aws, customer_id: str) -> None:
+    for item in aws.memory.query(
+        KeyConditionExpression="customer_id = :id", ExpressionAttributeValues={":id": customer_id}
+    )["Items"]:
+        aws.memory.delete_item(Key={"customer_id": customer_id, "memory_key": item["memory_key"]})

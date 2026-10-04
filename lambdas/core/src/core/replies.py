@@ -8,14 +8,17 @@ from core.facts.catalog import LABELS
 from core.facts.render import format_date, render_value
 from core.facts.targets import (
     CARD_CANDIDATES,
+    HANDOFF,
     Option,
     Unfit,
     ask_options,
     ask_target,
     recent_pick,
     view_items,
+    with_views,
 )
 from core.facts.values import Count, Day, Fact, Instant, Json, Labels, Ledger, Ref, Text, Trace, Value
+from core.handoff import handoff_points
 
 Source = Literal["composed", "repaired", "fallback", "safety", "say_key", "story"]
 
@@ -125,6 +128,7 @@ class Reply:
 
 
 def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) -> Reply:
+    parts = with_views(list(parts), ledger)
     says = [part for part in parts if isinstance(part, Say)]
     rendered = render(says, ledger, locale)
     chunks = ledger.chunks()
@@ -136,10 +140,11 @@ def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) 
     public: list[Json] = list(rendered)
     draft: list[Json] = [part.to_wire() for part in says]
     shown = [part for part in parts if not isinstance(part, Say)]
-    for part in [*_picked_from(shown, ledger), *shown]:
+    asked = next((part for part in shown if isinstance(part, Ask)), None)
+    for part in shown:
         try:
             if isinstance(part, View):
-                public.append(view(part, ledger, locale))
+                public.append(view(part, ledger, locale, asked))
                 draft.append(part.to_wire())
             else:
                 options = ask_options(part, ledger)
@@ -157,19 +162,6 @@ def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) 
     )
 
 
-def _picked_from(shown: Sequence[Part], ledger: Ledger) -> list[View]:
-    asked = next((part for part in shown if isinstance(part, Ask) and part.ask == "which_one"), None)
-    if asked is None or any(isinstance(part, View) for part in shown):
-        return []
-    try:
-        options = ask_options(asked, ledger)
-    except Unfit:
-        return []
-    if any(option.read.get("tool") != "charge_facts" for option in options):
-        return []
-    return [View("movements", asked.facts)]
-
-
 def _drafted(part: Ask, options: list[Option], ledger: Ledger) -> Json:
     wire: Json = {**part.to_wire(), "options": [{"id": item.id, "read": item.read} for item in options]}
     target = ask_target(part, ledger)
@@ -182,10 +174,13 @@ def _drafted(part: Ask, options: list[Option], ledger: Ledger) -> Json:
     return wire
 
 
-def view(part: View, ledger: Ledger, locale: str) -> Json:
+def view(part: View, ledger: Ledger, locale: str, asked: Ask | None = None) -> Json:
     wire: Json = {"type": "view", "view": part.view, "items": view_items(part, ledger)}
     facts = [ledger.facts[fact_id] for fact_id in part.facts]
-    readings = READINGS.get(part.view, _none)(facts, ledger, locale)
+    if part.view == HANDOFF:
+        readings = {"points": handoff_points(facts, asked, ledger, locale)}
+    else:
+        readings = READINGS.get(part.view, _none)(facts, ledger, locale)
     if readings:
         wire["readings"] = readings
     return wire

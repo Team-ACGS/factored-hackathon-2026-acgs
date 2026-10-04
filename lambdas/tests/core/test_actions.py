@@ -1,3 +1,4 @@
+import re
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -233,6 +234,11 @@ def test_yes_blocks_reads_back_opens_the_fraud_case_and_shows_the_package(
         point.startswith("Tarjeta terminada en") and "bloqueada" in point for point in case["summary_points"]
     )
     assert case["summary_points"][-1].startswith("Pregunta abierta: ")
+    [noticed] = [point for point in case["summary_points"] if point.startswith("Lo que notó el banco: ")]
+    assert "emitió una alerta" in noticed
+    assert not [
+        point for point in case["summary_points"] if re.search(r"\b(tu|tus|sueles|reconoces)\b", point)
+    ]
     assert case["evidence"]["ask_id"] == ask_id
     texts = done.reply.text.split("\n\n")
     assert texts[0].startswith("Listo: tu tarjeta terminada en ")
@@ -257,6 +263,18 @@ def test_a_composed_summary_is_checked_and_stored_as_compose(aws: Aws, account: 
     [case] = cases(aws)
     assert case["summary_source"] == "compose"
     assert case["summary"].startswith("No reconoce el cargo en ")
+
+
+def test_a_summary_that_speaks_of_the_reasons_to_the_customer_is_stored_from_the_template(
+    aws: Aws, account: DemoAccount
+) -> None:
+    chat, asked, _ = flagged_chat(aws, account)
+    confirm, _ = chat.tap(asked, "no")
+
+    chat.tap(confirm, "yes", composed("No reconoce el cargo. Lo que notó el banco: {f6.verdict.reasons}."))
+
+    [case] = cases(aws)
+    assert case["summary_source"] == "template"
 
 
 def test_a_redelivered_confirmation_changes_nothing_and_answers_the_same(

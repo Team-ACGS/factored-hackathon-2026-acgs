@@ -9,7 +9,8 @@ export type ViewSpec =
   | { kind: "movement"; row: Row }
   | { kind: "charge"; row: Row; readings: Readings }
   | { kind: "history"; rows: Row[]; readings: Readings }
-  | { kind: "case"; cases: string[] };
+  | { kind: "case"; cases: string[] }
+  | { kind: "handoff"; subject: ViewSpec | null; points: string[] };
 
 export interface PanelView {
   id: string;
@@ -48,7 +49,22 @@ export function specOf(part: ViewPart): ViewSpec | null {
       return row ? { kind: "charge", row, readings: part.readings } : null;
     case "case":
       return part.cases.length ? { kind: "case", cases: part.cases } : null;
+    case "handoff":
+      return { kind: "handoff", subject: subjectOf(part), points: part.readings.points ?? [] };
   }
+}
+
+function subjectOf(part: ViewPart): ViewSpec | null {
+  const [row] = part.rows;
+  const [card] = part.cards;
+  if (part.cases.length) return { kind: "case", cases: part.cases.slice(0, 1) };
+  if (row) return { kind: "charge", row, readings: {} };
+  return card ? { kind: "card", productId: card } : null;
+}
+
+export function latestView(messages: readonly ChatMessage[], views: readonly PanelView[]): string | null {
+  const reply = messages.findLast((message) => message.senderType === "assistant");
+  return reply && views.some((view) => view.id === reply.messageId) ? reply.messageId : null;
 }
 
 export function panelViews(messages: readonly ChatMessage[]): PanelView[] {
@@ -131,11 +147,6 @@ export function storyFaces(messages: readonly ChatMessage[]): StoryFaces {
   }
   if (last.ask && confirming.includes(last.ask.kind)) return { settled: "confirma" };
   return {};
-}
-
-export function fromEarlier(messages: readonly ChatMessage[], selected: string | null): boolean {
-  const reply = messages.findLast((message) => message.senderType === "assistant");
-  return selected !== null && reply !== undefined && reply.messageId !== selected;
 }
 
 export function pickIds(asked: ChatMessage | null, shown: PanelView | null): ReadonlySet<string> | null {

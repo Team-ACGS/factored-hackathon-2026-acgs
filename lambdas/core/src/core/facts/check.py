@@ -14,6 +14,8 @@ from core.facts.catalog import (
     FEMININE_NOUNS,
     FORBIDDEN,
     INSTRUCTIONS,
+    LANGUAGE_MARKERS,
+    LANGUAGE_MIN_MARKERS,
     MONTHS,
     NOUNS,
     NUMBER_HOMONYMS,
@@ -30,7 +32,7 @@ from core.facts.catalog import (
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.parts import Ask, Part, Say, View
 from core.facts.render import CITATION, REFERENCE, is_renderable, is_singular, render_value, resolve
-from core.facts.targets import SHOWN_ROWS, Unfit, ask_options, view_items
+from core.facts.targets import SHOWN_ROWS, Unfit, ask_options, code_views, missing_views, view_items
 from core.facts.values import (
     Channel,
     Count,
@@ -79,6 +81,9 @@ PLURAL_CUES = {
 }
 CLAUSE_START = re.compile(r"[.;:!?]")
 PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d|activ)(os|as|o|a)(?!\w)")
+QUOTED = re.compile(r"«[^»]*»|“[^”]*”|\"[^\"]*\"")
+WORDS = re.compile(r"[^\W\d_]+")
+LETTER = re.compile(r"[^\W\d_]")
 DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
 
@@ -91,6 +96,7 @@ class CheckError:
     text: str
     instruction: str
     context: str = ""
+    facts: tuple[str, ...] = ()
 
     def to_dict(self) -> Json:
         return {
@@ -112,6 +118,8 @@ def check(
     errors: list[CheckError] = []
     for index, part in enumerate(parts):
         match part:
+            case Say(text) if not wordy(text):
+                errors.append(_error("empty_say", index, (0, len(text)), text))
             case Say(text):
                 errors.extend(_SayCheck(index, text, ledger, locale).run())
             case View():
@@ -128,6 +136,12 @@ def check(
                     ask_options(part, ledger)
                 except Unfit as unfit:
                     errors.append(_part_error(unfit.code, index, unfit.fact_id, part))
+    broken = {error.part for error in errors}
+    errors.extend(
+        _part_error("ask_without_view", parts.index(ask), ask.ask, ask)
+        for ask in missing_views(code_views(list(parts), ledger))
+        if parts.index(ask) not in broken
+    )
     errors.extend(_movements_beside_spend(parts, ledger))
     errors.extend(_cards_without_series(parts, ledger))
     return sorted(errors, key=lambda error: (error.part, error.span))
@@ -145,6 +159,9 @@ def tidy_reply(texts: Sequence[str], ledger: Ledger) -> tuple[list[str], dict[st
             kind == "movements" or (kind == "spend" and field in SPEND_SCOPE) for kind, field in found
         )
 
+    placed = [CITATION_AFTER_END.subn(r" \2\1", text) for text in texts]
+    texts = [text for text, _ in placed]
+    moved = sum(count for _, count in placed)
     spend = any("spend" in referenced(text) for text in texts)
 
     def dropped_as(sentence: str) -> str | None:
@@ -160,7 +177,7 @@ def tidy_reply(texts: Sequence[str], ledger: Ledger) -> tuple[list[str], dict[st
         return None
 
     kept: list[str] = []
-    edits: dict[str, int] = {}
+    edits: dict[str, int] = {"citation_placement": moved} if moved else {}
     for text in texts:
         others = []
         for sentence in (match.group(0) for match in SENTENCE.finditer(text) if match.group(0)):
@@ -172,8 +189,12 @@ def tidy_reply(texts: Sequence[str], ledger: Ledger) -> tuple[list[str], dict[st
         if "".join(others).strip():
             kept.append("".join(others).strip())
     if not kept:
-        return list(texts), {}
+        return list(texts), {"citation_placement": moved} if moved else {}
     return kept, edits
+
+
+def wordy(text: str) -> bool:
+    return bool(REFERENCE.search(text) or LETTER.search(CITATION.sub("", text)))
 
 
 def _cards_without_series(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
@@ -454,6 +475,11 @@ def _present_today(locale: str) -> re.Pattern[str]:
 
 
 @cache
+def _markers() -> dict[str, frozenset[str]]:
+    return {locale: frozenset(words.split()) for locale, words in LANGUAGE_MARKERS.items()}
+
+
+@cache
 def _location_talk() -> re.Pattern[str]:
     return bounded(FORBIDDEN["location_talk"])
 
@@ -521,7 +547,29 @@ class _SayCheck:
         for code, pattern in _forbidden():
             self._scan_folded(pattern, code)
         self._uncited_process()
+        self._language()
         return self.errors
+
+    def _language(self) -> None:
+        if self.locale not in LANGUAGE_MARKERS:
+            return
+        text = QUOTED.sub(lambda match: " " * len(match.group(0)), "".join(self.outside))
+        words = WORDS.findall(fold(text))
+        found = {
+            locale: sum(1 for word in words if word in markers) for locale, markers in _markers().items()
+        }
+        own = found.pop(self.locale)
+        other = max(found.values(), default=0)
+        if other >= LANGUAGE_MIN_MARKERS and other > own:
+            self.errors.append(
+                CheckError(
+                    "wrong_language",
+                    self.part,
+                    (0, len(self.original)),
+                    self.original,
+                    INSTRUCTIONS["wrong_language"],
+                )
+            )
 
     def _uncited_process(self) -> None:
         start = 0

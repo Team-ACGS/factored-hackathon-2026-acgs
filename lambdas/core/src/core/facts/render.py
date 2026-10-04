@@ -7,6 +7,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from core.countries import zone
 from core.facts.catalog import (
     ARTICLE_DROPPED_AFTER,
+    CITY_ARTICLES,
+    CITY_PREPOSITIONS,
     CLOCK_AT,
     COUNTRY_NAMES,
     DATE_ARTICLE,
@@ -32,6 +34,7 @@ from core.facts.values import (
     CaseCode,
     Channel,
     City,
+    CityCounts,
     Count,
     Country,
     Day,
@@ -180,12 +183,11 @@ def render_value(value: Value, ledger: Ledger, locale: str, article: bool = True
         case Label(domain, entry):
             return label(domain, entry, locale)
         case Labels(domain, entries):
-            rendered = [label(domain, entry, locale) for entry in entries]
-            if len(rendered) <= 1:
-                return "".join(rendered)
-            return ", ".join(rendered[:-1]) + LIST_JOIN[locale] + rendered[-1]
+            return _joined([label(domain, entry, locale) for entry in entries], locale)
         case Merchant(text) | City(text) | CaseCode(text) | Channel(_, text) | Url(text) | Text(text):
             return text
+        case CityCounts(entries):
+            return _joined([_in_city(count, city, locale) for city, count in entries], locale)
         case Percent(percent):
             return format_percent(percent, ledger.country)
         case Country(code):
@@ -196,6 +198,16 @@ def render_value(value: Value, ledger: Ledger, locale: str, article: bool = True
             opening, closing = QUOTES[locale]
             return f"{opening}{text}{closing}"
     raise TraceOnly(type(value).__name__)
+
+
+def _joined(rendered: list[str], locale: str) -> str:
+    if len(rendered) <= 1:
+        return "".join(rendered)
+    return ", ".join(rendered[:-1]) + LIST_JOIN[locale] + rendered[-1]
+
+
+def _in_city(count: int, city: str, locale: str) -> str:
+    return f"{count} {CITY_ARTICLES.get(locale, {}).get(city, CITY_PREPOSITIONS[locale])} {city}"
 
 
 def is_renderable(value: Value) -> bool:

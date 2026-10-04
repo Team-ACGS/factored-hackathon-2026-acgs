@@ -14,7 +14,6 @@ export function cardAt(product_type: string, instant = setupAt, overrides: Parti
     current_balance: "1000.00",
     credit_limit: null,
     product_status: "Active",
-    expiration_date: "2030-11-30",
     balance_as_of: new Date(instant).toISOString(),
     ...overrides,
   };
@@ -29,7 +28,6 @@ export function purchase(card: Card, daysBeforeSetup: number, overrides: Partial
     transaction_id: v7({ msecs: instant, seq: sequence }),
     product_id: card.product_id,
     transaction_date: new Date(instant).toISOString(),
-    transaction_type: "Purchase",
     transaction_category: "Entertainment",
     amount: "540.00",
     currency: "MXN",
@@ -39,7 +37,6 @@ export function purchase(card: Card, daysBeforeSetup: number, overrides: Partial
     transaction_country: "MX",
     transaction_city: "Tlalnepantla",
     transaction_status: "Approved",
-    response_code: "00",
     fraud_score: "12.50",
     ...overrides,
   };
