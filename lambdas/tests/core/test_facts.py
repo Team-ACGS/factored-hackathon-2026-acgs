@@ -409,6 +409,15 @@ def with_chunk(book: Ledger) -> Ledger:
         ("Aquí puedes verlos todos.", "es", ["location_talk"]),
         ("As mais recentes estão abaixo.", "pt-BR", ["location_talk"]),
         ("You can see them below.", "en", ["location_talk"]),
+        ("Este cargo está por debajo de lo habitual.", "es", []),
+        ("A continuación te explico el proceso.", "es", []),
+        ("Ese cargo está muy por debajo de tu promedio y aquí no veo otro.", "es", []),
+        ("It is below your usual spend.", "en", []),
+        ("Here is what I found.", "en", []),
+        ("O valor ficou abaixo do habitual.", "pt-BR", []),
+        ("El banco le asignó un nivel de riesgo elevado.", "es", ["risk_talk"]),
+        ("O nível de risco detectado foi alto.", "pt-BR", ["risk_talk"]),
+        ("The bank flagged it as high risk.", "en", ["risk_talk"]),
         ("El banco la revisará y te responderá pronto.", "es", ["told_promise"]),
         ("O banco vai te responder.", "pt-BR", ["told_promise"]),
         ("The bank will get back to you.", "en", ["told_promise"]),
@@ -1162,6 +1171,8 @@ def test_a_bare_pointer_or_uncited_advice_is_dropped_before_the_check_and_counte
 
     assert texts == ["Gastaste {f1.total}.", f"Puedes abrir una aclaración llamando al banco [p:{CHUNK}]."]
     assert edits == {"location_talk": 1, "uncited_process": 1}
+    ordinary = ["Gastaste {f1.total}.", "Es un monto por debajo de lo habitual."]
+    assert tidy_reply(ordinary, book) == (ordinary, {})
     assert tidy_reply(["Puedes cancelar {f1.merchant} con el comercio."], book) == (
         ["Puedes cancelar {f1.merchant} con el comercio."],
         {},

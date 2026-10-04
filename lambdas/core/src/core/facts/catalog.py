@@ -556,25 +556,24 @@ FORBIDDEN = {
         r"you (will|'ll) (hear|get an answer|receive an answer|be told|be informed|be notified|be contacted)",
     ),
     "location_talk": (
-        r"a continuacion",
-        r"aqui",
-        r"abajo",
-        r"debajo",
-        r"a la derecha",
-        r"al lado",
-        r"en (el|este) panel",
-        r"en (la|esta) pantalla",
-        r"a seguir",
-        r"abaixo",
-        r"ao lado",
-        r"a direita",
-        r"no painel",
-        r"na tela",
-        r"below",
-        r"here",
-        r"on the right",
-        r"in the panel",
-        r"on (the|your) screen",
+        r"(aparecen|estan|ves|veras|te muestro|listad\w*|mostrad\w*) "
+        r"(aqui |mas )?(a continuacion|abajo|debajo)",
+        r"(mas|aqui) abajo",
+        r"aqui (puedes|podras|tienes|estan|aparecen|te muestro)",
+        r"(a la derecha|en (el|este) panel|en (la|esta) pantalla)",
+        r"(estao|aparecem|veja|mostro|listad\w*|mostrad\w*) (aqui )?(a seguir|abaixo)",
+        r"(logo|aqui) abaixo",
+        r"aqui (voce pode|estao|aparecem)",
+        r"(a direita|no painel|na tela)",
+        r"(see|listed|shown) (them |it |\w+ )?(below|here)",
+        r"(below|here) you can",
+        r"(on the right|in the panel|on (the|your) screen)",
+    ),
+    "risk_talk": (
+        r"(riesgo|puntaje|puntuacion|score|risco|pontuacao) (\w+ ){0,3}(alt[oa]s?|elevad[oa]s?)",
+        r"(alto|elevado) (nivel de )?(riesgo|risco)",
+        r"(high|elevated) risk",
+        r"risk (\w+ ){0,2}(high|elevated)",
     ),
     "promise_talk": (
         r"promet\w*",
@@ -626,6 +625,9 @@ INSTRUCTIONS = {
     "money_promise": "Never promise money back; describe the next step of the process instead.",
     "legal_term": "Avoid legal terms; describe the bank's process in plain words.",
     "promise_talk": "Never say what you can or cannot promise; state the bank's process with its citation.",
+    "risk_talk": (
+        "Say what the bank saw only as {fN.verdict.reasons}; never describe a risk, score or alert level."
+    ),
     "told_promise": (
         "Never say the bank will answer, contact or inform the customer; state the review and its cited "
         "timeframe only."
