@@ -2,7 +2,20 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from core.facts.parts import Ask, View
-from core.facts.values import Count, Fact, FactIds, Flag, Json, Ledger, Merchant, Period, Ref, Refs, Trace
+from core.facts.values import (
+    Count,
+    Fact,
+    FactIds,
+    Flag,
+    Json,
+    Labels,
+    Ledger,
+    Merchant,
+    Period,
+    Ref,
+    Refs,
+    Trace,
+)
 
 MAX_VIEW_ITEMS = 25
 SHOWN_ROWS = 5
@@ -18,6 +31,7 @@ TRANSACTION_REF = {
 CARD_REF = {"card": "card_ref", "movement": "card_ref", "charge": "charge.card_ref", "recurring": "card_ref"}
 LISTS = {"movements", "cards", "recurring_list", "cases"}
 CARD_CANDIDATES = ("card", "movements", "spend")
+ANSWER_OPTIONS = ("yes", "no")
 
 
 class Unfit(ValueError):
@@ -56,7 +70,29 @@ def ask_options(ask: Ask, ledger: Ledger) -> list[Option]:
         if option is None:
             raise Unfit("ask_fact_unfit", facts[0].id)
         return [option]
+    if ask.ask == "recognize_charge":
+        if len(facts) != 1 or facts[0].kind != "charge" or _transaction(facts[0], ledger) is None:
+            raise Unfit("ask_fact_unfit", facts[0].id if facts else ask.ask)
+        return [Option(answer, facts[0]) for answer in ANSWER_OPTIONS]
     raise Unfit("ask_not_allowed", ask.ask)
+
+
+def ask_target(ask: Ask, ledger: Ledger) -> Json | None:
+    if ask.ask != "recognize_charge":
+        return None
+    return _transaction(ledger.facts[ask.facts[0]], ledger)
+
+
+def recent_pick(ask: Ask, ledger: Ledger) -> bool:
+    if ask.ask != "which_one":
+        return False
+    return _newest_of_recent([ledger.facts[fact_id] for fact_id in ask.facts], ledger)
+
+
+def recognizable(fact: Fact) -> bool:
+    reasons = fact.fields.get("verdict.reasons")
+    flagged = isinstance(reasons, Labels) and "score_high" in reasons.values
+    return fact.kind == "charge" and "memory.type" not in fact.fields and not flagged
 
 
 def candidate(fact: Fact, ledger: Ledger) -> tuple[str, Json] | None:

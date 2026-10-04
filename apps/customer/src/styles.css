@@ -448,7 +448,7 @@
 }
 
 .chat-panel[data-bar] .chat-body {
-  padding-bottom: 210px;
+  padding-bottom: calc(max(var(--bar-height), 160px) + 40px);
 }
 
 .chat-body[data-leaving] > * {

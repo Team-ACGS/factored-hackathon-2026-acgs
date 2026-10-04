@@ -1,5 +1,5 @@
 import { ClaraEntity } from "@clara/ui/components/clara-entity";
-import { ArrowUp, ChevronUp } from "lucide-react";
+import { ArrowUp, ChevronUp, Loader2 } from "lucide-react";
 import { Suspense, useReducer, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { brand } from "../../bank/brand";
@@ -15,6 +15,7 @@ import {
   initialPanel,
   panelMode,
   panelViews,
+  pickIds,
   reducePanel,
   shownView,
   type PanelView,
@@ -42,6 +43,7 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
   const asked = working ? null : openAsk(chat.messages);
 
   const [seenAsk, setSeenAsk] = useState<string | null>(null);
+  const [pick, setPick] = useState<{ ask: string; id: string } | null>(null);
 
   if (panel.following !== latest) {
     dispatch({ type: "follow", id: latest });
@@ -81,10 +83,19 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
     }
   }
 
+  const offered = pickIds(asked, shown);
   const nav = {
     open: (spec: PanelView["spec"]) => dispatch({ type: "open", spec }),
     back: panel.trail.length > 0 ? () => dispatch({ type: "back" }) : null,
     disabled: chat.thinking,
+    pick:
+      asked && offered
+        ? {
+            ids: offered,
+            selected: pick?.ask === asked.messageId ? pick.id : null,
+            choose: (id: string) => setPick({ ask: asked.messageId, id }),
+          }
+        : null,
   };
 
   return (
@@ -113,6 +124,12 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
                 <Peek shown={shown} thinking={working} status={chat.status} asking={asked !== null} />
                 <ChevronUp className="size-[18px] text-ink-3" aria-hidden />
               </button>
+            )}
+            {chat.reconnecting && (
+              <p role="status" className="flex items-center justify-center gap-2 text-center text-[13px] text-ink-3">
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                {t("chat.reconnecting")}
+              </p>
             )}
             <form
               onSubmit={submit}
@@ -161,6 +178,7 @@ export function ChatScreen({ chat }: { chat: LiveChat }) {
         nav={nav}
         sheet={sheet}
         onCloseSheet={() => setSheet("closed")}
+        onCancelPick={() => setPick(null)}
       />
     </div>
   );

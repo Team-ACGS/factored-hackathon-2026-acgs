@@ -23,10 +23,17 @@ import { cardLabel, whenText } from "./text";
 
 const CARD_MOVEMENTS = 8;
 
+export interface Pick {
+  ids: ReadonlySet<string>;
+  selected: string | null;
+  choose: (transactionId: string) => void;
+}
+
 export interface Navigation {
   open: (spec: ViewSpec) => void;
   back: (() => void) | null;
   disabled: boolean;
+  pick?: Pick | null;
 }
 
 interface ViewProps<K extends ViewSpec["kind"]> {
@@ -111,16 +118,20 @@ function MovementRows({ rows, nav }: { rows: readonly Row[]; nav: Navigation }) 
         const meta = [whenText(tx.transaction_date, now, locale, t), labelOf(t, "channel", tx.channel)]
           .filter(Boolean)
           .join(" · ");
+        const pickable = nav.pick?.ids.has(row.transactionId) ?? false;
+        const picked = pickable && nav.pick?.selected === row.transactionId;
         return (
           <button
             key={row.transactionId}
             type="button"
             disabled={nav.disabled}
+            aria-pressed={pickable ? picked : undefined}
             className={cn(
               movementRowClass,
               "text-[13px] first:rounded-t-[19px] last:rounded-b-[19px] sm:px-[18px] sm:py-[13px]",
+              picked && "relative z-[1] bg-surface shadow-[inset_0_0_0_2px_var(--color-ink)] hover:bg-surface",
             )}
-            onClick={() => nav.open({ kind: "movement", row })}
+            onClick={() => (pickable ? nav.pick?.choose(row.transactionId) : nav.open({ kind: "movement", row }))}
           >
             <MovementContent
               entry={tx}
@@ -138,6 +149,7 @@ function MovementRows({ rows, nav }: { rows: readonly Row[]; nav: Navigation }) 
 function MovementsView({ spec, nav }: ViewProps<"movements">) {
   const { t } = useI18n();
   const { count, period, last4 } = spec.readings;
+  const picking = spec.rows.some((row) => nav.pick?.ids.has(row.transactionId));
   return (
     <>
       <div className="flex flex-wrap gap-2">
@@ -146,7 +158,7 @@ function MovementsView({ spec, nav }: ViewProps<"movements">) {
         {period && spec.readings.merchant && <Pill>{period}</Pill>}
       </div>
       <MovementRows rows={spec.rows} nav={nav} />
-      <Hint>{t("clara.chat.view.movements.hint")}</Hint>
+      {!picking && <Hint>{t("clara.chat.view.movements.hint")}</Hint>}
       <Source />
     </>
   );

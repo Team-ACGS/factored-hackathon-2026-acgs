@@ -4,9 +4,10 @@ import { ChevronDown, Search, Waves } from "lucide-react";
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 import { brand } from "../../bank/brand";
-import type { AskOption, ChatMessage } from "../../chat/conversation";
+import type { ChatMessage } from "../../chat/conversation";
 import type { LiveChat } from "../../chat/live";
 import { useI18n } from "../../i18n";
+import { ActionBar } from "./action-bar";
 import { useViewMeta } from "./meta";
 import { entityMode, type PanelMode, type PanelView } from "./panel-state";
 import { useStatusText } from "./status";
@@ -23,6 +24,7 @@ interface PanelProps {
   nav: Navigation;
   sheet: "open" | "closed";
   onCloseSheet: () => void;
+  onCancelPick: () => void;
 }
 
 const LEAVE_MS = 200;
@@ -49,12 +51,13 @@ function useLastAsk(asked: ChatMessage | null): ChatMessage | null {
 }
 
 export function ChatPanel(props: PanelProps) {
-  const { chat, shown: target, mode, face, look, earlier, asked, nav, sheet, onCloseSheet } = props;
+  const { chat, shown: target, mode, face, look, earlier, asked, nav, sheet, onCloseSheet, onCancelPick } = props;
   const { t } = useI18n();
   const { shown, leaving } = useLeaving(target);
   const bar = useLastAsk(asked);
   const body = useRef<HTMLDivElement>(null);
   const [workWidth, setWorkWidth] = useState(0);
+  const [barHeight, setBarHeight] = useState(0);
   const docked = mode !== "hero" || shown !== null;
   const working = mode === "working";
 
@@ -70,7 +73,7 @@ export function ChatPanel(props: PanelProps) {
       data-working={working || undefined}
       data-bar={asked ? true : undefined}
       data-sheet={sheet}
-      style={{ "--work-text": `${workWidth}px` } as CSSProperties}
+      style={{ "--work-text": `${workWidth}px`, "--bar-height": `${barHeight}px` } as CSSProperties}
     >
       <div className="chat-entity" data-mode={entityMode(mode)}>
         <ClaraEntity
@@ -118,10 +121,14 @@ export function ChatPanel(props: PanelProps) {
       </div>
       {bar?.ask && (
         <ActionBar
-          prompt={bar.ask.prompt}
-          options={bar.ask.options}
+          key={bar.messageId}
+          ask={bar.ask}
           gone={!asked}
-          onChoose={(option) => chat.choose(bar, option)}
+          inView={Boolean(asked && nav.pick)}
+          picked={bar.ask.options.find((option) => option.id === nav.pick?.selected) ?? null}
+          onCancelPick={onCancelPick}
+          onChoose={(option, note) => chat.choose(bar, option, note)}
+          onHeight={setBarHeight}
         />
       )}
     </aside>
@@ -170,38 +177,5 @@ function Head({ view, earlier }: { view: PanelView; earlier: boolean }) {
       </span>
       <span className="truncate text-[19px] font-semibold">{meta.title}</span>
     </>
-  );
-}
-
-const optionClass =
-  "chat-option inline-flex h-11 max-w-full items-center gap-2.5 rounded-full border border-[rgb(23_36_34/0.12)] bg-white/80 px-4 text-[14.5px] font-semibold transition-[border-color,background,box-shadow] duration-150 hover:border-[rgb(23_36_34/0.25)] hover:bg-white focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none";
-
-interface ActionBarProps {
-  prompt: string | null;
-  options: readonly AskOption[];
-  gone: boolean;
-  onChoose: (option: AskOption) => void;
-}
-
-function ActionBar({ prompt, options, gone, onChoose }: ActionBarProps) {
-  const { t } = useI18n();
-  return (
-    <div
-      className="chat-bar"
-      role="group"
-      aria-label={t("clara.chat.actions")}
-      aria-hidden={gone || undefined}
-      data-gone={gone || undefined}
-      inert={gone}
-    >
-      {prompt && <span className="text-[13.5px] font-semibold text-ink-2">{prompt}</span>}
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {options.map((option) => (
-          <button key={option.id} type="button" className={optionClass} onClick={() => onChoose(option)}>
-            <span className="truncate">{option.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }

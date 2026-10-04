@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 
-import { emptyConversation, reduce, visibleMessages, type ChatMessage, type Tap } from "./conversation";
+import { watchReturn } from "./catch-up";
+import { emptyConversation, reduce, visibleMessages, type ChatInput, type ChatMessage } from "./conversation";
 import { idTime, mintId } from "./clock";
 import { subscribeToRooms } from "./realtime";
 import { api, clock } from "./services";
 
 const SAME_ID_RETRY_WINDOW_MS = 90_000;
 
-export type ChatProblem = "load" | "live" | null;
+export type ChatProblem = "load" | null;
 
 export function useChat(customerId: string) {
   const [state, dispatch] = useReducer(reduce, emptyConversation);
   const [problem, setProblem] = useState<ChatProblem>(null);
   const [attempt, setAttempt] = useState(0);
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const reconnect = useCallback(() => {
+    setReconnecting(true);
+    setAttempt((count) => count + 1);
+  }, []);
+
+  useEffect(() => watchReturn(document, window, reconnect), [reconnect]);
 
   useEffect(() => {
     let active = true;
@@ -23,7 +32,7 @@ export function useChat(customerId: string) {
         unsubscribe = await subscribeToRooms(customerId, {
           onMessage: (message) => dispatch({ type: "received", message }),
           onStatus: (event) => dispatch({ type: "status", event, at: clock.now() }),
-          onError: () => active && setProblem("live"),
+          onError: () => active && reconnect(),
         });
         if (!active) return unsubscribe();
         const requestedAt = Date.now();
@@ -32,9 +41,14 @@ export function useChat(customerId: string) {
         const turn = latest.turn
           ? { messageId: latest.turn.message_id, round: 0, status: latest.turn.status, at: clock.now() }
           : null;
-        if (active) dispatch({ type: "loaded", roomId: latest.room?.room_id ?? null, messages: latest.messages, turn });
+        if (!active) return;
+        dispatch({ type: "loaded", roomId: latest.room?.room_id ?? null, messages: latest.messages, turn });
+        setProblem(null);
+        setReconnecting(false);
       } catch {
-        if (active) setProblem("load");
+        if (!active) return;
+        setProblem("load");
+        setReconnecting(false);
       }
     }
 
@@ -43,9 +57,9 @@ export function useChat(customerId: string) {
       active = false;
       unsubscribe();
     };
-  }, [customerId, attempt]);
+  }, [customerId, attempt, reconnect]);
 
-  const deliver = useCallback(async (roomId: string, messageId: string, text: string, input?: Tap) => {
+  const deliver = useCallback(async (roomId: string, messageId: string, text: string, input?: ChatInput) => {
     dispatch({ type: "sending", roomId, messageId, text, sentAt: new Date(idTime(messageId)).toISOString(), input });
     try {
       const message = await api.send({ room_id: roomId, message_id: messageId, text, ...(input ? { input } : {}) });
@@ -56,7 +70,7 @@ export function useChat(customerId: string) {
   }, []);
 
   const send = useCallback(
-    (text: string, input?: Tap) => {
+    (text: string, input?: ChatInput) => {
       const roomId = state.roomId ?? mintId(clock);
       return deliver(roomId, mintId(clock), text, input);
     },
@@ -79,6 +93,7 @@ export function useChat(customerId: string) {
     state,
     messages: visibleMessages(state),
     problem,
+    reconnecting,
     send,
     retry,
     reload: () => {

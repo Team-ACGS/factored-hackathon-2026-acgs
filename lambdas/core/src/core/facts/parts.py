@@ -5,7 +5,7 @@ from typing import Any, Literal, get_args
 from core.facts.values import Json
 
 ViewType = Literal["movements", "cards", "card", "movement", "charge", "history", "case"]
-AskType = Literal["which_one", "show"]
+AskType = Literal["which_one", "show", "recognize_charge"]
 VIEW_TYPES: tuple[str, ...] = get_args(ViewType)
 ASK_TYPES: tuple[str, ...] = get_args(AskType)
 

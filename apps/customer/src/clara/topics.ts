@@ -1,5 +1,6 @@
 import { formatMoney } from "../bank/format";
 import type { Transaction } from "../bank/types";
+import type { TopicInput } from "../chat/conversation";
 import type { Locale, Translate } from "../i18n/locale";
 
 export type TopicCharge = Pick<
@@ -17,6 +18,12 @@ export type Topic =
 export function chargeTopic(transaction: Transaction): Topic {
   const { transaction_id, product_id, merchant_name, amount, currency, transaction_date } = transaction;
   return { kind: "charge", charge: { transaction_id, product_id, merchant_name, amount, currency, transaction_date } };
+}
+
+export function topicInput(topic: Topic): TopicInput | undefined {
+  if (topic.kind !== "charge") return undefined;
+  const { product_id, transaction_id } = topic.charge;
+  return { topic: { type: "charge", product_id, transaction_id } };
 }
 
 export function topicMessage(topic: Topic, t: Translate, locale: Locale): string {

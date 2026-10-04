@@ -185,7 +185,29 @@ describe("clara's views and asks", () => {
       { type: "ask", ask: "which_one", prompt: "¿Cuál es?", options: [{ id: "t1", label: "Primax · S/ 120.00" }, { id: 4 }] },
     ];
 
-    expect(askOf({ parts })).toEqual({ kind: "which_one", prompt: "¿Cuál es?", options: [{ id: "t1", label: "Primax · S/ 120.00" }] });
+    expect(askOf({ parts })).toEqual({
+      kind: "which_one",
+      prompt: "¿Cuál es?",
+      options: [{ id: "t1", label: "Primax · S/ 120.00" }],
+      note: false,
+    });
+  });
+
+  it("reads the recognize question with its two answers and the note it invites", () => {
+    const parts = [
+      {
+        type: "ask",
+        ask: "recognize_charge",
+        prompt: "¿Reconoces este cargo?",
+        note: true,
+        options: [
+          { id: "yes", label: "Sí, fui yo" },
+          { id: "no", label: "No lo reconozco" },
+        ],
+      },
+    ];
+
+    expect(askOf({ parts })).toMatchObject({ kind: "recognize_charge", note: true, options: [{ id: "yes" }, { id: "no" }] });
   });
 
   it("keeps the ask open only while it is Clara's latest message", () => {
@@ -255,6 +277,39 @@ describe("clara's status", () => {
 
     expect([statusOf(reloaded), turnLeft(reloaded, at) > 0]).toEqual(["cases", true]);
     expect([statusOf(answered), turnLeft(answered, at)]).toEqual([null, 0]);
+  });
+
+  it("catches up on a reply published while the live channel was away, without losing what it had", () => {
+    const before = run(
+      { type: "loaded", roomId: room, messages: [server("m-001")] },
+      { type: "status", event: event(2, "movements"), at },
+    );
+    const caughtUp = reduce(before, {
+      type: "loaded",
+      roomId: room,
+      messages: [server("m-001"), server("m-002", { sender_type: "assistant", text: "Listo." })],
+      turn: null,
+    });
+
+    expect(visibleMessages(caughtUp).map((message) => message.text)).toEqual(["text of m-001", "Listo."]);
+    expect(statusOf(caughtUp)).toBeNull();
+  });
+
+  it("keeps the fresher status of the same turn and takes the server's turn of a newer message", () => {
+    const seen = run(
+      { type: "loaded", roomId: room, messages: [server("m-001")] },
+      { type: "status", event: event(2, "movements"), at },
+    );
+    const same = reduce(seen, { type: "loaded", roomId: room, messages: [], turn: { messageId: "m-001", round: 0, status: null, at } });
+    const newer = reduce(seen, {
+      type: "loaded",
+      roomId: room,
+      messages: [server("m-003")],
+      turn: { messageId: "m-003", round: 0, status: "cases", at },
+    });
+
+    expect(statusOf(same)).toBe("movements");
+    expect(statusOf(newer)).toBe("cases");
   });
 });
 

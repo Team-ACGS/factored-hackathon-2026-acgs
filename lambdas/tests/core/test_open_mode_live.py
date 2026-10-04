@@ -10,7 +10,20 @@ from clara_testing.converse import Recorder
 from core.graphs.profiles import ModelProfile, profiles
 from core.messaging import Message
 from core.turn import Turn, run_turn
-from demo import DEMO, NOW, RECORDINGS, demo_turn, planted_charge, policy_index, tap
+from demo import (
+    DEMO,
+    KEPT,
+    NOTES,
+    NOW,
+    RECORDINGS,
+    base,
+    demo_turn,
+    kept,
+    planted_charge,
+    policy_index,
+    quiet_choice,
+    tap,
+)
 from harness import Aws
 
 pytestmark = pytest.mark.skipif(
@@ -28,7 +41,7 @@ def record(
     name: str, message: Message, history: list[Message], profile: ModelProfile
 ) -> tuple[Turn, Recorder]:
     recorder = Recorder(boto3.Session(profile_name=os.environ.get("CLARA_LIVE_PROFILE", "personal")))
-    policies = policy_index(DEMO[name.removesuffix("_tap")].country)
+    policies = policy_index(DEMO[base(name)].country)
     result = run_turn(message, history, NOW, profile=profile, clients=recorder.client, policies=policies)
     if os.environ.get("CLARA_RECORD") == "1":
         recorder.save(RECORDINGS / profile.key / f"{name}.json")
@@ -150,7 +163,7 @@ def test_an_unrecognized_charge_is_picked_from_the_newest_movements_and_its_tap_
     [ask] = parts_of(first, "ask")
     assert ask["ask"] == "which_one"
     assert len(ask["options"]) == 5
-    assert not parts_of(first, "view")
+    assert [part["view"] for part in parts_of(first, "view")] == ["movements"]
     planted = planted_charge(aws, question.customer_id)
     assert ask["options"][0]["id"] == planted["transaction_id"]
 
@@ -162,6 +175,21 @@ def test_an_unrecognized_charge_is_picked_from_the_newest_movements_and_its_tap_
     [view] = parts_of(second, "view")
     assert view["view"] == "charge"
     assert view["readings"]["reasons"][0]["reason"] == "score_high"
+    assert not parts_of(second, "ask")
+
+    quiet = quiet_choice(question, aws, [option["id"] for option in ask["options"]])
+    picked, before = tap(question, history, first.reply, quiet)
+    third, _ = record(f"{name}_pick", picked, before, profile)
+
+    assert third.reply.source in ("composed", "repaired")
+    assert [part["view"] for part in parts_of(third, "view")] == ["charge"]
+    assert [part["ask"] for part in parts_of(third, "ask")] == ["recognize_charge"]
+    if name in KEPT:
+        follow, earlier = kept(picked, before, third.reply, KEPT[name])
+        fourth, _ = record(f"{name}_kept", follow, earlier, profile)
+
+        assert fourth.reply.source in ("composed", "repaired")
+        assert [part["ask"] for part in parts_of(fourth, "ask")] == ["recognize_charge"]
 
 
 @pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
@@ -184,3 +212,28 @@ def test_the_follow_ups_of_the_second_prd_session_answer_composed(
     result, _ = live_turn(aws, name, profile)
 
     assert result.reply.source in ("composed", "repaired")
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["topic_es", "topic_pt"])
+def test_the_bank_s_charge_button_explains_the_charge_from_history_and_the_bank_asks(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, name, profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    assert result.summary()["tool_calls"] == []
+    assert [part["view"] for part in parts_of(result, "view")] == ["charge"]
+    assert [part["ask"] for part in parts_of(result, "ask")] == ["recognize_charge"]
+
+
+@pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
+@pytest.mark.parametrize("name", ["remembered_es", "remembered_pt"])
+def test_a_remembered_charge_is_answered_with_the_customer_s_note_and_never_asked_again(
+    aws: Aws, name: str, profile: ModelProfile
+) -> None:
+    result, _ = live_turn(aws, name, profile)
+
+    assert result.reply.source in ("composed", "repaired")
+    assert NOTES[DEMO[name].locale] in result.reply.text
+    assert not parts_of(result, "ask")

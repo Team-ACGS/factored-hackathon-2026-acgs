@@ -31,10 +31,25 @@ from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.parts import Ask, Part, Say, View
 from core.facts.render import CITATION, REFERENCE, is_renderable, is_singular, render_value, resolve
 from core.facts.targets import SHOWN_ROWS, Unfit, ask_options, view_items
-from core.facts.values import Channel, Count, Day, Instant, Json, Ledger, Money, Percent, Period, Url, Value
+from core.facts.values import (
+    Channel,
+    Count,
+    Day,
+    Instant,
+    Json,
+    Ledger,
+    Money,
+    Note,
+    Percent,
+    Period,
+    Url,
+    Value,
+)
 
 POLICY_FIGURES = (Count, Money, Percent, Channel, Url)
 SENTENCE_END = re.compile(r"[.!?]+(?=\s|$)")
+QUOTES = "\"'\u201c\u201d\u2018\u2019\u00ab\u00bb"
+QUOTED_REFERENCE = re.compile(rf"[{QUOTES}]\s*(\{{(f\d+)\.([a-z_][a-z0-9_.]*)\}})\s*[{QUOTES}]")
 SENTENCE = re.compile(r".*?(?:[.!?]+(?=\s|$)|$)\s*", re.DOTALL)
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
@@ -218,6 +233,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
     text, dashes = DASH.subn(", ", text)
     text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
     text, voseo = VOSEO_FORMS.subn(_as_tu, text) if locale == "es" else (text, 0)
+    text, quotes = _unquoted_notes(text, ledger)
     edits = {
         "number_word": numbers,
         "doubled_noun": nouns,
@@ -229,8 +245,17 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
         "grammar": grammar,
         "voseo": voseo,
         "citation_placement": citations,
+        "note_quotes": quotes,
     }
     return text, {kind: count for kind, count in edits.items() if count}
+
+
+def _unquoted_notes(text: str, ledger: Ledger) -> tuple[str, int]:
+    def unquote(match: re.Match[str]) -> str:
+        quoted = isinstance(resolve(ledger, match.group(2), match.group(3)), Note)
+        return match.group(1) if quoted else match.group(0)
+
+    return QUOTED_REFERENCE.subn(unquote, text)
 
 
 def _as_tu(match: re.Match[str]) -> str:

@@ -109,3 +109,11 @@ export function fromEarlier(messages: readonly ChatMessage[], selected: string |
   const reply = messages.findLast((message) => message.senderType === "assistant");
   return selected !== null && reply !== undefined && reply.messageId !== selected;
 }
+
+export function pickIds(asked: ChatMessage | null, shown: PanelView | null): ReadonlySet<string> | null {
+  const ask = asked?.ask;
+  if (!asked || ask?.kind !== "which_one" || shown?.id !== asked.messageId) return null;
+  if (shown.spec.kind !== "movements" && shown.spec.kind !== "history") return null;
+  const rows = new Set(shown.spec.rows.map((row) => row.transactionId));
+  return ask.options.every((option) => rows.has(option.id)) ? new Set(ask.options.map((option) => option.id)) : null;
+}

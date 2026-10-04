@@ -17,6 +17,7 @@ from core.facts.values import (
     Ledger,
     Merchant,
     Money,
+    Note,
     Ratio,
     Ref,
     Status,
@@ -24,9 +25,9 @@ from core.facts.values import (
     Value,
 )
 from core.ids import InvalidId, parse_uuid7
-from core.memory import Memory, memory_key
+from core.memory import MAX_NOTE, Memory, memory_key
 from core.merchants import merchant_key
-from core.tools.context import HISTORY_DAYS, NotFound, ToolContext, decimal, median
+from core.tools.context import HISTORY_DAYS, NotFound, ToolContext, decimal, instant, median
 from core.tools.inputs import Input
 from core.tools.reads import MOVEMENT_FIELDS, Movement, Reader, to_movement
 
@@ -95,11 +96,11 @@ def charge_facts(context: ToolContext, ledger: Ledger, args: ChargeFactsInput) -
         if present
     ]
     explanation = _explanation(charge, hold_age, bool(prior))
-    recognized = (
-        Memory.from_dynamodb(context.dynamodb()).memory(
-            context.customer_id, memory_key("recognized_charge", charge.transaction_id)
-        )
-        is not None
+    memory = Memory.from_dynamodb(context.dynamodb())
+    remembered = memory.of_charge(context.customer_id, charge.transaction_id)
+    recognized = remembered is not None and remembered.get("type") == "recognized_charge"
+    merchant_recognized = (
+        memory.memory(context.customer_id, memory_key("recognized_merchant", key)) is not None
     )
     verdict = (
         context.decide(
@@ -150,9 +151,24 @@ def charge_facts(context: ToolContext, ledger: Ledger, args: ChargeFactsInput) -
         ),
         "similar": FactIds(tuple(fact.id for fact in similar_facts)),
         "recognized": Flag(recognized),
+        "merchant_recognized": Flag(merchant_recognized),
+        **_remembered(context, remembered),
     }
     main = ledger.add("charge", fields)
     return [main.id, *(fact.id for fact in similar_facts)]
+
+
+def _remembered(context: ToolContext, item: dict[str, object] | None) -> dict[str, Value | None]:
+    if item is None:
+        return {}
+    note = item.get("note")
+    return {
+        "memory.type": Label("memory_type", str(item["type"])),
+        "memory.note": Note(str(note)[:MAX_NOTE]) if note else None,
+        "memory.date": Day(context.local_day(instant(item["created_at"])))
+        if item.get("created_at")
+        else None,
+    }
 
 
 def _score_band(score: object) -> str:

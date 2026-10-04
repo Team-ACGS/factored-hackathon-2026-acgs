@@ -8,6 +8,7 @@ import {
   initialPanel,
   panelMode,
   panelViews,
+  pickIds,
   reducePanel,
   shownView,
   specOf,
@@ -85,5 +86,30 @@ describe("clara's panel", () => {
     expect(fromEarlier([clara("m1", movements)], "m1")).toBe(false);
     expect(fromEarlier([clara("m1", movements), clara("m2", cards)], "m1")).toBe(true);
     expect(fromEarlier(answered, null)).toBe(false);
+  });
+});
+
+describe("a pick in the view", () => {
+  const rows = ["t1", "t2", "t3"].map((transactionId) => ({ productId: "p1", transactionId }));
+  const view: ViewPart = { kind: "movements", rows, cards: [], cases: [], readings: {} };
+  const asking = (ids: string[]) => ({
+    ...clara("m2", view),
+    ask: { kind: "which_one" as const, prompt: null, note: false, options: ids.map((id) => ({ id, label: id })) },
+  });
+
+  it("offers the rows of the ask's own list", () => {
+    const asked = asking(["t1", "t3"]);
+    const [shown] = panelViews([asked]);
+
+    expect([...(pickIds(asked, shown ?? null) ?? [])]).toEqual(["t1", "t3"]);
+  });
+
+  it("keeps chips when the list is another message's or misses an option", () => {
+    const asked = asking(["t1", "t9"]);
+    const [shown] = panelViews([asked]);
+    const [other] = panelViews([clara("m1", view)]);
+
+    expect(pickIds(asked, shown ?? null)).toBeNull();
+    expect(pickIds(asking(["t1"]), other ?? null)).toBeNull();
   });
 });

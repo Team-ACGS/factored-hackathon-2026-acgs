@@ -2,6 +2,8 @@ export type SenderType = "customer" | "assistant" | "agent";
 export type Delivery = "pending" | "sent" | "failed";
 
 export const THINKING_CAP_MS = 30_000;
+export const MAX_TEXT_LENGTH = 2000;
+export const MAX_NOTE_LENGTH = 140;
 
 export interface ServerMessage {
   room_id: string;
@@ -64,10 +66,14 @@ export interface AskOption {
   label: string;
 }
 
+export const askKinds = ["which_one", "show", "recognize_charge"] as const;
+export type AskKind = (typeof askKinds)[number];
+
 export interface AskPart {
-  kind: "which_one" | "show";
+  kind: AskKind;
   prompt: string | null;
   options: AskOption[];
+  note: boolean;
 }
 
 export interface ChatMessage {
@@ -81,7 +87,7 @@ export interface ChatMessage {
   sentAt: string;
   createdAt: string | null;
   delivery: Delivery;
-  input?: Tap;
+  input?: ChatInput;
 }
 
 export interface TurnStatus {
@@ -94,7 +100,14 @@ export interface TurnStatus {
 export interface Tap {
   ask_id: string;
   option: string;
+  note?: string;
 }
+
+export interface TopicInput {
+  topic: { type: "charge"; product_id: string; transaction_id: string };
+}
+
+export type ChatInput = Tap | TopicInput;
 
 export interface Conversation {
   loaded: boolean;
@@ -115,7 +128,7 @@ export type Action =
   | { type: "loaded"; roomId: string | null; messages: ServerMessage[]; turn?: TurnStatus | null }
   | { type: "received"; message: ServerMessage }
   | { type: "status"; event: StatusEvent; at: number }
-  | { type: "sending"; roomId: string; messageId: string; text: string; sentAt: string; input?: Tap }
+  | { type: "sending"; roomId: string; messageId: string; text: string; sentAt: string; input?: ChatInput }
   | { type: "confirmed"; message: ServerMessage }
   | { type: "failed"; messageId: string }
   | { type: "discarded"; messageId: string };
@@ -223,7 +236,8 @@ export function askOf(message: Pick<ServerMessage, "parts">): AskPart | null {
   if (!Array.isArray(message.parts)) return null;
   for (const part of message.parts) {
     const fields = record(part);
-    if (!fields || fields.type !== "ask" || (fields.ask !== "which_one" && fields.ask !== "show")) continue;
+    const kind = fields?.ask;
+    if (!fields || fields.type !== "ask" || typeof kind !== "string" || !askKinds.includes(kind as AskKind)) continue;
     const options = (Array.isArray(fields.options) ? fields.options : []).flatMap((entry): AskOption[] => {
       const option = record(entry);
       return option && typeof option.id === "string" && typeof option.label === "string"
@@ -231,7 +245,12 @@ export function askOf(message: Pick<ServerMessage, "parts">): AskPart | null {
         : [];
     });
     if (options.length === 0) continue;
-    return { kind: fields.ask, prompt: typeof fields.prompt === "string" ? fields.prompt : null, options };
+    return {
+      kind: kind as AskKind,
+      prompt: typeof fields.prompt === "string" ? fields.prompt : null,
+      options,
+      note: fields.note === true,
+    };
   }
   return null;
 }
@@ -282,7 +301,7 @@ export function reduce(state: Conversation, action: Action): Conversation {
         ...withMessages(state, action.messages.map(fromServer)),
         loaded: true,
         roomId: state.roomId ?? action.roomId,
-        turn: state.turn ?? action.turn ?? null,
+        turn: latestTurn(state.turn, action.turn ?? null),
       };
     case "status": {
       const { event } = action;
@@ -325,6 +344,11 @@ export function reduce(state: Conversation, action: Action): Conversation {
   }
 }
 
+function latestTurn(known: TurnStatus | null, loaded: TurnStatus | null): TurnStatus | null {
+  if (!known || !loaded) return loaded ?? known;
+  return known.messageId === loaded.messageId ? known : loaded;
+}
+
 export function liveTurn(state: Conversation, now: number): TurnStatus | null {
   const last = visibleMessages(state).at(-1);
   const { turn } = state;
@@ -346,4 +370,10 @@ export function visibleMessages(state: Conversation): ChatMessage[] {
   return Object.values(state.messages)
     .filter((message) => message.roomId === state.roomId)
     .sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.messageId.localeCompare(b.messageId));
+}
+
+export function choice(asked: ChatMessage, option: AskOption, note?: string): [string, Tap] {
+  const said = note?.trim().slice(0, MAX_NOTE_LENGTH) ?? "";
+  const tap: Tap = { ask_id: asked.messageId, option: option.id, ...(said ? { note: said } : {}) };
+  return [(said ? `${option.label}\n${said}` : option.label).slice(0, MAX_TEXT_LENGTH), tap];
 }

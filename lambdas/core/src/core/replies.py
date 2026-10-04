@@ -6,10 +6,18 @@ from core.countries import zone
 from core.facts import Ask, Part, Say, View, render
 from core.facts.catalog import LABELS
 from core.facts.render import format_date, render_value
-from core.facts.targets import CARD_CANDIDATES, Option, Unfit, ask_options, view_items
+from core.facts.targets import (
+    CARD_CANDIDATES,
+    Option,
+    Unfit,
+    ask_options,
+    ask_target,
+    recent_pick,
+    view_items,
+)
 from core.facts.values import Count, Day, Fact, Instant, Json, Labels, Ledger, Ref, Text, Trace, Value
 
-Source = Literal["composed", "repaired", "fallback", "safety", "say_key"]
+Source = Literal["composed", "repaired", "fallback", "safety", "say_key", "story"]
 
 HABIT = {
     "es": "Hiciste {count} antes en este comercio; lo típico es {amount}.",
@@ -27,7 +35,19 @@ COMPARED = {
     "en": "This charge is {ratio}.",
 }
 CARD_OPTION = {"es": "Tarjeta {type} {last4}", "pt-BR": "Cartão {type} {last4}", "en": "{type} card {last4}"}
-ASK_PROMPTS = {"which_one": {"es": "¿Cuál es?", "pt-BR": "Qual é?", "en": "Which one is it?"}}
+ASK_PROMPTS = {
+    "which_one": {"es": "¿Cuál es?", "pt-BR": "Qual é?", "en": "Which one is it?"},
+    "recognize_charge": {
+        "es": "¿Reconoces este cargo?",
+        "pt-BR": "Você reconhece esta cobrança?",
+        "en": "Do you recognize this charge?",
+    },
+}
+ANSWER_LABELS = {
+    "yes": {"es": "Sí, fui yo", "pt-BR": "Sim, fui eu", "en": "Yes, it was me"},
+    "no": {"es": "No lo reconozco", "pt-BR": "Não reconheço", "en": "I don't recognize it"},
+}
+NOTED = ("recognize_charge",)
 SHOW_LABELS = {
     "movements": {
         "es": "Ver esos movimientos",
@@ -59,9 +79,8 @@ def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) 
         referenced.extend(chunks[entry["chunk_id"]].id for entry in said["citations"])
     public: list[Json] = list(rendered)
     draft: list[Json] = [part.to_wire() for part in says]
-    for part in parts:
-        if isinstance(part, Say):
-            continue
+    shown = [part for part in parts if not isinstance(part, Say)]
+    for part in [*_picked_from(shown, ledger), *shown]:
         try:
             if isinstance(part, View):
                 public.append(view(part, ledger, locale))
@@ -69,9 +88,7 @@ def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) 
             else:
                 options = ask_options(part, ledger)
                 public.append(ask(part, options, ledger, locale))
-                draft.append(
-                    {**part.to_wire(), "options": [{"id": item.id, "read": item.read} for item in options]}
-                )
+                draft.append(_drafted(part, options, ledger))
         except Unfit:
             continue
         referenced.extend(part.facts)
@@ -82,6 +99,29 @@ def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) 
         draft=tuple(draft),
         source=source,
     )
+
+
+def _picked_from(shown: Sequence[Part], ledger: Ledger) -> list[View]:
+    asked = next((part for part in shown if isinstance(part, Ask) and part.ask == "which_one"), None)
+    if asked is None or any(isinstance(part, View) for part in shown):
+        return []
+    try:
+        options = ask_options(asked, ledger)
+    except Unfit:
+        return []
+    if any(option.read.get("tool") != "charge_facts" for option in options):
+        return []
+    return [View("movements", asked.facts)]
+
+
+def _drafted(part: Ask, options: list[Option], ledger: Ledger) -> Json:
+    wire: Json = {**part.to_wire(), "options": [{"id": item.id, "read": item.read} for item in options]}
+    target = ask_target(part, ledger)
+    if target is not None:
+        wire["target"] = target
+    if recent_pick(part, ledger):
+        wire["recent"] = True
+    return wire
 
 
 def view(part: View, ledger: Ledger, locale: str) -> Json:
@@ -102,6 +142,8 @@ def ask(part: Ask, options: list[Option], ledger: Ledger, locale: str) -> Json:
     prompt = ASK_PROMPTS.get(part.ask, {}).get(locale)
     if prompt:
         wire["prompt"] = prompt
+    if part.ask in NOTED:
+        wire["note"] = True
     return wire
 
 
@@ -120,6 +162,8 @@ def citation(chunk_id: str, ledger: Ledger) -> Json:
 def _label(kind: str, option: Option, ledger: Ledger, locale: str) -> str:
     if kind == "show":
         return SHOW_LABELS[option.id][locale]
+    if kind == "recognize_charge":
+        return ANSWER_LABELS[option.id][locale]
     fields = option.fact.fields
     if option.fact.kind in CARD_CANDIDATES:
         fields = _card_fact(option, ledger).fields
