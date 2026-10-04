@@ -60,13 +60,16 @@ class Memory:
                 return found
         return None
 
-    def memories(self, customer_id: str, prefix: str, max_rows: int) -> tuple[list[dict[str, Any]], bool]:
+    def memories(
+        self, customer_id: str, prefix: str, max_rows: int, consistent: bool = False
+    ) -> tuple[list[dict[str, Any]], bool]:
         condition: ConditionBase = Key("customer_id").eq(customer_id)
         if prefix:
             condition = condition & Key("memory_key").begins_with(prefix)
         request: dict[str, Any] = {
             "KeyConditionExpression": condition,
             "Limit": max_rows,
+            "ConsistentRead": consistent,
             **projection(MEMORY_ATTRIBUTES),
         }
         page = self._table.query(**request)

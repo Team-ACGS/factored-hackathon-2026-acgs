@@ -135,12 +135,13 @@ def answer_of(message: Message, asked: OpenAsk | None) -> Answer | None:
         return Answer(asked, option, _note(tap.get("note")), "tap")
     if "topic" in tap:
         return None
-    short = short_answer(message.text)
-    if short is not None:
-        return Answer(asked, short[0], _note(short[1]), "lexicon")
-    if floor(message.text) == "not_me":
+    hit = floor(message.text)
+    if hit == "not_me":
         return Answer(asked, "no", None, "floor")
-    return None
+    if hit is not None:
+        return None
+    short = short_answer(message.text)
+    return Answer(asked, short[0], _note(short[1]), "lexicon") if short else None
 
 
 def close_ask(answer: Answer, message: Message, now: datetime, service: str) -> Closing:
@@ -184,7 +185,9 @@ def close_ask(answer: Answer, message: Message, now: datetime, service: str) -> 
 
 def _learn_merchant(memory: Memory, message: Message, merchant: str, ask_id: str, created_at: str) -> bool:
     key = merchant_key(merchant)
-    charges, _ = memory.memories(message.customer_id, "recognized_charge#", MAX_CHARGE_MEMORIES)
+    charges, _ = memory.memories(
+        message.customer_id, "recognized_charge#", MAX_CHARGE_MEMORIES, consistent=True
+    )
     if sum(1 for item in charges if merchant_key(str(item.get("merchant") or "")) == key) < MERCHANT_AFTER:
         return False
     _, created = memory.remember(

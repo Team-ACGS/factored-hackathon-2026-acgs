@@ -12,6 +12,8 @@ from core import access, rules
 from core.access import READ_ONLY_POLICY
 from core.accounts import transaction_key
 from core.graphs.profiles import profiles
+from core.memory import Memory
+from core.merchants import merchant_key
 from core.messaging import Message, customer_message, reply_to
 from core.turn import Turn, run_turn
 from harness import Aws, DemoAccount, demo_account, uuid7
@@ -450,7 +452,7 @@ def test_the_merchant_never_suppresses_the_question_on_a_charge_not_yet_answered
     aws.memory.put_item(
         Item={
             "customer_id": CUSTOMER,
-            "memory_key": f"recognized_merchant#{row['merchant_name'].lower()}",
+            "memory_key": f"recognized_merchant#{merchant_key(row['merchant_name'])}",
             "type": "recognized_merchant",
             "subject": row["merchant_name"],
             "created_at": "2026-09-19T12:00:00.000Z",
@@ -459,8 +461,11 @@ def test_the_merchant_never_suppresses_the_question_on_a_charge_not_yet_answered
 
     result, _, _, model = picked(account, row, remembered=1)
 
+    context = context_of(model)
+    [charge] = [fact for fact in context["choice"]["facts"] if fact["id"] == "f7"]
+    assert charge["fields"]["merchant_recognized"]["value"] is True
+    assert context["story"]["charge"] == "f7"
     assert result.reply.source == "composed"
-    assert context_of(model)["story"]["charge"] == "f7"
     assert part(result, "ask")["ask"] == "recognize_charge"
 
 
@@ -542,3 +547,64 @@ def test_the_rules_refuse_the_question_on_a_flagged_charge_without_sending_the_r
     assert result.reply.source == "composed"
     assert result.summary()["check"]["tidied"] == {"ask_refused": 1}
     assert not [item for item in result.reply.parts if item["type"] == "ask"]
+
+
+def test_a_floor_hit_inside_a_short_answer_wins_over_the_answer(aws: Aws, account: DemoAccount) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    not_me, _, model = answered(history, tap, first, "sí, no fui yo")
+
+    assert model.requests == []
+    assert set(memory_rows(aws)) == {f"unrecognized_charge#{row['transaction_id']}"}
+    assert not_me.reply.text.startswith("Si no hiciste esa compra, protege tu tarjeta ahora")
+
+
+def test_a_lost_card_inside_a_short_answer_supersedes_the_question_and_writes_nothing(
+    aws: Aws, account: DemoAccount
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    result, _, model = answered(history, tap, first, "sí, me robaron la tarjeta")
+
+    assert model.requests == []
+    assert (result.route, result.floor) == ("safety", "lost_stolen")
+    assert result.reply.text.startswith("Si perdiste tu tarjeta o te la robaron, protégela ahora")
+    assert memory_rows(aws) == {}
+
+
+@pytest.mark.parametrize("text", ["sí, no lo reconozco", "no, sí fui yo", "Sí, ¿pero cuándo fue?"])
+def test_a_short_answer_with_a_contradicting_or_questioning_tail_is_not_an_answer(
+    aws: Aws, account: DemoAccount, text: str
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    result, _, _ = answered(history, tap, first, text)
+
+    assert memory_rows(aws) == {}
+    assert result.route == "open_mode"
+    assert part(result, "ask")["ask"] == "recognize_charge"
+
+
+def test_the_merchant_count_reads_its_own_write_consistently(
+    aws: Aws, account: DemoAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+    reads: list[bool] = []
+    memories = Memory.memories
+
+    def recording(
+        self: Memory, customer_id: str, prefix: str, max_rows: int, consistent: bool = False
+    ) -> Any:
+        if prefix == "recognized_charge#":
+            reads.append(consistent)
+        return memories(self, customer_id, prefix, max_rows, consistent)
+
+    monkeypatch.setattr(Memory, "memories", recording)
+
+    answered(history, tap, first, "Sí, fui yo", option="yes")
+
+    assert reads == [True]

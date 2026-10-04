@@ -57,6 +57,11 @@ def test_everything_else_goes_to_the_graph(text: str) -> None:
         ("no sé", None),
         ("creo que sí", None),
         ("sí era la gasolina", None),
+        ("sí, no fui yo", None),
+        ("sí, me robaron la tarjeta", None),
+        ("sí, no lo reconozco", None),
+        ("no, sí fui yo", None),
+        ("Sí, ¿pero cuándo fue?", None),
     ],
 )
 def test_only_a_short_unambiguous_answer_at_the_start_closes_an_ask(

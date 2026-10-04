@@ -84,6 +84,10 @@ ANSWERS: dict[ShortAnswer, tuple[str, ...]] = {
     ),
 }
 
+_ANSWER_PATTERNS = {
+    kind: bounded(re.escape(phrase) for phrase in phrases if " " in phrase)
+    for kind, phrases in ANSWERS.items()
+}
 _CLAUSE_END = re.compile(r"[,.;:!?\n]")
 _OPENING = "¡\"'«“ "
 
@@ -123,4 +127,13 @@ def short_answer(text: str) -> tuple[ShortAnswer, str] | None:
             found = (answer, end.end() if end else stop, end.group(0) if end else "")
     if found is None or found[2] == "?":
         return None
-    return found[0], text[found[1] :].strip()
+    answer, start, _ = found
+    rest = text[start:].strip()
+    if "?" in rest or floor(rest) or _contradicts(rest, "no" if answer == "yes" else "yes"):
+        return None
+    return answer, rest
+
+
+def _contradicts(rest: str, other: ShortAnswer) -> bool:
+    clauses = {normalize(clause.strip(_OPENING)) for clause in _CLAUSE_END.split(rest)}
+    return bool(_ANSWER_PATTERNS[other].search(normalize(rest))) or bool(clauses & set(ANSWERS[other]))
