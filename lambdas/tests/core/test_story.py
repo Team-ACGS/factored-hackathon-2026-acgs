@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from moto.iam.access_control import IAMPolicy, PermissionResult
 
-from clara_testing.converse import FakeConverse, reply, response, tool_use
+from clara_testing.converse import FakeConverse, composed, reply, response, tool_use
 from core import access, rules
 from core.access import READ_ONLY_POLICY
 from core.accounts import transaction_key
@@ -198,14 +198,23 @@ def test_on_a_turn_where_the_bank_asks_its_question_is_the_only_ask(account: Dem
         [
             response(tool_use("reply", {"say": [EXPLAINED], "ask": {"type": "show", "facts": ["f2"]}})),
             response(
-                tool_use("reply", {"say": [EXPLAINED], "ask": {"type": "recognize_charge", "facts": ["f6"]}})
+                tool_use(
+                    "reply",
+                    {
+                        "say": [EXPLAINED],
+                        "view": {"type": "charge", "facts": ["f6"]},
+                        "ask": {"type": "recognize_charge", "facts": ["f6"]},
+                    },
+                )
             ),
         ]
     )
 
     result = run_turn(message, [], NOW, profile=DEFAULT, clients=model.client)
 
-    assert result.summary()["check"]["errors"] == ["ask_not_allowed"]
+    assert result.summary()["check"]["errors"] == []
+    assert result.summary()["check"]["tidied"] == {"ask_replaced": 1}
+    assert len(model.requests) == 1
     assert [item["ask"] for item in result.reply.parts if item["type"] == "ask"] == ["recognize_charge"]
     assert [item.get("target") for item in result.reply.draft if item["type"] == "ask"] == [
         {"product_id": row["product_id"], "transaction_id": row["transaction_id"]}
@@ -561,7 +570,14 @@ def test_the_rules_refuse_the_question_on_a_flagged_charge_without_sending_the_r
         [
             response(tool_use("charge_facts", {"transaction_ref": row["transaction_id"]})),
             response(
-                tool_use("reply", {"say": [EXPLAINED], "ask": {"type": "recognize_charge", "facts": ["f6"]}})
+                tool_use(
+                    "reply",
+                    {
+                        "say": [EXPLAINED],
+                        "view": {"type": "charge", "facts": ["f6"]},
+                        "ask": {"type": "recognize_charge", "facts": ["f6"]},
+                    },
+                )
             ),
         ]
     )
@@ -639,3 +655,152 @@ def test_the_merchant_count_reads_its_own_write_consistently(
     answered(history, tap, first, "Sí, fui yo", option="yes")
 
     assert reads == [True]
+
+
+def test_a_closer_with_the_bank_s_question_open_runs_the_turn_as_before(
+    aws: Aws, account: DemoAccount
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    result, _, model = answered(history, tap, first, "ok, gracias")
+
+    assert memory_rows(aws) == {}
+    assert result.route == "open_mode"
+    assert context_of(model)["story"]["open"] is True
+
+
+def kept_turn(
+    history: list[Message],
+    last: Message,
+    result: Turn,
+    text: str,
+    *responses: Any,
+    sent: timedelta = timedelta(minutes=1),
+) -> tuple[Turn, Message, FakeConverse]:
+    asked = recorded(result, last)
+    message = says(text, last.room_id, at(sent))
+    model = FakeConverse(list(responses))
+    turn = run_turn(message, [*history, last, asked], NOW, profile=DEFAULT, clients=model.client)
+    return turn, message, model
+
+
+def answer_reply(option: str) -> dict[str, Any]:
+    return response(tool_use("reply", {"answer": option}))
+
+
+@pytest.mark.parametrize(
+    "text", ["yep, that's the one, it wasnt me", "no, no fue yo", "não foi eu", "That wasn't me"]
+)
+def test_a_typed_not_me_in_any_form_answers_the_open_question_with_the_block_confirmation(
+    aws: Aws, account: DemoAccount, text: str
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    result, _, model = kept_turn(history, tap, first, text)
+
+    assert model.requests == []
+    assert part(result, "ask")["ask"] == "block_card"
+    assert set(memory_rows(aws)) == {f"unrecognized_charge#{row['transaction_id']}"}
+
+
+def test_a_free_text_yes_read_by_the_graph_remembers_the_charge_with_the_message_as_its_note(
+    aws: Aws, account: DemoAccount
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    result, _, _ = kept_turn(
+        history, tap, first, "claro, esa la hice yo en el grifo", answer_reply("yes"), composed("Gracias.")
+    )
+
+    stored = memory_rows(aws)[f"recognized_charge#{row['transaction_id']}"]
+    assert stored["note"] == "claro, esa la hice yo en el grifo"
+    assert stored["ask_id"] == recorded(first, tap).message_id
+    assert result.reply.source == "story"
+    assert result.summary()["writes"] == ["memory:graph"]
+    assert not [part for part in result.reply.parts if part["type"] == "ask"]
+
+
+def test_a_free_text_no_read_by_the_graph_leads_to_the_block_confirmation_without_writing_to_the_card(
+    aws: Aws, account: DemoAccount
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    result, _, _ = kept_turn(history, tap, first, "nunca he estado en ese lugar", answer_reply("no"))
+
+    assert part(result, "ask")["ask"] == "block_card"
+    assert set(memory_rows(aws)) == {f"unrecognized_charge#{row['transaction_id']}"}
+    assert (
+        aws.products.get_item(Key={"customer_id": CUSTOMER, "product_id": row["product_id"]})["Item"][
+            "product_status"
+        ]
+        == "Active"
+    )
+
+
+def test_a_graph_answer_to_a_question_mark_or_to_a_closed_question_never_writes(
+    aws: Aws, account: DemoAccount
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    asking, _, _ = kept_turn(
+        history, tap, first, "¿esa la hice yo?", answer_reply("yes"), reply("Es tu compra de esta semana.")
+    )
+
+    assert memory_rows(aws) == {}
+    assert asking.summary()["check"]["tidied"]["answer_dropped"] == 1
+    assert part(asking, "ask")["ask"] == "recognize_charge"
+
+    closed, message, _ = answered(history, tap, first, "Sí, fui yo", option="yes")
+    late, _, _ = kept_turn(
+        [*history, tap, recorded(first, tap)],
+        message,
+        closed,
+        "y también la otra",
+        answer_reply("no"),
+        reply("Listo."),
+        sent=timedelta(seconds=30),
+    )
+
+    assert set(memory_rows(aws)) == {f"recognized_charge#{row['transaction_id']}"}
+    assert late.summary()["writes"] == []
+
+
+def test_a_redelivered_graph_yes_writes_once(aws: Aws, account: DemoAccount) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+    asked = recorded(first, tap)
+    message = says("claro, esa la hice yo", tap.room_id, at(timedelta(minutes=1)))
+
+    def run() -> Turn:
+        model = FakeConverse([answer_reply("yes"), composed("Gracias.")])
+        return run_turn(message, [*history, tap, asked], NOW, profile=DEFAULT, clients=model.client)
+
+    assert run().summary()["writes"] == ["memory:graph"]
+    assert run().summary()["writes"] == []
+    assert len(memory_rows(aws)) == 1
+
+
+def test_with_the_question_open_a_reply_that_only_restates_the_charge_is_sent_back(
+    aws: Aws, account: DemoAccount
+) -> None:
+    row = quiet(newest(account))
+    first, tap, history, _ = picked(account, row)
+
+    result, _, _ = kept_turn(
+        history,
+        tap,
+        first,
+        "mmm a ver",
+        reply(EXPLAINED),
+        reply("Cuando puedas, dime si reconoces este cargo."),
+    )
+
+    assert result.summary()["check"]["errors"] == ["restated_charge"]
+    assert result.reply.source == "repaired"
+    assert part(result, "ask")["ask"] == "recognize_charge"
+    assert memory_rows(aws) == {}

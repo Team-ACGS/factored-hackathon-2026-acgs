@@ -24,7 +24,7 @@ from core.policies import COUNTRIES
 from core.receipts import template
 from core.replies import Reply, compose
 from core.retrieval import PolicySearch
-from core.router import AbstainClass, FloorClass, Route, abstain, floor
+from core.router import AbstainClass, FloorClass, Route, abstain, closer, floor
 from core.rules import TurnState
 from core.tools import ToolContext, ToolResult, call
 from core.tools.memory import newest, remember_fact
@@ -101,7 +101,8 @@ def run_turn(
     structured = answer is not None or choice is not None or topic is not None
     hit = None if structured else floor(message.text)
     abstained = None if structured or hit else abstain(message.text)
-    decided = _route(answer, choice, topic, hit)
+    closing_words = not (structured or hit or abstained or pending) and closer(message.text)
+    decided = Route("closer") if closing_words else _route(answer, choice, topic, hit)
 
     def done(reply: Reply, metrics: Metrics | None = None, writes: Sequence[str] = ()) -> Turn:
         elapsed = round((clock() - started) * 1000)
@@ -111,6 +112,8 @@ def run_turn(
         unavailable = Ledger("US", now)
         return done(compose(fallback("unavailable", unavailable, locale), unavailable, locale, "fallback"))
     ledger = Ledger(country, now)
+    if closing_words:
+        return done(compose([Say(answers.CLOSER[locale])], ledger, locale, "say_key"))
     given_name = customer.get("given_name")
     ledger.add(
         answers.CUSTOMER,
@@ -195,6 +198,9 @@ def run_turn(
             choice.ask if choice else None,
             closing.ask if closing else None,
             _open_cases(tools) if closing is None else frozenset(),
+            rules.said_key(asked),
+            _charge_of(kept, ledger),
+            kept is not None and rules.answerable(message, pending, abstained is not None),
         ),
         on_status=on_status,
         closing=(closing,) if closing else (),
@@ -204,6 +210,11 @@ def run_turn(
         if read:
             run.read_rounds.append(list(read.ids))
     reply = run_open_mode(run)
+    if pending is not None and run.answer is not None:
+        step = story.answered(steps, rules.graph_answer(message, pending, run.answer))
+        parts = _composed(step, ledger, locale, profile, models, clock, metrics)
+        answered = replace(compose(parts, ledger, locale, "story"), effects=tuple(step.effects))
+        return done(answered, metrics, [f"{write}:graph" for write in step.writes])
     if abstained is not None and reply.source == "fallback" and closing is not None:
         reply = compose([template(f"abstain_{abstained}", locale), closing], ledger, locale, "fallback")
     return done(reply, run.metrics)
@@ -278,7 +289,9 @@ def _kept(pending: rules.OpenAsk, tools: ToolContext, ledger: Ledger) -> Ask | N
     read = _charge(target, tools, ledger) if target.transaction_id else None
     charge = read.ids[0] if read else None
     if pending.ask == rules.PERSON:
-        return Ask(rules.PERSON, (charge,) if charge else (), target=target.to_wire())
+        case = _case(target.complaint_id, tools, ledger) if target.complaint_id else None
+        subject = charge or case
+        return Ask(rules.PERSON, (subject,) if subject else (), target=target.to_wire())
     if pending.ask == rules.BLOCK and charge is None and target.product_id:
         wanted = _card_ref(target.product_id)
         card = next(
@@ -291,6 +304,17 @@ def _kept(pending: rules.OpenAsk, tools: ToolContext, ledger: Ledger) -> Ask | N
         )
         return Ask(rules.BLOCK, (card,)) if card else None
     return Ask(pending.ask, (charge,)) if charge else None
+
+
+def _case(complaint_id: str, tools: ToolContext, ledger: Ledger) -> str | None:
+    read = call("case_status", {"case_ref": complaint_id}, tools, ledger)
+    fact = ledger.get(read.ids[0]) if read.ids else None
+    return fact.id if fact is not None and fact.kind == "case" else None
+
+
+def _charge_of(kept: Ask | None, ledger: Ledger) -> str | None:
+    subject = ledger.get(kept.facts[0]) if kept and kept.facts else None
+    return subject.id if subject is not None and subject.kind == "charge" else None
 
 
 def _card_ref(product_id: str) -> Ref:

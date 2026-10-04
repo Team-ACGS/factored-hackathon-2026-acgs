@@ -67,6 +67,12 @@ export function useViewMeta(spec: ViewSpec): ViewMeta {
         title: merchant || (firstCase?.case_id ?? ""),
         label: t("clara.chat.view.case.label"),
       };
+    case "handoff":
+      return {
+        kicker: t("clara.chat.view.handoff.kicker"),
+        title: t("clara.chat.view.handoff.title"),
+        label: t("clara.chat.view.handoff.label"),
+      };
   }
 }
 

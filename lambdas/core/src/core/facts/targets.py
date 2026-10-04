@@ -1,7 +1,7 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
-from core.facts.parts import Ask, View
+from core.facts.parts import Ask, Part, View
 from core.facts.values import (
     Count,
     Fact,
@@ -40,6 +40,18 @@ ANSWER_OPTIONS = {
     "talk_to_person": ("yes", "no"),
 }
 CHARGE_ASKS = frozenset({"recognize_charge", "was_it_you", "have_card", "open_claim"})
+HANDOFF = "handoff"
+PERSON = "talk_to_person"
+ASK_VIEWS: dict[str, tuple[str, ...]] = {
+    "which_one": ("movements", "cards", "history"),
+    "recognize_charge": ("charge",),
+    "was_it_you": ("charge",),
+    "have_card": ("charge",),
+    "open_claim": ("charge",),
+    "block_card": ("card",),
+    PERSON: (HANDOFF,),
+}
+SUBJECTS = frozenset({"charge", "card", "case", "movement"})
 
 
 class Unfit(ValueError):
@@ -62,9 +74,79 @@ def view_items(view: View, ledger: Ledger) -> list[Json]:
         raise Unfit("view_unknown", view.view)
     facts = [_known(ledger, fact_id, "view_fact_unknown") for fact_id in view.facts]
     items = _unique(resolve(facts, ledger))
-    if not items:
+    if not items and view.view != HANDOFF:
         raise Unfit("view_empty", view.facts[0] if view.facts else view.view)
     return items[:MAX_VIEW_ITEMS]
+
+
+def with_views(parts: list[Part], ledger: Ledger) -> list[Part]:
+    parts = code_views(parts, ledger)
+    asked = next((part for part in parts if isinstance(part, Ask)), None)
+    if asked is None or not missing_views(parts):
+        return parts
+    subject = ledger.get(asked.facts[0]) if asked.facts else None
+    if asked.ask in CHARGE_ASKS and subject is not None and subject.kind == "charge":
+        needed = View("charge", (subject.id,))
+    elif asked.ask == "block_card" and subject is not None:
+        card = subject if subject.kind == "card" else _card_of(subject, ledger)
+        if card is None:
+            return parts
+        needed = View("card", (card.id,))
+    else:
+        return parts
+    kept = [part for part in parts if not isinstance(part, View | Ask)]
+    return [*kept, needed, *(part for part in parts if isinstance(part, Ask))]
+
+
+def _card_of(fact: Fact, ledger: Ledger) -> Fact | None:
+    wanted = fact.fields.get(CARD_REF.get(fact.kind, ""))
+    cards = [
+        found
+        for found in ledger.facts.values()
+        if found.kind == "card" and found.fields.get("card_ref") == wanted
+    ]
+    return cards[-1] if wanted is not None and cards else None
+
+
+def code_views(parts: list[Part], ledger: Ledger) -> list[Part]:
+    asked = next((part for part in parts if isinstance(part, Ask)), None)
+    views = [part for part in parts if isinstance(part, View)]
+    if asked is None:
+        return parts
+    if asked.ask == PERSON and not any(view.view == HANDOFF for view in views):
+        named = ledger.get(asked.facts[0]) if asked.facts else None
+        subject = (named.id,) if named is not None and named.kind in SUBJECTS else _subject_of(views, ledger)
+        kept = [part for part in parts if not isinstance(part, View | Ask)]
+        return [*kept, View(HANDOFF, subject), Ask(PERSON, subject, target=asked.target)]
+    if asked.ask == "which_one" and not views:
+        try:
+            options = ask_options(asked, ledger)
+        except Unfit:
+            return parts
+        kind = "cards" if options and options[0].read.get("tool") == "card_status" else "movements"
+        listed = View(kind, asked.facts)
+        try:
+            view_items(listed, ledger)
+        except Unfit:
+            return parts
+        return [*parts[: parts.index(asked)], listed, *parts[parts.index(asked) :]]
+    return parts
+
+
+def missing_views(parts: list[Part]) -> list[Ask]:
+    shown = {part.view for part in parts if isinstance(part, View)}
+    return [
+        part
+        for part in parts
+        if isinstance(part, Ask) and part.ask in ASK_VIEWS and not shown & set(ASK_VIEWS[part.ask])
+    ]
+
+
+def _subject_of(views: list[View], ledger: Ledger) -> tuple[str, ...]:
+    facts = [fact_id for view in views for fact_id in view.facts]
+    if len(facts) == 1 and (fact := ledger.get(facts[0])) is not None and fact.kind in SUBJECTS:
+        return (fact.id,)
+    return ()
 
 
 def ask_options(ask: Ask, ledger: Ledger) -> list[Option]:
@@ -100,7 +182,9 @@ def ask_target(ask: Ask, ledger: Ledger) -> Json | None:
     if ask.ask == "block_card":
         return _subject(ledger.facts[ask.facts[0]], ledger)
     if ask.ask == "talk_to_person":
-        subject = _subject(ledger.facts[ask.facts[0]], ledger) if len(ask.facts) == 1 else None
+        fact = ledger.facts[ask.facts[0]] if len(ask.facts) == 1 else None
+        case = _ref(fact, "case_ref") if fact is not None and fact.kind == "case" else None
+        subject = {"complaint_id": case} if case else (_subject(fact, ledger) if fact is not None else None)
         return {"reason": "other", "area": "service", **(subject or {}), **(ask.target or {})}
     return None
 
@@ -345,6 +429,19 @@ def _unique(items: list[Json]) -> list[Json]:
     return seen
 
 
+def _handoff(facts: list[Fact], ledger: Ledger) -> list[Json]:
+    if len(facts) > 1:
+        raise Unfit("view_fact_unfit", facts[-1].id)
+    if not facts or facts[0].kind not in SUBJECTS:
+        return []
+    [fact] = facts
+    if fact.kind == "case":
+        return _cases(facts, ledger)
+    if fact.kind == "card":
+        return _cards(facts, ledger)
+    return _single_transaction(facts, ledger)
+
+
 VIEWS: dict[str, Callable[[list[Fact], Ledger], list[Json]]] = {
     "movements": _movements,
     "cards": _cards,
@@ -353,4 +450,5 @@ VIEWS: dict[str, Callable[[list[Fact], Ledger], list[Json]]] = {
     "charge": _one(_of_kind("charge", _single_transaction)),
     "history": _history,
     "case": _cases,
+    HANDOFF: _handoff,
 }

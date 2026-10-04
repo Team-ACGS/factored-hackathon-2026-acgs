@@ -12,8 +12,11 @@ from core.facts.catalog import (
     DATE_PREPOSITIONS,
     DATE_WORDS,
     FEMININE_NOUNS,
+    FIRST_PURCHASE_WORDS,
     FORBIDDEN,
     INSTRUCTIONS,
+    LANGUAGE_MARKERS,
+    LANGUAGE_MIN_MARKERS,
     MONTHS,
     NOUNS,
     NUMBER_HOMONYMS,
@@ -30,13 +33,15 @@ from core.facts.catalog import (
 from core.facts.lexicon import CATALOG_MERCHANTS, COMMON_WORD_MERCHANTS
 from core.facts.parts import Ask, Part, Say, View
 from core.facts.render import CITATION, REFERENCE, is_renderable, is_singular, render_value, resolve
-from core.facts.targets import SHOWN_ROWS, Unfit, ask_options, view_items
+from core.facts.targets import SHOWN_ROWS, Unfit, ask_options, code_views, missing_views, view_items
 from core.facts.values import (
     Channel,
     Count,
     Day,
     Instant,
     Json,
+    Labels,
+    Last4,
     Ledger,
     Money,
     Note,
@@ -78,7 +83,18 @@ PLURAL_CUES = {
     "pt-BR": re.compile(r"(?<!\w)(?:estão|são|ambas|ambos|todas|todos)(?!\w)", re.IGNORECASE),
 }
 CLAUSE_START = re.compile(r"[.;:!?]")
+CARD_NOUNS = {
+    "es": ("tus tarjetas", "tu tarjeta"),
+    "pt-BR": ("seus cartões", "seu cartão"),
+    "en": ("your cards", "your card"),
+}
+LIST_WORDS = {"es": "y", "pt-BR": "e", "en": "and"}
+BOTH = re.compile(r"(?<!\w)(amb)(os|as)(?!\w)", re.IGNORECASE)
+STATUS_WORD = re.compile(r"(?<!\w)(ativ|activ|bloquead)(os|as)(?!\w)", re.IGNORECASE)
 PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d|activ)(os|as|o|a)(?!\w)")
+QUOTED = re.compile(r"«[^»]*»|“[^”]*”|\"[^\"]*\"")
+WORDS = re.compile(r"[^\W\d_]+")
+LETTER = re.compile(r"[^\W\d_]")
 DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
 
@@ -91,6 +107,7 @@ class CheckError:
     text: str
     instruction: str
     context: str = ""
+    facts: tuple[str, ...] = ()
 
     def to_dict(self) -> Json:
         return {
@@ -112,6 +129,8 @@ def check(
     errors: list[CheckError] = []
     for index, part in enumerate(parts):
         match part:
+            case Say(text) if not wordy(text):
+                errors.append(_error("empty_say", index, (0, len(text)), text))
             case Say(text):
                 errors.extend(_SayCheck(index, text, ledger, locale).run())
             case View():
@@ -128,6 +147,13 @@ def check(
                     ask_options(part, ledger)
                 except Unfit as unfit:
                     errors.append(_part_error(unfit.code, index, unfit.fact_id, part))
+    broken = {error.part for error in errors}
+    errors.extend(
+        _part_error("ask_without_view", parts.index(ask), ask.ask, ask)
+        for ask in missing_views(code_views(list(parts), ledger))
+        if parts.index(ask) not in broken
+    )
+    errors.extend(_repeated_reasons(parts, ledger))
     errors.extend(_movements_beside_spend(parts, ledger))
     errors.extend(_cards_without_series(parts, ledger))
     return sorted(errors, key=lambda error: (error.part, error.span))
@@ -145,6 +171,9 @@ def tidy_reply(texts: Sequence[str], ledger: Ledger) -> tuple[list[str], dict[st
             kind == "movements" or (kind == "spend" and field in SPEND_SCOPE) for kind, field in found
         )
 
+    placed = [CITATION_AFTER_END.subn(r" \2\1", text) for text in texts]
+    texts = [text for text, _ in placed]
+    moved = sum(count for _, count in placed)
     spend = any("spend" in referenced(text) for text in texts)
 
     def dropped_as(sentence: str) -> str | None:
@@ -160,7 +189,7 @@ def tidy_reply(texts: Sequence[str], ledger: Ledger) -> tuple[list[str], dict[st
         return None
 
     kept: list[str] = []
-    edits: dict[str, int] = {}
+    edits: dict[str, int] = {"citation_placement": moved} if moved else {}
     for text in texts:
         others = []
         for sentence in (match.group(0) for match in SENTENCE.finditer(text) if match.group(0)):
@@ -172,8 +201,12 @@ def tidy_reply(texts: Sequence[str], ledger: Ledger) -> tuple[list[str], dict[st
         if "".join(others).strip():
             kept.append("".join(others).strip())
     if not kept:
-        return list(texts), {}
+        return list(texts), {"citation_placement": moved} if moved else {}
     return kept, edits
+
+
+def wordy(text: str) -> bool:
+    return bool(REFERENCE.search(text) or LETTER.search(CITATION.sub("", text)))
 
 
 def _cards_without_series(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
@@ -207,6 +240,25 @@ def _cards_without_series(parts: Sequence[Part], ledger: Ledger) -> list[CheckEr
     return errors
 
 
+def _repeated_reasons(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
+    says = [(index, part.text) for index, part in enumerate(parts) if isinstance(part, Say)]
+    new_merchant = any(
+        match.group(2).endswith("verdict.reasons")
+        and isinstance(reasons := resolve(ledger, match.group(1), match.group(2)), Labels)
+        and "new_merchant" in reasons.values
+        for _, text in says
+        for match in REFERENCE.finditer(text)
+    )
+    if not new_merchant:
+        return []
+    errors = []
+    for index, text in says:
+        masked = REFERENCE.sub(lambda match: " " * len(match.group(0)), text)
+        for found in _first_purchase().finditer(fold(masked)):
+            errors.append(_error("repeated_reason", index, found.span(), text[found.start() : found.end()]))
+    return errors
+
+
 def _movements_beside_spend(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
     said = [(index, part.text) for index, part in enumerate(parts) if isinstance(part, Say)]
     kinds = {fact_id: fact.kind for fact_id, fact in ledger.facts.items()}
@@ -237,6 +289,8 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
     text, dates = _drop_prepositions(text, ledger, (Day, Instant), DATE_PREPOSITIONS[locale])
     text, agreement = _agree_after_counts(text, ledger, locale)
     text, plural_statuses = _plural_card_statuses(text, ledger, locale)
+    text, both = _agree_both(text, ledger, locale)
+    text, each_card = _one_card_each(text, ledger, locale)
     text, dashes = DASH.subn(", ", text)
     text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
     text, voseo = VOSEO_FORMS.subn(_as_tu, text) if locale == "es" else (text, 0)
@@ -247,7 +301,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
         "period_preposition": periods,
         "date_preposition": dates,
         "relative_day": relative,
-        "agreement": agreement + plural_statuses,
+        "agreement": agreement + plural_statuses + both + each_card,
         "dash": dashes,
         "grammar": grammar,
         "voseo": voseo,
@@ -357,6 +411,50 @@ def _agree_after_counts(text: str, ledger: Ledger, locale: str) -> tuple[str, in
     return text, len(swaps)
 
 
+def _agree_both(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    if locale not in FEMININE_NOUNS:
+        return text, 0
+    swaps = []
+    for match in REFERENCE.finditer(text):
+        count = resolve(ledger, match.group(1), match.group(2))
+        if not isinstance(count, Count) or count.value < 2:
+            continue
+        ending = "as" if count.noun in FEMININE_NOUNS[locale] else "os"
+        clause = CLAUSE_START.search(text, match.end())
+        stop = clause.start() if clause else len(text)
+        for word in BOTH.finditer(text, match.end(), stop):
+            for found in (word, *STATUS_WORD.finditer(text, word.end(), stop)):
+                if found.group(2) != ending:
+                    swaps.append((found.start(2), found.end(2), ending))
+    for start, end, ending in sorted(set(swaps), reverse=True):
+        text = text[:start] + ending + text[end:]
+    return text, len(set(swaps))
+
+
+def _one_card_each(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    plural, singular = CARD_NOUNS[locale]
+    reference = r"\{[fp]\d+\.[a-z0-9_.]+\}"
+    pattern = re.compile(
+        rf"(?<!\w)({re.escape(plural)})\s*{reference}(?:\s*(?:,|{LIST_WORDS[locale]})\s*{reference})+",
+        re.IGNORECASE,
+    )
+    edits = 0
+
+    def each(match: re.Match[str]) -> str:
+        nonlocal edits
+        found = list(REFERENCE.finditer(match.group(0)))
+        if not all(isinstance(resolve(ledger, ref.group(1), ref.group(2)), Last4) for ref in found):
+            return match.group(0)
+        edits += 1
+        listed = REFERENCE.sub(
+            lambda ref: f"{singular} {ref.group(0)}", match.group(0)[len(match.group(1)) :]
+        )
+        noun = singular[:1].upper() + singular[1:] if match.group(1)[:1].isupper() else singular
+        return noun + listed.lstrip()[len(singular) :]
+
+    return pattern.sub(each, text), edits
+
+
 def _plural_card_statuses(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
     cue = PLURAL_CUES.get(locale)
     if cue is None:
@@ -454,6 +552,16 @@ def _present_today(locale: str) -> re.Pattern[str]:
 
 
 @cache
+def _first_purchase() -> re.Pattern[str]:
+    return bounded(FIRST_PURCHASE_WORDS)
+
+
+@cache
+def _markers() -> dict[str, frozenset[str]]:
+    return {locale: frozenset(words.split()) for locale, words in LANGUAGE_MARKERS.items()}
+
+
+@cache
 def _location_talk() -> re.Pattern[str]:
     return bounded(FORBIDDEN["location_talk"])
 
@@ -521,7 +629,29 @@ class _SayCheck:
         for code, pattern in _forbidden():
             self._scan_folded(pattern, code)
         self._uncited_process()
+        self._language()
         return self.errors
+
+    def _language(self) -> None:
+        if self.locale not in LANGUAGE_MARKERS:
+            return
+        text = QUOTED.sub(lambda match: " " * len(match.group(0)), "".join(self.outside))
+        words = WORDS.findall(fold(text))
+        found = {
+            locale: sum(1 for word in words if word in markers) for locale, markers in _markers().items()
+        }
+        own = found.pop(self.locale)
+        other = max(found.values(), default=0)
+        if other >= LANGUAGE_MIN_MARKERS and other > own:
+            self.errors.append(
+                CheckError(
+                    "wrong_language",
+                    self.part,
+                    (0, len(self.original)),
+                    self.original,
+                    INSTRUCTIONS["wrong_language"],
+                )
+            )
 
     def _uncited_process(self) -> None:
         start = 0

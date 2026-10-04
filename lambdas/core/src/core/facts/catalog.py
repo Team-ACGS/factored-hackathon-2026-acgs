@@ -409,6 +409,9 @@ RATIO = {
     },
 }
 
+CITY_PREPOSITIONS = {"es": "en", "pt-BR": "em", "en": "in"}
+CITY_ARTICLES = {"pt-BR": {"Rio de Janeiro": "no"}}
+
 LIST_JOIN = {"es": " y ", "pt-BR": " e ", "en": " and "}
 
 QUOTES = {"es": ("«", "»"), "pt-BR": ("“", "”"), "en": ("“", "”")}
@@ -502,20 +505,61 @@ PRESENT_TODAY = {
     "en": r"today (you have|you are|you're|there is|there are)",
 }
 
+FIRST_PURCHASE_WORDS = (
+    r"(tu |su )?primera (compra|vez que compras)",
+    r"(a )?(sua )?primeira (compra|vez que (voce )?compra)",
+    r"(your |their )?first (purchase|time (you )?(buy|bought|shop))",
+)
+
+LANGUAGE_MARKERS = {
+    "es": "el los las del y tu tus mi mis tienes tiene tengo puedes puedo es son estan pero muy tambien "
+    "cuando hay ya yo al lo le les un una con fue eres si cuenta tarjeta tarjetas cargo cargos movimiento "
+    "movimientos compraste hiciste gastaste dinero acceso",
+    "pt-BR": "voce voces nao seu sua seus suas meu minha com um uma foi sao estao tambem cartao cartoes "
+    "cobranca cobrancas movimentacao movimentacoes isso isto essa esse dos ao pelo pela mais mes eu tem "
+    "tenho posso pode ou e do da na em ja nenhum nenhuma conta",
+    "en": "the you your is are and of to with was were have has this that it for on at card cards charge "
+    "charges i my we can not does what which there be been from by in",
+}
+LANGUAGE_MIN_MARKERS = 3
+
 PROCESS_ACTIONS = (
     r"(puedes|podrias|debes|deberias|tendrias que|tienes que|necesitas|conviene|te recomiendo) (\w+ ){0,2}"
-    r"(abrir\w*|iniciar\w*|presentar\w*|cancelar\w*|dar\w* de baja|llamar\w*|comunicarte|contactar\w*"
+    r"(hablar|abrir\w*|iniciar\w*|presentar\w*|cancelar\w*|dar\w* de baja|llamar\w*|comunicarte|contactar\w*"
     r"|solicitar\w*|pedir\w*|reclamar\w*|bloquear\w*)",
     r"(comunicate|llama al|llamanos|contacta|escribe al|acude)",
+    r"(necesitaras|tendras que|deberas|vas a tener que|vas a necesitar) (\w+ ){0,2}"
+    r"(hablar|llamar|contactar\w*|comunicarte|solicitar\w*|pedir\w*|acudir)",
     r"(voce )?(pode|poderia|deve|deveria|precisa|tem que) (\w+ ){0,2}"
     r"(abrir|iniciar|registrar|cancelar\w*|ligar|entrar em contato|contatar|solicitar|pedir|bloquear)",
     r"(ligue|entre em contato|contate|procure o banco)",
+    r"(vai precisar|precisara|vai ter que|tera que|devera) (de )?(\w+ ){0,2}"
+    r"(falar|ligar|entrar em contato|contatar|solicitar|pedir)",
     r"you (can|could|should|need to|have to|must) (\w+ ){0,2}"
     r"(open|start|file|cancel|call|contact|request|block)",
     r"(call|contact) the bank",
+    r"you('ll| will) (need|have) to (\w+ ){0,2}(talk|speak|call|contact|request)",
 )
 
 FORBIDDEN = {
+    "offer_talk": (
+        r"(te )?puedo (conectarte|pasarte|transferirte|comunicarte)",
+        r"te puedo (conectar|pasar|transferir|comunicar)",
+        r"puedo (\w+ ){0,8}(si (asi )?(lo )?quieres|mientras tanto)",
+        r"puedo ayudarte a (conectarte|contactar\w*|comunicarte|pasarte)",
+        r"posso (te )?(passar|conectar|transferir|encaminhar)",
+        r"posso (\w+ ){0,8}(se (voce )?quiser|enquanto isso)",
+        r"posso (te )?ajudar a (falar|entrar em contato|conectar)",
+        r"(colocar|por|deixar) (voce|te) em contato",
+        r"(una persona|alguien|un representante|un asesor|un agente|el equipo|uma pessoa|alguem|um atendente"
+        r"|um representante|a equipe|a person|someone|an agent|a representative|the team)"
+        r"( del banco| en el banco| do banco| no banco| at the bank)? "
+        r"(te |lhe )?(puede|podra|pode|podera|can|will) (\w+ ){0,2}"
+        r"(ayudar\w*|ajudar|help|resolver|gestionar)",
+        r"i can (connect|put|transfer|pass) you",
+        r"i can (\w+ ){0,8}(if you('d)? (want|like)|in the meantime)",
+    ),
+    "gendered_customer": (r"(in)?satisfeit[oa]s?", r"(in)?satisfech[oa]s?"),
     "fraud_word": (r"fraud\w*",),
     "safety_claim": (
         r"es seguro",
@@ -648,11 +692,47 @@ INSTRUCTIONS = {
         "Next to the subscriptions, name a card only as the `last4` of a series' own `recurring` fact; "
         "remove the cards that carry no series."
     ),
+    "offer_talk": (
+        'Never offer anything in say: no transfer, no person, no lookup "if you want". Say that a person at '
+        "the bank does it and state what you read; the bank's buttons offer what the bank allows."
+    ),
+    "gendered_customer": (
+        "Never infer the customer's gender: rephrase without the adjective about them "
+        '("Se a resposta não resolver", "Si la respuesta no te convence").'
+    ),
+    "wrong_language": (
+        "Write every say in the account's language, the `locale` of the context, whatever language the "
+        "customer wrote in; merchant names and document titles stay as they are."
+    ),
+    "repeated_reason": (
+        "What the bank saw, {fN.verdict.reasons}, already says it is the customer's first purchase there; "
+        "remove the words that say it again."
+    ),
+    "restated_charge": (
+        "The bank's question about this charge is open and your reply only repeats the charge. If the "
+        "customer's message answers it, pass `answer` (yes or no); otherwise answer what they wrote, or say "
+        "in one sentence that you need to know whether they recognize the charge."
+    ),
+    "say_key_repeated": (
+        "You gave this fixed answer in your last message; the customer asks something else. Answer with "
+        "say, in your own words, from the fact named here (what the fixed answer said) and what the "
+        "question needs: "
+        'say what you do not have access to as "no tengo acceso a", "não tenho acesso a" or "I do not '
+        'have access to".'
+    ),
+    "empty_say": (
+        "Each say paragraph needs words: write the sentence the excerpt supports and end it with its "
+        "citation [p:<chunk_id>]; never send a citation or a paragraph without words."
+    ),
     "noun_after_count": "A count renders with its noun; remove the noun you wrote after the reference.",
     "view_unknown": "Use one of the view types of the reply tool.",
     "view_fact_unknown": "A view may show only facts a tool returned this turn.",
     "view_fact_unfit": "That fact does not fit this view; see the reply tool for the facts each view takes.",
     "view_empty": "The facts of this view have no rows to show; send the reply without the view.",
+    "ask_without_view": (
+        "An ask travels with its view: recognize_charge, was_it_you and open_claim with the `charge` view of "
+        "the same `charge` fact; send the reply again with that view."
+    ),
     "ask_not_allowed": "That ask is not allowed now; send the reply without the ask.",
     "ask_fact_unknown": "An ask may use only facts a tool returned this turn.",
     "ask_fact_unfit": "That fact cannot be an option of this ask; see the reply tool for each ask.",

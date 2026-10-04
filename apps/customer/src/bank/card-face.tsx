@@ -5,7 +5,7 @@ import { isBlocked } from "../clara/overlay";
 import { useI18n } from "../i18n";
 import { brand } from "./brand";
 import type { Material } from "./card-display";
-import { formatExpiration, formatMoney, lastDigits } from "./format";
+import { formatMoney, lastDigits } from "./format";
 import { cardTypeKey, isCredit } from "./labels";
 import type { Card } from "./types";
 
@@ -39,16 +39,8 @@ export function CardFace({ card, material, tone = "bank", className }: CardFaceP
       <span className="relative flex items-center">
         <span className="card-chip" />
       </span>
-      <span className="relative flex items-end justify-between gap-2">
-        <span className={cn("font-mono tracking-[0.08em]", clara ? "text-sm" : "text-[15px]")}>
-          •••• {lastDigits(card.product_number)}
-        </span>
-        <span className={cn("text-right font-mono text-on-mat-2", clara ? "text-[10.5px]" : "text-[11px]")}>
-          {t("card.expiresShort")}
-          <b className={cn("block font-medium text-on-mat", clara ? "text-[11.5px]" : "text-xs")}>
-            {formatExpiration(card.expiration_date)}
-          </b>
-        </span>
+      <span className={cn("relative font-mono tracking-[0.08em]", clara ? "text-sm" : "text-[15px]")}>
+        •••• {lastDigits(card.product_number)}
       </span>
       {isBlocked(card) && (
         <span className="absolute inset-0 z-[2] grid place-items-center bg-[rgb(9_13_11/0.66)] p-3 text-center text-on-mat">

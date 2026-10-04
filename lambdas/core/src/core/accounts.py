@@ -20,7 +20,6 @@ CARD_ATTRIBUTES = (
     "current_balance",
     "credit_limit",
     "product_status",
-    "expiration_date",
     "balance_as_of",
     "blocked_at",
 )
@@ -29,7 +28,6 @@ TRANSACTION_ATTRIBUTES = (
     "transaction_id",
     "product_id",
     "transaction_date",
-    "transaction_type",
     "transaction_category",
     "amount",
     "currency",
@@ -39,7 +37,6 @@ TRANSACTION_ATTRIBUTES = (
     "transaction_country",
     "transaction_city",
     "transaction_status",
-    "response_code",
     "fraud_score",
 )
 

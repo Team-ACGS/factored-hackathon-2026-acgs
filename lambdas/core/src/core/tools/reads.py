@@ -25,7 +25,6 @@ CARD_FIELDS = (
     "product_number",
     "currency",
     "product_status",
-    "expiration_date",
 )
 BALANCE_FIELDS = ("current_balance", "credit_limit", "balance_as_of")
 
@@ -53,7 +52,6 @@ class Card:
     last4: str
     currency: str
     status: str
-    expiration_date: str | None
 
 
 @dataclass(frozen=True)
@@ -82,7 +80,6 @@ def to_card(item: dict[str, Any]) -> Card | None:
         last4=digits[-4:],
         currency=str(item.get("currency") or ""),
         status=str(item.get("product_status") or ""),
-        expiration_date=item.get("expiration_date"),
     )
 
 

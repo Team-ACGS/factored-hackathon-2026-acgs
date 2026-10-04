@@ -28,7 +28,7 @@ export interface Say {
   citations: Citation[];
 }
 
-export const viewKinds = ["movements", "cards", "card", "movement", "charge", "history", "case"] as const;
+export const viewKinds = ["movements", "cards", "card", "movement", "charge", "history", "case", "handoff"] as const;
 export type ViewKind = (typeof viewKinds)[number];
 
 export interface Row {
@@ -51,6 +51,7 @@ export interface Readings {
   explanation?: string;
   habit?: string;
   reasons?: Reason[];
+  points?: string[];
 }
 
 export interface ViewPart {
@@ -225,6 +226,7 @@ function readingsOf(value: unknown): Readings {
         : [];
     });
   }
+  if (Array.isArray(fields.points)) readings.points = strings(fields.points);
   return readings;
 }
 

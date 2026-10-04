@@ -115,3 +115,25 @@ def test_no_fallback_or_refusal_offers_a_person_clara_cannot_hand_over_to() -> N
 
     assert not [text for text in texts if re.search(r"persona|pessoa|person\b", text)]
     assert not [text for text in texts if re.search(r"\bapp\b", text)]
+
+
+@pytest.mark.parametrize(
+    ("country", "language", "text", "said"),
+    [
+        ("BR", "pt-BR", "Beleza", "Qualquer coisa, estou aqui."),
+        ("BR", "pt-BR", "ok, obrigada!", "Qualquer coisa, estou aqui."),
+        ("PE", "es", "listo, gracias", "Aquí estoy si necesitas algo más."),
+    ],
+)
+def test_a_closer_gets_one_line_from_the_catalog_and_never_the_greeting(
+    aws: Aws, country: str, language: str, text: str, said: str
+) -> None:
+    demo_account(aws, CUSTOMER, country, language, NOW - timedelta(hours=1))
+    model = FakeConverse([])
+    message = customer_message(CUSTOMER, uuid7(), uuid7(int(NOW.timestamp() * 1000)), text, NOW)
+
+    result = run_turn(message, [], NOW, profile=profiles()[0], clients=model.client)
+
+    assert [part["text"] for part in result.reply.parts] == [said]
+    assert result.summary()["route"] == "closer"
+    assert model.requests == []

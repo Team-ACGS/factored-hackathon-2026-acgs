@@ -21,6 +21,7 @@ HAVE_CARD = "have_card"
 BLOCK = "block_card"
 CLAIM = "open_claim"
 PERSON = "talk_to_person"
+SAY_KEY = "say_key"
 STORY_ASKS = frozenset({RECOGNIZE, WAS_IT_YOU, HAVE_CARD, BLOCK, CLAIM, PERSON})
 ABOUT_THE_CHARGE = frozenset({RECOGNIZE, WAS_IT_YOU})
 WRITES = frozenset({BLOCK, CLAIM, PERSON})
@@ -28,7 +29,7 @@ PROTECT_REASONS = frozenset({"foreign_country", "unusual_channel"})
 MERCHANT_AFTER = 3
 MAX_CHARGE_MEMORIES = 500
 
-AnsweredBy = Literal["tap", "lexicon", "floor"]
+AnsweredBy = Literal["tap", "lexicon", "floor", "graph"]
 Closed = Literal["written", "redelivered", "already", "missing"]
 Purpose = Literal["lost", "not_me"]
 
@@ -48,6 +49,7 @@ class Target:
     transaction_id: str | None = None
     reason: str | None = None
     area: str | None = None
+    complaint_id: str | None = None
 
     def to_wire(self) -> dict[str, str]:
         return {name: value for name, value in self.__dict__.items() if value is not None}
@@ -81,6 +83,9 @@ class TurnState:
     choice: str | None = None
     asking: str | None = None
     open_cases: frozenset[str] = frozenset()
+    said_key: str | None = None
+    open_charge: str | None = None
+    answerable: bool = False
 
 
 def allowed_asks(state: TurnState, ledger: Ledger) -> frozenset[str]:
@@ -163,6 +168,13 @@ def resolve_choice(message: Message, asked: Message | None) -> Choice | None:
     return None
 
 
+def said_key(asked: Message | None) -> str | None:
+    for part in asked.draft if asked else ():
+        if part.get("type") == SAY_KEY:
+            return str(part.get("key"))
+    return None
+
+
 def open_ask(asked: Message | None) -> OpenAsk | None:
     if asked is None:
         return None
@@ -177,7 +189,9 @@ def _target(value: Mapping[str, Any]) -> Target:
     def text(name: str) -> str | None:
         return str(value[name]) if value.get(name) else None
 
-    return Target(text("product_id"), text("transaction_id"), text("reason"), text("area"))
+    return Target(
+        text("product_id"), text("transaction_id"), text("reason"), text("area"), text("complaint_id")
+    )
 
 
 def topic_of(message: Message) -> Target | None:
@@ -287,6 +301,14 @@ def _learn_merchant(
         },
     )
     return created
+
+
+def answerable(message: Message, asked: OpenAsk | None, abstained: bool) -> bool:
+    return asked is not None and asked.ask == RECOGNIZE and "?" not in message.text and not abstained
+
+
+def graph_answer(message: Message, asked: OpenAsk, option: str) -> Answer:
+    return Answer(asked, option, _note(message.text) if option == "yes" else None, "graph")
 
 
 def _note(value: object) -> str | None:

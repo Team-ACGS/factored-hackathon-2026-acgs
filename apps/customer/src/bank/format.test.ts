@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatExpiration, formatMoney } from "./format";
+import { formatMoney } from "./format";
 import { guessCountry } from "./labels";
 
 describe("formatMoney", () => {
@@ -12,12 +12,6 @@ describe("formatMoney", () => {
     ["310.39", "BRL", "pt-BR", "310,39"],
   ] as const)("shows %s %s the way %s speakers read it in that currency's country", (amount, currency, locale, expected) => {
     expect(formatMoney(amount, currency, locale)).toContain(expected);
-  });
-});
-
-describe("formatExpiration", () => {
-  it("shows month and two digit year", () => {
-    expect(formatExpiration("2029-08-31")).toBe("08/29");
   });
 });
 

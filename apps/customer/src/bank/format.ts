@@ -17,11 +17,6 @@ export function formatMoney(amount: string, currency: string, locale: Locale): s
   }).format(Number(amount));
 }
 
-export function formatExpiration(date: string): string {
-  const [year, month] = date.split("-");
-  return `${month}/${year?.slice(2)}`;
-}
-
 export function lastDigits(productNumber: string): string {
   return productNumber.slice(-4);
 }

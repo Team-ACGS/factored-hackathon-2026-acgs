@@ -1,10 +1,10 @@
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from core.facts.catalog import LIST_JOIN
 from core.facts.parts import Part, Say, View
 from core.facts.targets import Unfit, view_items
-from core.facts.values import Count, Fact, FactIds, Ledger, Value
+from core.facts.values import POLICY_CHUNK, Count, Fact, FactIds, Ledger, Passage, Trace, Value
 
 FALLBACK_KEYS = ("answer", "unavailable")
 
@@ -105,6 +105,11 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "pt-BR": "Tenho uma nota sua sobre as suas cobranças.",
         "en": "I have a note from you about your charges.",
     },
+    "policies": {
+        "es": "Esto dice el banco en «{title}»: {text}",
+        "pt-BR": "É o que diz o banco em “{title}”: {text}",
+        "en": "This is what the bank says in “{title}”: {text}",
+    },
     "policies_empty": {
         "es": "No tengo información del banco sobre eso.",
         "pt-BR": "Não tenho informações do banco sobre isso.",
@@ -123,12 +128,15 @@ LEADS = {
 }
 
 FIELD = re.compile(r"\{([a-z_][a-z0-9_.]*)\}")
+MARKUP = re.compile(r"\*\*|__|`|^\s*(?:#+|[-*+]|\d+[.)])\s+", re.MULTILINE)
+SPACES = re.compile(r"\s+")
 _VIEWS = ("movements", "case", "charge")
 
 
-def fallback(step_key: str, ledger: Ledger, locale: str) -> list[Part]:
+def fallback(step_key: str, ledger: Ledger, locale: str, cited: Sequence[str] = ()) -> list[Part]:
     if step_key != "answer":
         return [Say(TEMPLATES["unavailable"][locale])]
+    quoted = _quoted(ledger, cited, locale)
     groups: dict[str, list[tuple[str, Fact]]] = {}
     for fact in _distinct(ledger.facts.values()):
         key = _template_key(fact)
@@ -143,10 +151,34 @@ def fallback(step_key: str, ledger: Ledger, locale: str) -> list[Part]:
     if "spend" in groups or "spend_compare" in groups:
         groups.pop("movements", None)
     parts: list[Part] = [Say(_sentence(group, key, locale)) for key, group in groups.items()]
+    if quoted is not None:
+        parts.append(quoted)
     view = _view(ledger)
     if parts and view is not None:
         parts.append(view)
     return parts or [Say(TEMPLATES["unavailable"][locale])]
+
+
+def _quoted(ledger: Ledger, cited: Sequence[str], locale: str) -> Say | None:
+    chunks = {
+        str(chunk_id.value): fact
+        for fact in ledger.facts.values()
+        if fact.kind == POLICY_CHUNK and isinstance(chunk_id := fact.fields.get("chunk_id"), Trace)
+    }
+    chosen = next((chunk for chunk in cited if chunk in chunks), next(iter(chunks), None))
+    if chosen is None:
+        return None
+    fact = chunks[chosen]
+    passage = fact.fields.get("text")
+    if not isinstance(passage, Passage) or "title" not in fact.fields:
+        return None
+    text = plain(passage.value)
+    template = TEMPLATES["policies"][locale].format(title=f"{{{fact.id}.title}}", text=text)
+    return Say(f"{template} [p:{chosen}]")
+
+
+def plain(markdown: str) -> str:
+    return SPACES.sub(" ", MARKUP.sub("", markdown)).strip()
 
 
 def _sentence(group: list[tuple[str, Fact]], key: str, locale: str) -> str:

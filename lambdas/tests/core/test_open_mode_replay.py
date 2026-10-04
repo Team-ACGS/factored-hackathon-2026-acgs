@@ -11,12 +11,15 @@ from core.turn import Turn, run_turn
 from demo import (
     DEMO,
     FLAGGED,
+    FREE,
     KEPT,
+    NOT_ME_FREE,
     NOW,
     RECORDINGS,
     base,
     demo_id,
     demo_turn,
+    forget,
     kept,
     planted_charge,
     policy_index,
@@ -34,8 +37,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Este mes llevas S/\xa02,091.60 en Primax, versus S/\xa0949.50 el mes pasado. Gastaste "
-                    "S/\xa01,142.10 más que el mes pasado."
+                    "Este mes gastaste S/\xa02,091.60 en Primax, comparado con S/\xa0949.50 el mes pasado. "
+                    "Gastaste S/\xa01,142.10 más que el mes pasado."
                 ),
             ),
             ("movements",),
@@ -44,21 +47,18 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Tu aclaración CLR-2026-182061 sobre el cargo en Primax por S/\xa0127.80 está en "
-                    "revisión desde hoy. El banco revisa la aclaración en un plazo de 10 días hábiles."
+                    "Tu aclaración CLR-2026-182061 sobre el cargo en Primax está en revisión desde hoy. El "
+                    "banco revisa tu aclaración en 10 días hábiles."
                 ),
             ),
-            (
-                "case",
-                "talk_to_person",
-            ),
+            ("handoff", "talk_to_person"),
         ),
         "spend_pt": (
             "composed",
             (
                 (
-                    "Este mês você gastou R$\xa01.456,06 no Ipiranga, contra R$\xa01.601,37 no mês passado. "
-                    "Você gastou R$\xa0145,31 a menos do que no mês passado."
+                    "Este mês você gastou R$\xa01.456,06 no Ipiranga, R$\xa0145,31 a menos do que no mês "
+                    "passado, quando o total foi R$\xa01.601,37."
                 ),
             ),
             ("movements",),
@@ -67,50 +67,48 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Sua contestação CLR-2026-862021, referente à cobrança de R$\xa0197,26 em Pão de "
-                    "Açúcar no seu cartão final 6400, está em análise desde hoje. O banco analisa a "
-                    "contestação em até 8 dias úteis."
+                    "Sua contestação CLR-2026-862021 está em análise, aberta em 14 de setembro e referente a "
+                    "uma cobrança em Pão de Açúcar de R$\xa0197,26 no seu cartão final 6400."
+                ),
+                (
+                    "O banco analisa a contestação em 8 dias úteis. Quem pode confirmar o desfecho e o "
+                    "crédito é um atendente do banco."
                 ),
             ),
-            (
-                "case",
-                "talk_to_person",
-            ),
+            ("handoff", "talk_to_person"),
         ),
         "movements_es": (
             "composed",
-            ("Encontré 216 movimientos en ese período. Aquí ves los más recientes, de tus 3 tarjetas.",),
+            (
+                (
+                    "Encontré 216 movimientos en ese período (del 20 de julio al 20 de septiembre). Los más "
+                    "recientes son en Cineplanet, Tambo+, Starbucks, Starbucks y Cabify."
+                ),
+            ),
             ("movements",),
         ),
         "visa_es": (
             "composed",
             (
                 (
-                    "Tienes 61 movimientos este mes entre todas tus tarjetas. Como tienes 2 tarjetas de "
-                    "crédito, dime si quieres ver los movimientos de tu tarjeta terminada en 9454 o de "
-                    "tu tarjeta terminada en 3229."
+                    "Tienes 61 movimientos este mes en tus tarjetas. Si quieres ver solo los de una tarjeta "
+                    "en particular, dime cuál: tu tarjeta terminada en 9454 o tu tarjeta terminada en 3229."
                 ),
             ),
-            ("which_one",),
+            ("movements",),
         ),
         "cards_pt": (
             "composed",
-            (
-                (
-                    "Você tem 3 cartões: 2 cartões de crédito e 1 cartão de débito. Seu cartão final "
-                    "2338 e seu cartão final 6913 são de crédito, ambos ativos. Seu cartão final 3530 é "
-                    "de débito, também ativo."
-                ),
-            ),
+            ("Você tem 3 cartões: 2 cartões de crédito e 1 cartão de débito.",),
             ("cards",),
         ),
         "charge_pt": (
-            "repaired",
+            "composed",
             (
                 (
-                    "Encontrei 13 movimentações de Ipiranga no período de 22 de agosto a 20 de "
-                    "setembro. Para eu te mostrar a certa, você pode me dizer a data ou o valor da "
-                    "cobrança que quer entender?"
+                    "Encontrei 13 movimentações da Ipiranga no período de 22 de agosto a 20 de setembro. "
+                    "Sobre qual delas você quer saber mais? Me diga a data ou o valor para eu identificar a "
+                    "certa."
                 ),
             ),
             ("movements",),
@@ -119,42 +117,36 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Estos son tus movimientos más recientes. ¿Cuál es el que no reconoces? Si no está "
-                    "entre ellos, dime su fecha o su monto."
+                    "Estos son tus movimientos más recientes. ¿Cuál es el que no reconoces? Si no está entre "
+                    "ellos, dime su fecha o su monto."
                 ),
             ),
-            (
-                "movements",
-                "which_one",
-            ),
+            ("movements", "which_one"),
         ),
         "unrecognized_pt": (
             "composed",
             (
                 (
-                    "Estas são suas movimentações mais recentes. Qual é a que você não reconhece? Se "
-                    "não estiver entre elas, me diga a data ou o valor."
+                    "Estas são suas movimentações mais recentes. Qual é a que você não reconhece? Se não "
+                    "estiver entre elas, me diga a data ou o valor."
                 ),
             ),
-            (
-                "movements",
-                "which_one",
-            ),
+            ("movements", "which_one"),
         ),
         "cancel_es": (
-            "repaired",
+            "composed",
             (
                 (
-                    "Si bloqueas una tarjeta, los cobros recurrentes que se intenten con ella son "
-                    "rechazados, pero el bloqueo no cancela ninguna suscripción ni ningún servicio por "
-                    "sí mismo. Tus suscripciones están en tarjetas distintas: Movistar se cobra a tu "
-                    "tarjeta terminada en 5529 y Netflix a tu tarjeta terminada en 1211, así que "
-                    "bloquear una no afecta a la otra."
+                    "Si bloqueas una tarjeta, los cargos recurrentes que se intenten en ella son rechazados, "
+                    "pero el bloqueo no cancela ninguna suscripción por sí mismo. Tienes Movistar en tu "
+                    "tarjeta terminada en 5529 y Netflix en tu tarjeta terminada en 1211: si bloqueas alguna "
+                    "de ellas, ese cobro quedaría rechazado."
                 ),
                 (
-                    "Cuando un pago es rechazado, cada comercio decide qué hace con eso; para evitar "
-                    "interrupciones, lo recomendable es actualizar la forma de pago o cancelar la "
-                    "suscripción directamente con el comercio."
+                    "Cuando un pago es rechazado, el comercio decide qué hacer con él; para evitar "
+                    "interrupciones, deberías actualizar tu forma de pago con cada servicio al recibir la "
+                    "tarjeta nueva, o cancelar la suscripción directamente con el comercio si ya no la "
+                    "quieres."
                 ),
             ),
             ("movements",),
@@ -163,19 +155,14 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Al bloquear una tarjeta, los cargos recurrentes que intenten cobrarse en esa "
-                    "tarjeta serán rechazados, ya que no acepta nuevos cargos. El bloqueo en sí no "
-                    "cancela ninguna suscripción ni servicio."
+                    "Si bloqueas una tarjeta, los cobros recurrentes que intenten cargarse a esa tarjeta "
+                    "serán rechazados, pero el bloqueo no cancela por sí mismo ninguna suscripción ni "
+                    "servicio."
                 ),
                 (
-                    "Tus suscripciones están en tarjetas distintas: Movistar se cobra en tu tarjeta "
-                    "terminada en 4071 y Netflix en tu tarjeta terminada en 9558. Si bloqueas solo una "
-                    "de ellas, solo los cargos de esa tarjeta serían rechazados."
-                ),
-                (
-                    "Cuando una suscripción es rechazada, cada comercio decide qué hace: puedes "
-                    "actualizar tu forma de pago cuando recibas la tarjeta nueva, o cancelar "
-                    "directamente con el comercio si ya no la quieres."
+                    "Tu suscripción con Movistar va a tu tarjeta terminada en 4071, y la de Netflix va a tu "
+                    "tarjeta terminada en 9558. Si alguna es rechazada, cada comercio decide qué hace con "
+                    "ese pago; si ya no quieres el servicio, debes cancelarlo directamente con el comercio."
                 ),
             ),
             ("movements",),
@@ -184,9 +171,9 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "El cargo de TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30, por internet. Lo que "
-                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera "
-                    "compra en este comercio."
+                    "El cargo en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30, por internet. Lo que "
+                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera compra "
+                    "en este comercio."
                 ),
             ),
             ("charge",),
@@ -195,9 +182,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "La aclaración puede presentarse aquí con Clara o por teléfono, y quedará "
-                    "registrada con un número de caso. Una vez abierta, el banco revisa tu caso en un "
-                    "plazo de 10 días hábiles."
+                    "Para abrir una aclaración puedes hacerlo desde la app con Clara o llamando al +51 1 600 "
+                    "2000. Una vez abierta, el banco la revisa en 10 días hábiles."
                 ),
             ),
             (),
@@ -206,27 +192,21 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Tu cargo en Tambo+ por S/\xa020.50 fue ayer a las 10:16, en tienda en Trujillo. Antes "
+                    "Tu compra en Tambo+ por S/\xa020.50 fue ayer a las 10:16, en tienda en Trujillo. Antes "
                     "hiciste 36 compras ahí y lo típico es S/\xa030.80."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "topic_pt": (
             "composed",
             (
                 (
-                    "Essa cobrança de Starbucks por R$\xa021,60 foi ontem às 20:28, na loja em São Paulo. "
-                    "Você já fez 28 compras lá antes, com valor típico de R$\xa032,67."
+                    "A cobrança de R$\xa021,60 no Starbucks foi ontem às 20:28, na loja, em São Paulo. Você "
+                    "já fez 28 compras lá antes, com valor típico de R$\xa032,67."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "remembered_es": (
             "composed",
@@ -234,151 +214,226 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             ("charge",),
         ),
         "remembered_pt": (
-            "repaired",
-            ("Você já me disse antes que reconhece essa cobrança: “era a gasolina da viagem para Santos”.",),
+            "composed",
+            ("Você já me disse que reconhece essa cobrança: “era a gasolina da viagem para Santos”.",),
             ("charge",),
         ),
         "flagged_es": (
             "composed",
             (
                 (
-                    "Tu cargo en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30, por internet. Lo que "
-                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera "
-                    "compra en este comercio."
+                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30, por internet. Lo que "
+                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera compra "
+                    "en este comercio."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "flagged_pt": (
-            "composed",
+            "repaired",
             (
                 (
-                    "Essa cobrança de R$\xa0522,83 em TEMU.COM 2979 foi hoje às 13:30, pela internet. O "
-                    "que o banco notou: o sistema de alertas do banco emitiu um alerta e é a sua "
-                    "primeira compra neste estabelecimento."
+                    "A cobrança de R$\xa0522,83 em TEMU.COM 2979 foi hoje às 13:30, pela internet. O que o "
+                    "banco observou: o sistema de alertas do banco emitiu um alerta e é a sua primeira "
+                    "compra neste estabelecimento."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "unblock_es": (
+            "repaired",
+            (
+                (
+                    "Desbloquear una tarjeta es algo que realiza una persona del banco. Tu tarjeta terminada "
+                    "en 8101, tu tarjeta terminada en 2322 y tu tarjeta terminada en 5943 están todas "
+                    "activas en este momento."
+                ),
+            ),
+            ("handoff", "talk_to_person"),
+        ),
+        "unblock_pt": (
+            "repaired",
+            ("Desbloquear um cartão é algo que só um atendente do banco pode fazer.",),
+            ("handoff", "talk_to_person"),
+        ),
+        "ten_days_pt": (
+            "repaired",
+            (
+                (
+                    "Se o prazo terminar sem resposta, você pode escrever para a Ouvidoria do LATAM Bank em "
+                    "ouvidoria.br@latambank.example, que responde em 10 dias úteis. Se a resposta não "
+                    "resolver, o passo seguinte fora do banco é o Procon."
+                ),
+            ),
+            (),
+        ),
+        "about_you_pt": (
+            "say_key",
+            (
+                "Você é Ana, cliente do LATAM Bank (Brasil).",
+                (
+                    "Você tem 3 cartões: o de crédito final 0470, o de crédito final 9210 e o de débito "
+                    "final 6341."
+                ),
+            ),
+            (),
+        ),
+        "document_pt": (
             "composed",
             (
                 (
-                    "Desbloquear una tarjeta es algo que realiza una persona del banco directamente. Lo "
-                    "que sí puedo confirmarte es que tus tarjetas están activas en este momento."
+                    "Não tenho acesso ao seu documento nem ao seu endereço. Posso ajudar com seus cartões, "
+                    "cobranças, gastos e contestações."
                 ),
             ),
-            ("talk_to_person",),
+            (),
         ),
-        "unblock_pt": (
+        "cannot_tell_pt": (
             "composed",
-            ("Desbloquear um cartão é algo que um atendente do banco pode fazer por você.",),
-            ("talk_to_person",),
+            (
+                (
+                    "Não tenho acesso ao seu documento, endereço, telefone, número completo do cartão, CVV "
+                    "nem a nenhum outro dado pessoal sensível. Posso te ajudar com seus cartões, cobranças, "
+                    "movimentações, contestações e processos do banco."
+                ),
+            ),
+            (),
+        ),
+        "spanish_pt": (
+            "repaired",
+            ("Você tem 2 cartões de crédito e ambos estão ativos.",),
+            ("cards",),
+        ),
+        "largest_pt": (
+            "composed",
+            (
+                (
+                    "Sua maior compra de 21 de junho a 20 de setembro foi em LATAM Airlines, de "
+                    "R$\xa01.852,15, em 6 de julho às 19:01."
+                ),
+            ),
+            ("movement",),
+        ),
+        "rio_pt": (
+            "composed",
+            ("Não: 4 em Belo Horizonte e 1 no Rio de Janeiro.",),
+            ("movements",),
+        ),
+        "rio_again_pt": (
+            "composed",
+            ("Não: 4 em Belo Horizonte e 1 no Rio de Janeiro.",),
+            ("movements",),
+        ),
+        "ten_days_again_pt": (
+            "composed",
+            (
+                (
+                    "Se o prazo terminar sem resposta, você pode escrever para a Ouvidoria do LATAM Bank "
+                    "pelo e-mail ouvidoria.br@latambank.example, que responde em 10 dias úteis. Se ainda "
+                    "assim não resolver, o passo seguinte fora do banco é o Procon."
+                ),
+            ),
+            (),
         ),
         "unrecognized_es_tap": (
             "composed",
             (
                 (
-                    "Tu cargo en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30, por internet. Lo que "
-                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera "
-                    "compra en este comercio."
+                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30, por internet. Lo que "
+                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera compra "
+                    "en este comercio."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "unrecognized_pt_tap": (
             "composed",
             (
                 (
-                    "Essa cobrança de R$\xa0522,83 em TEMU.COM 2979 foi hoje às 13:30, pela internet. O "
-                    "que o banco observou: o sistema de alertas do banco emitiu um alerta e é a sua "
-                    "primeira compra neste estabelecimento."
+                    "Esta cobrança em TEMU.COM 2979 de R$\xa0522,83 foi hoje às 13:30, pela internet. O que "
+                    "o banco notou: o sistema de alertas do banco emitiu um alerta e é a sua primeira compra "
+                    "neste estabelecimento."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "unrecognized_es_pick": (
             "composed",
             (
                 (
-                    "Tu cargo en Inkafarma por S/\xa089.90 fue ayer a las 20:15, en tienda, en Cusco. "
-                    "Antes hiciste 18 compras ahí y lo típico es S/\xa096.85."
+                    "Tu cargo en Inkafarma por S/\xa089.90 fue ayer a las 20:15, en tienda en Cusco. Tienes "
+                    "18 compras anteriores ahí y lo típico es S/\xa096.85."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "unrecognized_es_kept": (
-            "composed",
+            "repaired",
             (
                 (
-                    "Antes de este cargo tienes 18 compras en Inkafarma, y la más reciente fue ayer. Lo "
-                    "típico que gastas ahí es S/\xa096.85, y este cargo de S/\xa089.90 está dentro de ese "
-                    "rango."
+                    "En realidad tienes 18 compras en Inkafarma, y la última fue ayer. El monto de ayer a "
+                    "las 20:15, S/\xa089.90, está por debajo de lo típico que es S/\xa096.85."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "unrecognized_es_pick_yes": (
             "story",
             ("Gracias, lo anoto: reconoces este cargo y no volveré a preguntarte por él.",),
             (),
         ),
+        "unrecognized_es_free": (
+            "story",
+            (
+                (
+                    "Gracias, lo anoto: reconoces este cargo, «claro, esa la hice yo en el grifo», y no "
+                    "volveré a preguntarte por él."
+                ),
+            ),
+            (),
+        ),
         "unrecognized_pt_pick": (
             "composed",
             (
                 (
-                    "Essa cobrança em Drogasil de R$\xa046,71 foi ontem às 19:22, na loja. Você já fez 19 "
+                    "Sua cobrança em Drogasil de R$\xa046,71 foi ontem às 19:22, na loja. Você já fez 19 "
                     "compras lá, com valor típico de R$\xa0223,94."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "unrecognized_pt_pick_yes": (
             "story",
             ("Obrigada! Anotei que você reconhece esta cobrança e não vou perguntar sobre ela novamente.",),
             (),
         ),
+        "unrecognized_pt_free": (
+            "story",
+            (
+                (
+                    "Obrigada! Anotei que você reconhece esta cobrança, “foi eu sim, era o cinema com a "
+                    "família”, e não vou perguntar sobre ela novamente."
+                ),
+            ),
+            (),
+        ),
         "flagged_es_why": (
             "story",
             (
                 (
-                    "Te pregunto por tu compra en TEMU.COM 2979 porque el banco notó esto: el sistema "
-                    "de alertas del banco emitió una alerta y es tu primera compra en este comercio."
+                    "Te pregunto por tu compra en TEMU.COM 2979 porque el banco notó esto: el sistema de "
+                    "alertas del banco emitió una alerta y es tu primera compra en este comercio."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "flagged_es_block": (
             "story",
             (
                 "Listo: tu tarjeta terminada en 3302 quedó bloqueada, y lo confirmé en tu cuenta.",
                 (
-                    "Abrí el caso CLR-2026-385822 con lo que revisamos. Te contactará una persona del "
-                    "banco, y esto es lo que ya sabe."
+                    "Abrí el caso CLR-2026-385822 con lo que revisamos. Te contactará una persona del banco, "
+                    "y esto es lo que ya sabe."
                 ),
             ),
             ("case",),
@@ -387,23 +442,20 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Estou perguntando sobre sua compra em TEMU.COM 2979 porque o banco observou o "
-                    "seguinte nela: o sistema de alertas do banco emitiu um alerta e é a sua primeira "
-                    "compra neste estabelecimento."
+                    "Estou perguntando sobre sua compra em TEMU.COM 2979 porque o banco notou o seguinte: o "
+                    "sistema de alertas do banco emitiu um alerta e é a sua primeira compra neste "
+                    "estabelecimento."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "flagged_pt_block": (
             "story",
             (
                 "Pronto: seu cartão final 8602 foi bloqueado, e eu confirmei isso na sua conta.",
                 (
-                    "Abri o caso CLR-2026-385822 com o que verificamos. Uma pessoa do banco vai entrar "
-                    "em contato, e isto é o que ela já sabe."
+                    "Abri o caso CLR-2026-385822 com o que verificamos. Uma pessoa do banco vai entrar em "
+                    "contato, e isto é o que ela já sabe."
                 ),
             ),
             ("case",),
@@ -412,8 +464,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Abrí el caso CLR-2026-738532 con lo que revisamos. Te contactará una persona del "
-                    "banco, y esto es lo que ya sabe."
+                    "Abrí el caso CLR-2026-738532 con lo que revisamos. Te contactará una persona del banco, "
+                    "y esto es lo que ya sabe."
                 ),
             ),
             ("case",),
@@ -422,8 +474,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Abri o caso CLR-2026-738532 com o que verificamos. Uma pessoa do banco vai entrar "
-                    "em contato, e isto é o que ela já sabe."
+                    "Abri o caso CLR-2026-738532 com o que verificamos. Uma pessoa do banco vai entrar em "
+                    "contato, e isto é o que ela já sabe."
                 ),
             ),
             ("case",),
@@ -432,8 +484,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Abrí el caso CLR-2026-738532 con lo que revisamos. Te contactará una persona del "
-                    "banco, y esto es lo que ya sabe."
+                    "Abrí el caso CLR-2026-738532 con lo que revisamos. Te contactará una persona del banco, "
+                    "y esto es lo que ya sabe."
                 ),
             ),
             ("case",),
@@ -442,8 +494,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Abri o caso CLR-2026-738532 com o que verificamos. Uma pessoa do banco vai entrar "
-                    "em contato, e isto é o que ela já sabe."
+                    "Abri o caso CLR-2026-738532 com o que verificamos. Uma pessoa do banco vai entrar em "
+                    "contato, e isto é o que ela já sabe."
                 ),
             ),
             ("case",),
@@ -458,8 +510,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             (
                 "Listo: tu tarjeta terminada en 7132 quedó bloqueada, y lo confirmé en tu cuenta.",
                 (
-                    "Abrí el caso CLR-2026-385822 con lo que revisamos. Te contactará una persona del "
-                    "banco, y esto es lo que ya sabe."
+                    "Abrí el caso CLR-2026-385822 con lo que revisamos. Te contactará una persona del banco, "
+                    "y esto es lo que ya sabe."
                 ),
             ),
             ("case",),
@@ -474,8 +526,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             (
                 "Pronto: seu cartão final 9500 foi bloqueado, e eu confirmei isso na sua conta.",
                 (
-                    "Abri o caso CLR-2026-385822 com o que verificamos. Uma pessoa do banco vai entrar "
-                    "em contato, e isto é o que ela já sabe."
+                    "Abri o caso CLR-2026-385822 com o que verificamos. Uma pessoa do banco vai entrar em "
+                    "contato, e isto é o que ela já sabe."
                 ),
             ),
             ("case",),
@@ -483,129 +535,110 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
     },
     "haiku-4-5": {
         "spend_es": (
-            "repaired",
-            (
-                (
-                    "Este mes gastaste S/\xa01,142.10 más que el mes pasado en Primax. Este mes son "
-                    "S/\xa02,091.60, comparado con S/\xa0949.50 el mes pasado."
-                ),
-            ),
+            "composed",
+            ("Gastaste S/\xa02,091.60 en Primax este mes, S/\xa01,142.10 más que el mes pasado.",),
             ("movements",),
         ),
         "case_es": (
-            "repaired",
-            (
-                (
-                    "Tu aclaración CLR-2026-182061 está en revisión. El banco revisa tu aclaración "
-                    "dentro del plazo de revisión de 10 días hábiles."
-                ),
-            ),
-            ("talk_to_person",),
+            "fallback",
+            ("Lo que pasa con tu dinero lo decide una persona del banco.",),
+            ("handoff", "talk_to_person"),
         ),
         "spend_pt": (
             "composed",
-            ("Você gastou R$\xa0145,31 a menos no Ipiranga este mês do que no mês passado.",),
+            ("Você gastou R$\xa0145,31 a menos no Ipiranga este mês em relação ao mês passado.",),
             (),
         ),
         "case_pt": (
             "composed",
             (
                 (
-                    "Sua contestação CLR-2026-862021 está em análise. O banco analisa e responde dentro "
-                    "do prazo de 8 dias úteis."
+                    "Sua contestação CLR-2026-862021 está em análise. O banco analisa a sua contestação e "
+                    "responde dentro do prazo de análise de 8 dias úteis."
                 ),
             ),
-            (
-                "case",
-                "talk_to_person",
-            ),
+            ("handoff", "talk_to_person"),
         ),
         "movements_es": (
             "repaired",
-            (
-                (
-                    "En los últimos meses tuviste 216 movimientos. Los más recientes son en Cineplanet, "
-                    "Tambo+, Starbucks, Cabify y otras tiendas."
-                ),
-            ),
+            ("En ese período hiciste 216 movimientos. Acá ves tus movimientos más recientes.",),
             ("movements",),
         ),
         "visa_es": (
             "repaired",
             (
                 (
-                    "En tu tarjeta terminada en 9454 tienes 25 movimientos del 1 al 20 de septiembre. "
-                    "Los más recientes son compras en Plaza Vea, Primax, Cabify, Rappi y Rappi."
+                    "Tu tarjeta terminada en 9454 tiene 25 movimientos del 1 al 20 de septiembre. Las más "
+                    "recientes: en Plaza Vea fue rechazada, en Primax está pendiente, y en Cabify, Rappi y "
+                    "Rappi están aprobadas."
                 ),
             ),
             ("movements",),
         ),
         "cards_pt": (
             "composed",
-            ("Você tem 2 cartões de crédito e 1 cartão de débito.",),
+            (
+                (
+                    "Você tem 3 cartões: 2 cartões de crédito (terminadas em final 2338 e final 6913) e 1 "
+                    "cartão de débito (terminada em final 3530). Todas estão ativos."
+                ),
+            ),
             ("cards",),
         ),
         "charge_pt": (
-            "repaired",
+            "composed",
             (
                 (
-                    "Você tem 13 movimentações no Ipiranga de 22 de agosto a 20 de setembro. São "
-                    "compras em posto de gasolina, feitas na loja em Curitiba. Qual é a que você quer "
-                    "saber mais? Se não estiver entre estas, diga a data ou o valor."
+                    "Essa cobrança é no Ipiranga por R$\xa0144,77, em 18 de setembro às 20:23, em Curitiba. "
+                    "Você já fez 31 compras aí; o valor típico é R$\xa0238,46."
                 ),
             ),
-            ("movements",),
+            ("charge",),
         ),
         "unrecognized_es": (
             "composed",
             (
                 (
-                    "Estos son tus movimientos más recientes. ¿Cuál es el que no reconoces? Si no está "
-                    "entre ellos, dime su fecha o su monto."
+                    "Estos son tus movimientos más recientes. ¿Cuál es el que no reconoces? Si no está entre "
+                    "ellos, dime su fecha o su monto."
                 ),
             ),
-            (
-                "movements",
-                "which_one",
-            ),
+            ("movements", "which_one"),
         ),
         "unrecognized_pt": (
             "composed",
             (
                 (
-                    "Estas são suas movimentações mais recentes. Qual é a que você não reconhece? Se "
-                    "não estiver entre elas, me diga a data ou o valor."
+                    "Estas são suas movimentações mais recentes. Qual delas você não reconhece? Se não "
+                    "estiver entre elas, me diga a data ou o valor."
                 ),
             ),
-            (
-                "movements",
-                "which_one",
-            ),
+            ("movements", "which_one"),
         ),
         "cancel_es": (
-            "repaired",
+            "composed",
             (
                 (
-                    "Si bloqueas tu tarjeta terminada en 5529 o terminada en 1211, los cargos "
-                    "recurrentes de tus suscripciones serán rechazados porque la tarjeta ya no acepta "
-                    "nuevos cargos. El bloqueo no cancela por sí mismo ninguna suscripción."
+                    "Si bloqueás tu tarjeta, tus suscripciones seguirían intentando cobrar en ella. Si el "
+                    "cobro no se puede procesar, el servicio podría suspenderse, pero eso depende de cada "
+                    "empresa. Tus cargos recurrentes son Movistar en tu tarjeta terminada en 5529 y Netflix "
+                    "en tu tarjeta terminada en 1211."
                 ),
                 (
-                    "Actualiza la forma de pago en Movistar y Netflix cuando recibas una tarjeta nueva, "
-                    "o cancela con ellos directamente si ya no los quieres."
+                    "Lo mejor es actualizar el método de pago directamente con cada servicio antes de "
+                    "bloquear la tarjeta, o bloquear solo la que no uses para tus suscripciones."
                 ),
             ),
             (),
         ),
         "cancel_again_es": (
-            "repaired",
+            "composed",
             (
                 (
-                    "No tengo información del banco sobre qué sucede con las suscripciones cuando "
-                    "bloqueas una tarjeta. Eso depende de cómo estén configuradas con cada comercio "
-                    "(Movistar en tu tarjeta terminada en 4071 y Netflix en tu tarjeta terminada en "
-                    "9558) y de cómo esos servicios manejen los pagos rechazados. Lo mejor es que "
-                    "contactes directamente con ellos si tienes dudas."
+                    "No tengo información del banco sobre qué pasa con las suscripciones si bloqueas una "
+                    "tarjeta. Para esa pregunta necesitarías hablar con un ejecutivo del banco que pueda "
+                    "revisar los términos de tus suscripciones y el funcionamiento de esos cargos "
+                    "recurrentes."
                 ),
             ),
             (),
@@ -614,191 +647,247 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30 por internet. Lo que "
-                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera "
-                    "compra en este comercio."
+                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30, por internet. Lo que "
+                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera compra "
+                    "en este comercio."
                 ),
             ),
             ("charge",),
         ),
         "what_now_es": (
-            "repaired",
-            (
-                (
-                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30 por internet. Lo que "
-                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera "
-                    "compra en este comercio."
-                ),
-                "Recibirás un número de caso y el banco revisa dentro de 10 días hábiles.",
-            ),
+            "fallback",
+            ("La compra en TEMU.COM 2979 por S/\xa0363.10 está aprobada.",),
             ("charge",),
         ),
         "topic_es": (
-            "composed",
-            (
-                (
-                    "Tu compra en Tambo+ por S/\xa020.50 fue ayer a las 10:16 en tienda. Antes hiciste 36 "
-                    "compras ahí; lo típico es S/\xa030.80. Esta compra es más baja que el promedio."
-                ),
-            ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            "repaired",
+            ("Entendido. El banco revisará este cargo en tu tarjeta terminada en 3000.",),
+            ("charge", "recognize_charge"),
         ),
         "topic_pt": (
             "composed",
             (
                 (
-                    "Sua compra em Starbucks por R$\xa021,60 foi ontem às 20:28 em São Paulo, na loja. "
-                    "Antes você fez 28 compras lá; o valor típico é R$\xa032,67."
+                    "Sua compra em Starbucks de R$\xa021,60 foi ontem às 20:28 na loja. Antes você fez 28 "
+                    "compras lá; o valor típico é R$\xa032,67."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "remembered_es": (
-            "composed",
+            "repaired",
             (
                 (
-                    "Hace poco me dijiste que reconocías este cargo: «era la gasolina del viaje a "
-                    "Paracas». Ahora dices que no lo reconoces. ¿Hay algo diferente en lo que me "
-                    "cuentas ahora, o quieres que abra una aclaración por este cargo?"
+                    "Ya me dijiste que reconoces este cargo: «era la gasolina del viaje a Paracas». Tu "
+                    "compra en Tambo+ por S/\xa049.30 fue ayer a las 13:30, en tienda. Antes hiciste 38 "
+                    "compras ahí; lo típico es S/\xa029.05."
                 ),
             ),
-            (),
+            ("charge",),
         ),
         "remembered_pt": (
-            "composed",
+            "repaired",
             (
                 (
-                    "Você já me tinha dito que reconhecia esta cobrança: “era a gasolina da viagem para "
-                    "Santos”. Sua compra em 99 por R$\xa0129,17 foi ontem às 20:08, no app. Você tinha "
-                    "feito 40 compras ali antes; o valor típico é R$\xa072,98."
+                    "Vejo que você já me disse que reconhecia este cargo: “era a gasolina da viagem para "
+                    "Santos”. Se agora você não reconhece, posso ajudar a revisar."
                 ),
             ),
             ("charge",),
         ),
         "flagged_es": (
-            "composed",
+            "repaired",
             (
                 (
-                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30 en tu tarjeta "
-                    "terminada en 3302, por internet. Es tu primer compra ahí. Lo que notó el banco: el "
-                    "sistema de alertas del banco emitió una alerta y es tu primera compra en este "
-                    "comercio."
+                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30 en tu tarjeta terminada "
+                    "en 3302. Lo que notó el banco: el sistema de alertas del banco emitió una alerta y es "
+                    "tu primera compra en este comercio."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "flagged_pt": (
+            "repaired",
+            (
+                (
+                    "Sua compra em TEMU.COM 2979 de R$\xa0522,83 foi hoje às 13:30, por internet. O banco "
+                    "notou: o sistema de alertas do banco emitiu um alerta e é a sua primeira compra neste "
+                    "estabelecimento."
+                ),
+            ),
+            ("charge", "was_it_you"),
+        ),
+        "unblock_es": (
             "composed",
             (
                 (
-                    "Sua compra em TEMU.COM 2979 por R$\xa0522,83 foi hoje às 13:30, pela internet. É a "
-                    "sua primeira compra nessa loja. O que o banco notou: o sistema de alertas do banco "
-                    "emitiu um alerta e é a sua primeira compra neste estabelecimento."
+                    "El desbloqueo de tu tarjeta es algo que solo una persona del banco puede hacer. La "
+                    "banco te ofrece esa opción para que puedas hacerlo directamente."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
-        ),
-        "unblock_es": (
-            "repaired",
-            ("El desbloqueo de tarjetas es algo que una persona en el banco puede hacer.",),
-            ("talk_to_person",),
+            ("handoff", "talk_to_person"),
         ),
         "unblock_pt": (
             "composed",
             (
                 (
-                    "Todos os seus cartões estão ativos. Para desbloquear um cartão que está bloqueado, "
-                    "você precisa falar com a gente."
+                    "Um cartão bloqueado precisa ser desbloqueado por uma pessoa do banco. Qual é o cartão "
+                    "que você quer desbloquear?"
                 ),
             ),
-            ("talk_to_person",),
+            ("handoff", "talk_to_person"),
         ),
-        "unrecognized_es_tap": (
+        "ten_days_pt": (
             "composed",
             (
                 (
-                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30, por internet. Lo que "
-                    "notó el banco: el sistema de alertas del banco emitió una alerta y es tu primera "
-                    "compra en este comercio."
+                    "Se o prazo do banco terminar sem resposta, você pode escrever para a Ouvidoria do LATAM "
+                    "Bank em ouvidoria.br@latambank.example. A ouvidoria responde em 10 dias úteis."
                 ),
             ),
+            (),
+        ),
+        "about_you_pt": (
+            "say_key",
             (
-                "charge",
-                "was_it_you",
+                "Você é Ana, cliente do LATAM Bank (Brasil).",
+                (
+                    "Você tem 3 cartões: o de crédito final 0470, o de crédito final 9210 e o de débito "
+                    "final 6341."
+                ),
             ),
+            (),
+        ),
+        "document_pt": (
+            "composed",
+            (
+                (
+                    "Não tenho acesso ao seu documento nem ao seu endereço. Posso ajudar você com seus "
+                    "cartões, seus gastos, seus movimentos e seus casos no banco."
+                ),
+            ),
+            (),
+        ),
+        "cannot_tell_pt": (
+            "composed",
+            (
+                (
+                    "Não tenho acesso ao seu documento, endereço, telefone, número completo do cartão ou "
+                    "código de segurança. Também não posso consultar dados pessoais além do que você vê aqui "
+                    "na conversa sobre seus movimentos, cartões e casos."
+                ),
+            ),
+            (),
+        ),
+        "spanish_pt": (
+            "repaired",
+            ("Você tem 2 cartões de crédito e ambos estão ativos.",),
+            (),
+        ),
+        "largest_pt": (
+            "composed",
+            (
+                (
+                    "Sua maior compra de 21 de junho a 20 de setembro foi em LATAM Airlines, de "
+                    "R$\xa01.852,15, em 6 de julho às 19:01."
+                ),
+            ),
+            ("movement",),
+        ),
+        "rio_pt": (
+            "composed",
+            ("Não: 4 em Belo Horizonte e 1 no Rio de Janeiro.",),
+            ("movements",),
+        ),
+        "rio_again_pt": (
+            "composed",
+            ("Não: 4 em Belo Horizonte e 1 no Rio de Janeiro.",),
+            ("movements",),
+        ),
+        "ten_days_again_pt": (
+            "composed",
+            (
+                (
+                    "Se o prazo do banco terminar sem resposta, você pode escrever para a Ouvidoria do LATAM "
+                    "Bank em ouvidoria.br@latambank.example, que responde em 10 dias úteis."
+                ),
+            ),
+            (),
+        ),
+        "unrecognized_es_tap": (
+            "repaired",
+            (
+                (
+                    "Tu compra en TEMU.COM 2979 por S/\xa0363.10 fue hoy a las 11:30 en tu tarjeta terminada "
+                    "en 9774. Lo que notó el banco: el sistema de alertas del banco emitió una alerta y es "
+                    "tu primera compra en este comercio."
+                ),
+            ),
+            ("charge", "was_it_you"),
         ),
         "unrecognized_pt_tap": (
             "composed",
             (
                 (
-                    "Sua compra em TEMU.COM 2979 por R$\xa0522,83 foi hoje às 13:30 pela internet. É a "
-                    "primeira vez que você compra nesse lugar. O que o banco notou: o sistema de "
-                    "alertas do banco emitiu um alerta e é a sua primeira compra neste estabelecimento."
+                    "Sua compra em TEMU.COM 2979 de R$\xa0522,83 foi hoje às 13:30, pela internet. O banco "
+                    "notou: o sistema de alertas do banco emitiu um alerta e é a sua primeira compra neste "
+                    "estabelecimento."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "unrecognized_es_pick": (
             "composed",
             (
                 (
-                    "Tu compra en Inkafarma por S/\xa089.90 fue ayer a las 20:15 en tienda. Antes hiciste "
+                    "Tu compra en Inkafarma por S/\xa089.90 fue ayer a las 20:15, en tienda. Antes hiciste "
                     "18 compras ahí; lo típico es S/\xa096.85."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "unrecognized_es_kept": (
             "composed",
             (
                 (
-                    "El banco vio que es una compra típica en Inkafarma: hiciste 18 compras ahí antes, "
-                    "y los montos son parecidos a los tuyos de siempre. Ayer a las 20:15 compraste "
-                    "S/\xa089.90, muy cerca del promedio de S/\xa096.85. ¿Reconoces esta compra?"
+                    "El cobro de S/\xa089.90 en Inkafarma ayer a las 20:15 está registrado en tu tarjeta "
+                    "terminada en 0684. Hiciste 18 compras ahí antes, con un monto típico de S/\xa096.85, "
+                    "así que este cargo es similar a lo que gastas normalmente en esa farmacia."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "unrecognized_es_pick_yes": (
             "story",
             ("Gracias, lo anoto: reconoces este cargo y no volveré a preguntarte por él.",),
             (),
         ),
+        "unrecognized_es_free": (
+            "story",
+            (
+                (
+                    "Gracias, lo anoto: «claro, esa la hice yo en el grifo». No volveré a preguntarte por "
+                    "este cargo."
+                ),
+            ),
+            (),
+        ),
         "unrecognized_pt_pick": (
             "composed",
             (
                 (
-                    "Sua compra em Drogasil por R$\xa046,71 foi ontem às 19:22. Antes você fez 19 compras "
+                    "Sua compra na Drogasil por R$\xa046,71 foi ontem às 19:22. Antes você fez 19 compras "
                     "lá; o valor típico é R$\xa0223,94."
                 ),
             ),
-            (
-                "charge",
-                "recognize_charge",
-            ),
+            ("charge", "recognize_charge"),
         ),
         "unrecognized_pt_pick_yes": (
+            "story",
+            ("Obrigada, anotei: você reconhece esta cobrança e não vou perguntar de novo sobre ela.",),
+            (),
+        ),
+        "unrecognized_pt_free": (
             "story",
             ("Obrigada, anotei: você reconhece esta cobrança e não vou perguntar de novo sobre ela.",),
             (),
@@ -807,22 +896,19 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Te pregunto por tu compra en TEMU.COM 2979 porque el banco notó esto: el sistema "
-                    "de alertas del banco emitió una alerta y es tu primera compra en este comercio."
+                    "Te pregunto por tu compra en TEMU.COM 2979 porque el banco notó esto: el sistema de "
+                    "alertas del banco emitió una alerta y es tu primera compra en este comercio."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "flagged_es_block": (
             "story",
             (
                 "Listo: tu tarjeta terminada en 3302 quedó bloqueada, y lo confirmé en tu cuenta.",
                 (
-                    "Abrí el caso CLR-2026-385822 con lo que revisamos. Te contactará una persona del "
-                    "banco, y esto es lo que ya sabe."
+                    "Abrí el caso CLR-2026-385822 con lo que revisamos. Te contactará una persona del banco, "
+                    "y esto es lo que ya sabe."
                 ),
             ),
             ("case",),
@@ -835,18 +921,15 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
                     "alertas do banco emitiu um alerta e é a sua primeira compra neste estabelecimento."
                 ),
             ),
-            (
-                "charge",
-                "was_it_you",
-            ),
+            ("charge", "was_it_you"),
         ),
         "flagged_pt_block": (
             "story",
             (
                 "Pronto: seu cartão final 8602 foi bloqueado, e eu confirmei isso na sua conta.",
                 (
-                    "Abri o caso CLR-2026-385822 com o que verificamos. Uma pessoa do banco vai entrar "
-                    "em contato, e isto é o que ela já sabe."
+                    "Abri o caso CLR-2026-385822 com o que verificamos. Uma pessoa do banco vai entrar em "
+                    "contato, e isto é o que ela já sabe."
                 ),
             ),
             ("case",),
@@ -855,8 +938,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Abrí el caso CLR-2026-738532 con lo que revisamos. Te contactará una persona del "
-                    "banco, y esto es lo que ya sabe."
+                    "Abrí el caso CLR-2026-738532 con lo que revisamos. Te contactará una persona del banco, "
+                    "y esto es lo que ya sabe."
                 ),
             ),
             ("case",),
@@ -865,8 +948,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Abri o caso CLR-2026-738532 com o que verificamos. Uma pessoa do banco vai entrar "
-                    "em contato, e isto é o que ela já sabe."
+                    "Abri o caso CLR-2026-738532 com o que verificamos. Uma pessoa do banco vai entrar em "
+                    "contato, e isto é o que ela já sabe."
                 ),
             ),
             ("case",),
@@ -875,8 +958,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Abrí el caso CLR-2026-738532 con lo que revisamos. Te contactará una persona del "
-                    "banco, y esto es lo que ya sabe."
+                    "Abrí el caso CLR-2026-738532 con lo que revisamos. Te contactará una persona del banco, "
+                    "y esto es lo que ya sabe."
                 ),
             ),
             ("case",),
@@ -885,8 +968,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "story",
             (
                 (
-                    "Abri o caso CLR-2026-738532 com o que verificamos. Uma pessoa do banco vai entrar "
-                    "em contato, e isto é o que ela já sabe."
+                    "Abri o caso CLR-2026-738532 com o que verificamos. Uma pessoa do banco vai entrar em "
+                    "contato, e isto é o que ela já sabe."
                 ),
             ),
             ("case",),
@@ -978,6 +1061,16 @@ def test_every_declared_model_replays_the_pick_of_a_quiet_charge_and_what_follow
         assert_expected(replayed(f"{name}_kept", profile, follow, earlier)[0], profile, f"{name}_kept")
     said, earlier = tap(picked, before, result.reply, "yes", step=1)
     assert_expected(replayed(f"{name}_pick_yes", profile, said, earlier)[0], profile, f"{name}_pick_yes")
+    forget(aws, question.customer_id)
+    denied, before_denial = kept(picked, before, result.reply, NOT_ME_FREE[name])
+    assert [
+        part["ask"] for part in deterministic(denied, before_denial).reply.parts if part["type"] == "ask"
+    ] == ["block_card"]
+    forget(aws, question.customer_id)
+    owned, before_owning = kept(picked, before, result.reply, FREE[name])
+    free, _ = replayed(f"{name}_free", profile, owned, before_owning)
+    assert_expected(free, profile, f"{name}_free")
+    assert free.summary()["writes"] == ["memory:graph"]
 
 
 @pytest.mark.parametrize("profile", profiles(), ids=lambda row: row.key)
@@ -1048,7 +1141,7 @@ def test_the_default_model_replays_the_claim_path_and_the_lost_card(aws: Aws, lo
 def test_the_default_model_answers_the_recorded_set_with_no_fallback_and_few_repairs() -> None:
     sources = [source for source, _, _ in EXPECTED[DEFAULT.key].values()]
 
-    chains = 3 * len(TAPPED) + len(KEPT) + 2 * len(FLAGGED) + len(ABSTAINED) + 2 * len(LOST)
+    chains = 4 * len(TAPPED) + len(KEPT) + 2 * len(FLAGGED) + len(ABSTAINED) + 2 * len(LOST)
     assert len(sources) == len(DEMO) + chains
     assert "fallback" not in sources
     assert sources.count("repaired") / len(sources) < 1 / 5

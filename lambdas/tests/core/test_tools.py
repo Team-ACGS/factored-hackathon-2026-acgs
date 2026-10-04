@@ -13,7 +13,7 @@ from core import accounts as accounts_module
 from core.access import READ_ONLY_POLICY, customer_session
 from core.accounts import transaction_key
 from core.cases import case_code
-from core.facts import Ledger, Say, check
+from core.facts import Ledger, Say, check, render_text
 from core.facts.values import Fact
 from core.tools import TOOLS, Decide, ToolContext, Verdict, call
 from core.tools import reads as reads_module
@@ -34,6 +34,7 @@ HIDDEN_VALUES = (
     "AGENT-007",
     "SLA-HIDDEN",
     "87.65",
+    "2033-03-31",
 )
 HIDDEN_NAMES = (
     "origin",
@@ -47,6 +48,7 @@ HIDDEN_NAMES = (
     "sla",
     "response_code",
     "customer_id",
+    "expiration",
 )
 TABLE_HIDDEN: dict[str, Any] = {
     "origin": "HIDDEN-ORIGIN",
@@ -424,6 +426,44 @@ def test_search_movements_filters_and_sorts_in_code(busy: str, seed: Seed) -> No
     assert value(aggregate, "count") == 7
     pending, _ = movements(status="Pending", merchant="PRIMAX")
     assert [value(row, "merchant") for row in pending] == ["Primax"]
+
+
+def test_the_largest_purchase_is_searched_over_the_whole_window_and_only_among_purchases(seed: Seed) -> None:
+    card = seed.card()
+    seed.charge(card, days_ago(3), "Tambo+", "40.00")
+    seed.charge(card, days_ago(5), "Primax", "900.00", status="Declined")
+    seed.charge(card, days_ago(8), "Plaza Vea", "700.00", status="Reversed")
+    seed.charge(card, days_ago(80), "LATAM Airlines", "650.00")
+    seed.charge(card, days_ago(120), "Older Than The Window", "999.00")
+
+    [row], aggregate = movements(sort="amount_desc", limit=1)
+
+    assert value(row, "merchant") == "LATAM Airlines"
+    assert value(aggregate, "count") == 2
+    assert plain(aggregate)["period"]["from"] == (NOW.date() - timedelta(days=91)).isoformat()
+    [declined], _ = movements(sort="amount_desc", status="Declined", limit=1)
+    assert value(declined, "merchant") == "Primax"
+    newest, _ = movements(limit=5)
+    assert [value(found, "merchant") for found in newest] == ["Tambo+", "Primax", "Plaza Vea"]
+
+
+def test_a_search_counts_every_matched_row_by_city_beyond_the_rows_shown(seed: Seed) -> None:
+    card = seed.card()
+    for day in range(4):
+        seed.charge(card, days_ago(day + 1), "Cinemark", "37.00", transaction_city="Rio de Janeiro")
+    seed.charge(card, days_ago(6), "Cinemark", "37.00", transaction_city="Belo Horizonte")
+
+    _, aggregate = movements(merchant="cinemark", limit=2)
+
+    assert plain(aggregate)["by_city"]["values"] == [
+        {"city": "Rio de Janeiro", "count": 4},
+        {"city": "Belo Horizonte", "count": 1},
+    ]
+    book = Ledger("BR", NOW)
+    book.facts[aggregate.id] = aggregate
+    assert render_text(f"Não: {{{aggregate.id}.by_city}}.", book, "pt-BR") == (
+        "Não: 4 no Rio de Janeiro e 1 em Belo Horizonte."
+    )
 
 
 def test_a_period_before_the_history_is_clamped_to_it_and_says_so(busy: str) -> None:

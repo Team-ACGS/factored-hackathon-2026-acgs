@@ -390,10 +390,10 @@ def with_chunk(book: Ledger) -> Ledger:
         ("I cannot tell when the money will arrive.", "en", ["money_promise"]),
         ("¿Cuánto dinero gastaste?", "es", []),
         ("You will get a refund.", "en", ["money_promise"]),
-        ("Puedes hablar con un abogado.", "es", ["legal_term"]),
+        ("Puedes hablar con un abogado.", "es", ["uncited_process", "legal_term"]),
         ("La ley te protege.", "es", ["legal_term"]),
         ("You could go to court.", "en", ["legal_term"]),
-        ("Puedes hablar con una persona del banco.", "es", []),
+        ("Puedes hablar con una persona del banco.", "es", ["uncited_process"]),
         ("No puedo prometerte una fecha exacta.", "es", ["promise_talk"]),
         ("Não posso fazer promessas sobre o prazo.", "pt-BR", ["promise_talk"]),
         ("I cannot promise a date.", "en", ["promise_talk"]),
@@ -1213,3 +1213,196 @@ def test_a_voseo_form_becomes_its_tu_form_in_spanish_only() -> None:
         {"voseo": 2},
     )
     assert tidy("Você tem {f1.total}.", spend_ledger(), "pt-BR")[1] == {}
+
+
+def test_a_say_with_no_word_but_a_citation_fails_and_a_cited_sentence_after_its_period_is_kept() -> None:
+    book = with_chunk(ledger())
+
+    assert check_codes([Say(f"[p:{CHUNK}]")], book) == [("empty_say", f"[p:{CHUNK}]")]
+    assert check_codes([Say(" . ")], book) == [("empty_say", " . ")]
+    assert check_codes([Say("Gastaste {f1.total}.")], spend_ledger()) == []
+    assert tidy_reply([f"Puedes llamar al banco para abrir una aclaración. [p:{CHUNK}]"], book) == (
+        [f"Puedes llamar al banco para abrir una aclaración [p:{CHUNK}]."],
+        {"citation_placement": 1},
+    )
+
+
+def test_the_policy_fallback_quotes_the_cited_section_as_plain_text_with_its_title() -> None:
+    book = ledger()
+    for index, title in ((1, "Plazos"), (2, "Escalamiento")):
+        book.add(
+            "policy_chunk",
+            {
+                "chunk_id": Trace(f"pe-doc-s{index}-c1"),
+                "title": Text(title),
+                "text": Passage(f"## {title}\n\n- **Paso:** escribe a la defensoría.\n- Llama al banco."),
+            },
+            prefix="p",
+        )
+
+    cited = compose(fallback("answer", book, "es", ["pe-doc-s2-c1"]), book, "es", "fallback")
+    top = compose(fallback("answer", book, "es"), book, "es", "fallback")
+
+    assert cited.text == (
+        "Esto dice el banco en «Escalamiento»: Escalamiento Paso: escribe a la defensoría. Llama al banco."
+    )
+    assert [entry["chunk_id"] for entry in cited.parts[0]["citations"]] == ["pe-doc-s2-c1"]
+    assert top.text.startswith("Esto dice el banco en «Plazos»")
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "failed"),
+    [
+        ("pt-BR", "Tu tarjeta {f1.last4} está {f1.status} y no tiene cargos pendientes.", True),
+        ("pt-BR", "Seu cartão {f1.last4} está {f1.status} e não tem cobranças pendentes.", False),
+        ("pt-BR", "Your card {f1.last4} is {f1.status} and has no pending charges.", True),
+        ("es", "Seu cartão {f1.last4} está {f1.status} e não tem cobranças pendentes.", True),
+        ("es", "Tu tarjeta {f1.last4} está {f1.status}.", False),
+        ("pt-BR", "A compra em Tienda de la Esquina y los Amigos foi no seu cartão {f1.last4}.", False),
+        ("pt-BR", "Segundo «Ciclo de una aclaración y los pasos del banco», é isso [p:pe-doc-s1-c1].", False),
+        ("pt-BR", "Beleza!", False),
+        (
+            "es",
+            "Este mes gastaste {f1.last4} en {f2.merchant}, comparado con el mes pasado. "
+            "Eso es que el mes pasado.",
+            False,
+        ),
+    ],
+)
+def test_a_say_in_another_language_than_the_account_s_fails_but_names_and_titles_do_not_count(
+    locale: str, text: str, failed: bool
+) -> None:
+    book = Ledger("BR", NOW)
+    book.add(
+        "card", {"card_ref": Ref("card", "c1"), "last4": Last4("1234"), "status": Status("card", "Active")}
+    )
+    book.add("movement", {"merchant": Merchant("Tienda de la Esquina y los Amigos")})
+    book.add("policy_chunk", {"chunk_id": Trace("pe-doc-s1-c1"), "title": Text("Ciclo")}, prefix="p")
+
+    assert ("wrong_language" in [error.code for error in check([Say(text)], book, locale)]) is failed
+
+
+def test_a_charge_ask_without_its_charge_view_is_sent_back_but_code_views_need_none() -> None:
+    book = ledger()
+    charge = book.add(
+        "charge",
+        {"charge.transaction_ref": Ref("transaction", "tx-1"), "charge.card_ref": Ref("card", "card-1")},
+    )
+    asked = Ask("recognize_charge", (charge.id,))
+    allowed = frozenset({"recognize_charge", "talk_to_person"})
+
+    assert check_codes([asked], book, allowed) == [("ask_without_view", "recognize_charge")]
+    assert check_codes([View("charge", (charge.id,)), asked], book, allowed) == []
+    assert check_codes([Ask("talk_to_person", (charge.id,))], book, allowed) == []
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "expected"),
+    [
+        ("pt-BR", "Você tem {f1.credit} e ambas estão ativas.", "Você tem {f1.credit} e ambos estão ativos."),
+        ("es", "Tienes {f1.credit} y ambos están activos.", "Tienes {f1.credit} y ambas están activas."),
+        ("es", "Tienes {f1.credit} y ambas están activas.", "Tienes {f1.credit} y ambas están activas."),
+    ],
+)
+def test_both_agrees_with_the_counted_noun_of_its_clause(locale: str, text: str, expected: str) -> None:
+    book = Ledger("BR", NOW)
+    book.add("cards", {"credit": Count(2, "credit_card")})
+
+    tidied, edits = tidy(text, book, locale)
+
+    assert tidied == expected
+    assert edits.get("agreement", 0) == (0 if text == expected else 2)
+
+
+def test_the_first_purchase_said_again_beside_the_bank_s_reasons_is_sent_back() -> None:
+    book = Ledger("BR", NOW)
+    book.add("charge", {"verdict.reasons": Labels("reason", ("score_high", "new_merchant"))})
+    quiet = Ledger("BR", NOW)
+    quiet.add("charge", {"verdict.reasons": Labels("reason", ("score_high",))})
+    repeated = "É a sua primeira compra nesse estabelecimento e o que o banco notou: {f1.verdict.reasons}."
+
+    assert codes(repeated, book, "pt-BR") == ["repeated_reason"]
+    assert codes("O que o banco notou: {f1.verdict.reasons}.", book, "pt-BR") == []
+    assert codes("Es tu primera compra ahí. Lo que notó el banco: {f1.verdict.reasons}.", book) == [
+        "repeated_reason"
+    ]
+    assert codes(repeated, quiet, "pt-BR") == []
+
+
+@pytest.mark.parametrize(
+    ("locale", "text"),
+    [
+        ("es", "Para gestionar un desbloqueo necesitarás hablar con el equipo de atención."),
+        ("es", "Tendrás que llamar al banco para eso."),
+        ("es", "Para cualquier gestión de desbloqueo necesitas hablar con alguien del equipo."),
+        ("pt-BR", "Para isso você vai precisar falar com o banco."),
+        ("en", "You will need to talk to the bank about that."),
+    ],
+)
+def test_future_and_obligation_advice_is_uncited_process(locale: str, text: str) -> None:
+    assert "uncited_process" in codes(text, ledger(), locale)
+
+
+def test_an_adjective_that_guesses_the_customer_s_gender_is_sent_back() -> None:
+    assert codes("Se ainda assim não ficar satisfeita, o passo seguinte é o Procon.", ledger(), "pt-BR") == [
+        "gendered_customer"
+    ]
+    assert (
+        codes("Si no quedas satisfecho con la respuesta, puedes reclamar.", ledger())[0]
+        == "gendered_customer"
+    )
+    assert codes("Se a resposta não resolver, o passo seguinte é o Procon.", ledger(), "pt-BR") == []
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "offered"),
+    [
+        ("es", "Te puedo conectar con alguien que lo gestione.", True),
+        ("es", "Puedo pasarte con una persona del banco.", True),
+        ("es", "Puedo revisar el estado de tus tarjetas si quieres.", True),
+        ("pt-BR", "Posso verificar o status dos seus cartões se quiser.", True),
+        ("pt-BR", "Posso te passar para um atendente.", True),
+        ("en", "I can connect you with someone at the bank.", True),
+        ("pt-BR", "Posso verificar o status dos seus cartões enquanto isso.", True),
+        ("es", "Puedo ayudarte a conectarte con ellos.", True),
+        ("es", "Si necesitas gestionar el desbloqueo, un representante puede ayudarte.", True),
+        ("es", "Para desbloquear tu tarjeta, una persona en el banco puede ayudarte con eso.", True),
+        ("pt-BR", "Posso colocar você em contato com alguém que possa desbloqueá-lo.", True),
+        ("pt-BR", "Se você precisa desbloqueá-lo, uma pessoa do banco pode ajudar com isso.", True),
+        ("es", "Desbloquear una tarjeta lo hace una persona del banco.", False),
+        ("pt-BR", "Seus cartões estão ativos.", False),
+    ],
+)
+def test_an_offer_in_prose_is_sent_back(locale: str, text: str, offered: bool) -> None:
+    assert ("offer_talk" in codes(text, ledger(), locale)) is offered
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "expected"),
+    [
+        (
+            "es",
+            "Tus tarjetas {f1.last4}, {f2.last4} y {f3.last4} están activas.",
+            "Tu tarjeta {f1.last4}, tu tarjeta {f2.last4} y tu tarjeta {f3.last4} están activas.",
+        ),
+        (
+            "pt-BR",
+            "Seus cartões {f1.last4} e {f2.last4} estão ativos.",
+            "Seu cartão {f1.last4} e seu cartão {f2.last4} estão ativos.",
+        ),
+        (
+            "en",
+            "Your cards {f1.last4} and {f2.last4} are active.",
+            "Your card {f1.last4} and your card {f2.last4} are active.",
+        ),
+    ],
+)
+def test_a_plural_card_noun_before_a_list_of_last_digits_becomes_one_noun_per_card(
+    locale: str, text: str, expected: str
+) -> None:
+    book = ledger()
+    for digits in ("8101", "2322", "5943"):
+        book.add("card", {"last4": Last4(digits)})
+
+    assert tidy(text, book, locale) == (expected, {"agreement": 1})
+    assert tidy("Tus tarjetas {f1.last4} están activas.", book, "es")[1] == {}

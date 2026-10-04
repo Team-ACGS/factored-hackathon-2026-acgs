@@ -43,7 +43,10 @@ DESCRIPTIONS = {
     "search_movements": "The customer's movements filtered by card, dates (ISO, local), merchant, status, "
     "channel, country, category or amount, newest first by default; returns one fact per row (at most "
     "`limit`, up to 25) plus a `movements` fact with the full match count, which the movements view lists. "
-    "Covers a window of recent months; name it only by the result's `period`.",
+    "Covers a window of recent months; name it only by the result's `period`. Sorted by amount it counts "
+    "only purchases (approved and pending) unless you pass `status`, and with no dates it covers the whole "
+    "window: the largest purchase is `sort` amount_desc with `limit` 1. Each `movements` fact carries "
+    "`by_city`, how many of the matched rows were in each city.",
     "merchant_history": "How the customer usually buys at one merchant over the last 1 to 3 months: count, "
     "first and last date, typical amount.",
     "spend_summary": "Total spent (approved and pending purchases) in a period, optionally at one merchant "
@@ -71,7 +74,8 @@ DESCRIPTIONS = {
 REPLY_DESCRIPTION = (
     "Your answer to the customer, always the last call of the turn. Either `say` (one to three short "
     "paragraphs of prose in the customer's language where every value is a reference) or `say_key` "
-    "(a fixed answer rendered by the bank's code), never both; optionally one `view` and one `ask`."
+    "(a fixed answer rendered by the bank's code), never both; optionally one `view` and one `ask`; or "
+    "`answer` alone when the customer answered the bank's open question."
 )
 
 VIEW_DESCRIPTION = (
@@ -93,11 +97,19 @@ ASK_DESCRIPTION = (
     "they ask."
 )
 
+ANSWER_DESCRIPTION = (
+    "Only while `story.open` is true and `story.ask` is recognize_charge, when the customer's message "
+    "clearly answers that question: yes (they made or recognize the charge) or no (they did not, or do not "
+    "recognize it). The bank's code then closes the question; send `answer` alone, with no say."
+)
+
 SAY_KEY_DESCRIPTION = (
-    "about_you: the customer asks what you know about them. no_rankings: they ask to rank or order "
-    "their spending (top merchants, biggest expenses). no_categories: they ask for spending grouped by "
-    "category. no_statements: they ask for a statement or an export. no_payments: they ask about "
-    "payments, minimum payment, due dates or debt."
+    'about_you: only when the customer asks what you know about them ("¿qué sabes de mí?", "o que você '
+    'sabe de mim?"), never for what you cannot tell, their documents, address or other personal data. '
+    "no_rankings: they ask to rank or order their spending (top merchants, where they spend the most); "
+    "their single largest purchase is a lookup, not a ranking. no_categories: they ask for spending grouped "
+    "by category. no_statements: they ask for a statement or an export. no_payments: they ask about "
+    "payments, minimum payment, due dates or debt. Never the key you used in your last message."
 )
 
 
@@ -132,6 +144,7 @@ def reply_schema() -> dict[str, Any]:
             "say_key": {"type": "string", "enum": list(SAY_KEYS), "description": SAY_KEY_DESCRIPTION},
             "view": _choice_schema(VIEW_TYPES, MAX_VIEW_ITEMS, VIEW_DESCRIPTION),
             "ask": _choice_schema(MODEL_ASK_TYPES, MAX_OPTIONS, ASK_DESCRIPTION),
+            "answer": {"type": "string", "enum": ["yes", "no"], "description": ANSWER_DESCRIPTION},
         },
     }
 

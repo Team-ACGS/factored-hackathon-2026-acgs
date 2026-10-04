@@ -1,7 +1,7 @@
 import json
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cache
 from operator import add
 from typing import TYPE_CHECKING, Annotated, Any, Literal, TypedDict
@@ -18,16 +18,18 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from core import answers
 from core.answers import SayKey
 from core.facts import Ask, Part, Say, View, check, fallback
+from core.facts.catalog import INSTRUCTIONS
 from core.facts.check import CheckError, repair_instruction, tidy, tidy_reply
 from core.facts.parts import ModelAskType, ViewType
-from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS
-from core.facts.values import Ledger
+from core.facts.render import CITATION, REFERENCE, render_text
+from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS, code_views
+from core.facts.values import Ledger, Passage, Trace
 from core.graphs.model import Clients, bedrock_clients, chat_model
 from core.graphs.profiles import ModelProfile, profile_for
 from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, Context, shown_rows, tool_result, tool_specs
 from core.observability import logger, metrics
 from core.replies import Reply, Source, compose
-from core.rules import CLAIM, HAVE_CARD, STORY_ASKS, TurnState, allowed_asks
+from core.rules import CLAIM, HAVE_CARD, SAY_KEY, STORY_ASKS, TurnState, allowed_asks
 from core.tools import TOOLS, ToolContext, call
 
 if TYPE_CHECKING:
@@ -50,6 +52,10 @@ RETRYABLE = frozenset(
 )
 CACHE_POINT = {"cachePoint": {"type": "default"}}
 MEMORY_KINDS = frozenset({"memory", "memories"})
+FIXED_ANSWER = "fixed_answer"
+IDENTITY = frozenset(
+    {"charge.merchant", "charge.amount", "charge.date", "charge.channel", "charge.status", "card.last4"}
+)
 
 Exhausted = Literal["steps", "time", "input_tokens", "model_unavailable", "no_reply", "crashed"]
 Next = Literal["tools", "facts_check", "supervisor", "fallback", "finalize"]
@@ -77,6 +83,7 @@ class ReplyArgs(BaseModel):
     say_key: SayKey | None = None
     view: ViewArgs | None = None
     ask: AskArgs | None = None
+    answer: Literal["yes", "no"] | None = None
 
     @field_validator("say", mode="before")
     @classmethod
@@ -85,6 +92,8 @@ class ReplyArgs(BaseModel):
 
     @model_validator(mode="after")
     def one_kind(self) -> "ReplyArgs":
+        if self.answer is not None and self.say is None and self.say_key is None:
+            return self
         if (self.say is None) == (self.say_key is None):
             raise ValueError("pass either say or say_key")
         if self.say is not None and any(not text.strip() or len(text) > MAX_SAY_CHARS for text in self.say):
@@ -129,6 +138,9 @@ class OpenModeRun:
     input_tokens: int = 0
     read_rounds: list[list[str]] = field(default_factory=list)
     called: list[str] = field(default_factory=list)
+    cited: tuple[str, ...] = ()
+    said_key: str | None = None
+    answer: str | None = None
     metrics: Metrics = field(default_factory=Metrics)
     reply: Reply | None = None
 
@@ -222,9 +234,14 @@ def facts_check(state: State, runtime: Runtime[OpenModeRun]) -> State:
     if run.repairs or run.model_steps >= MAX_STEPS or run.remaining() < MIN_CALL_SECONDS:
         return {"next": "fallback"}
     run.repairs += 1
-    content = json.dumps(
-        {"errors": [error.to_repair() for error in errors], "instruction": repair_instruction(errors)}
-    )
+    shown = list(dict.fromkeys(fact_id for error in errors for fact_id in error.facts))
+    body: dict[str, Any] = {
+        "errors": [error.to_repair() for error in errors],
+        "instruction": repair_instruction(errors),
+    }
+    if shown:
+        body["facts"] = run.ledger.payload(shown)
+    content = json.dumps(body)
     repair = ToolMessage(content=content, tool_call_id=reply_call["id"], status="error")
     return {"messages": [repair], "next": "supervisor"}
 
@@ -236,19 +253,27 @@ def fallback_answer(state: State, runtime: Runtime[OpenModeRun]) -> State:
 def _from_what_was_read(run: OpenModeRun) -> list[Part]:
     last = run.read_rounds[-1] if run.read_rounds else []
     about_memory = bool(run.called) and all(name == "recall" for name in run.called)
+    chunks = run.ledger.chunks()
+    cited = [chunks[chunk].id for chunk in run.cited if chunk in chunks]
     facts = {
         fact_id: fact
-        for fact_id in last
+        for fact_id in [*last, *cited]
         if (fact := run.ledger.facts[fact_id]).kind not in MEMORY_KINDS or about_memory
     }
     return fallback(
-        "answer", Ledger(run.ledger.country, run.ledger.now, facts, run.ledger.owners), run.context.locale
+        "answer",
+        Ledger(run.ledger.country, run.ledger.now, facts, run.ledger.owners),
+        run.context.locale,
+        run.cited,
     )
 
 
 def finalize(state: State, runtime: Runtime[OpenModeRun]) -> State:
     run = runtime.context
-    run.reply = compose(_closed(run, state["parts"]), run.ledger, run.context.locale, state["source"])
+    reply = compose(_closed(run, state["parts"]), run.ledger, run.context.locale, state["source"])
+    if state["source"] == "say_key" and run.said_key is not None:
+        reply = replace(reply, draft=(*reply.draft, {"type": SAY_KEY, "key": run.said_key}))
+    run.reply = reply
     return {}
 
 
@@ -377,10 +402,35 @@ def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source
     except ValidationError as error:
         detail = "; ".join(issue["msg"] for issue in error.errors()[:3])
         return [], "composed", [CheckError("invalid_reply", 0, (0, 0), "", detail)]
+    if args.answer is not None and run.state.answerable:
+        run.answer = args.answer
+        return [], "story", []
+    if args.answer is not None:
+        run.metrics.count_tidied({"answer_dropped": 1})
+    if args.say is None and args.say_key is None:
+        return [], "composed", [CheckError("invalid_reply", 0, (0, 0), "", "pass either say or say_key")]
+    if args.say_key is not None and args.say_key == run.state.said_key:
+        known = set(run.ledger.facts)
+        fixed = answers.say_key(args.say_key, run.ledger, locale)
+        said = " ".join(render_text(part.text, run.ledger, locale) for part in fixed if isinstance(part, Say))
+        fact = run.ledger.add(FIXED_ANSWER, {"key": Trace(args.say_key), "says": Passage(said)})
+        shown = tuple(fact_id for fact_id in run.ledger.facts if fact_id not in known)
+        repeated = CheckError(
+            "say_key_repeated",
+            0,
+            (0, 0),
+            args.say_key,
+            INSTRUCTIONS["say_key_repeated"],
+            f"fact {fact.id}",
+            shown,
+        )
+        return [], "composed", [repeated]
     if args.say_key is not None:
         parts = answers.say_key(args.say_key, run.ledger, locale)
+        run.said_key = args.say_key
         source: Source = "say_key"
     else:
+        run.cited = tuple(match.group(1) for text in args.say or () for match in CITATION.finditer(text))
         texts, edits = tidy_reply(args.say or (), run.ledger)
         run.metrics.count_tidied(edits)
         parts = []
@@ -392,11 +442,24 @@ def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source
     if args.view is not None:
         parts.append(View(args.view.type, args.view.facts))
     allowed = allowed_asks(run.state, run.ledger)
-    if args.ask is not None and args.ask.type in STORY_ASKS and args.ask.type not in allowed:
+    if args.ask is not None and run.closing:
+        run.metrics.count_tidied({"ask_replaced": 1})
+    elif args.ask is not None and args.ask.type in STORY_ASKS and args.ask.type not in allowed:
         run.metrics.count_tidied({"ask_refused": 1})
     elif args.ask is not None and args.ask.type == CLAIM:
         parts.append(Ask(HAVE_CARD, args.ask.facts))
         allowed = allowed | {HAVE_CARD}
     elif args.ask is not None:
         parts.append(Ask(args.ask.type, args.ask.facts))
-    return parts, source, check(parts, run.ledger, locale, allowed)
+    parts = code_views(parts, run.ledger)
+    return parts, source, [*check(parts, run.ledger, locale, allowed), *_restated(run, parts)]
+
+
+def _restated(run: OpenModeRun, parts: list[Part]) -> list[CheckError]:
+    charge = run.state.open_charge
+    said = [match for part in parts if isinstance(part, Say) for match in REFERENCE.finditer(part.text)]
+    if charge is None or not said:
+        return []
+    if any(match.group(1) != charge or match.group(2) not in IDENTITY for match in said):
+        return []
+    return [CheckError("restated_charge", 0, (0, 0), charge, INSTRUCTIONS["restated_charge"])]

@@ -115,6 +115,15 @@ class City:
 
 
 @dataclass(frozen=True)
+class CityCounts:
+    TYPE: ClassVar[str] = "city_counts"
+    entries: tuple[tuple[str, int], ...]
+
+    def to_model(self) -> Json:
+        return {"type": self.TYPE, "values": [{"city": city, "count": count} for city, count in self.entries]}
+
+
+@dataclass(frozen=True)
 class Country:
     TYPE: ClassVar[str] = "country"
     code: str
@@ -256,6 +265,7 @@ Value = (
     | Labels
     | Merchant
     | City
+    | CityCounts
     | Country
     | CaseCode
     | Ratio

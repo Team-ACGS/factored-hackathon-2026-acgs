@@ -19,7 +19,6 @@ interface PanelProps {
   mode: PanelMode;
   face: EntityState;
   look: WorkingLook | undefined;
-  earlier: boolean;
   asked: ChatMessage | null;
   nav: Navigation;
   sheet: "open" | "closed";
@@ -51,7 +50,7 @@ function useLastAsk(asked: ChatMessage | null): ChatMessage | null {
 }
 
 export function ChatPanel(props: PanelProps) {
-  const { chat, shown: target, mode, face, look, earlier, asked, nav, sheet, onCloseSheet, onCancelPick } = props;
+  const { chat, shown: target, mode, face, look, asked, nav, sheet, onCloseSheet, onCancelPick } = props;
   const { t } = useI18n();
   const { shown, leaving } = useLeaving(target);
   const bar = useLastAsk(asked);
@@ -96,11 +95,11 @@ export function ChatPanel(props: PanelProps) {
       <div className="chat-head" aria-hidden={working || undefined}>
         {shown && (
           <Suspense fallback={null}>
-            <Head view={shown} earlier={earlier} />
+            <Head view={shown} />
           </Suspense>
         )}
       </div>
-      {!docked && (
+      {!docked && !chat.messages.some((message) => message.senderType === "assistant") && (
         <div className="chat-hero">
           <h2 className="font-serif text-[clamp(24px,3vw,30px)] leading-[1.15] font-medium">{t("clara.hello")}</h2>
           <p className="max-w-[44ch] text-ink-2">{t("clara.chat.heroText", { bank: brand.name })}</p>
@@ -165,17 +164,11 @@ function WorkStatus({ status, listening, onWidth }: WorkStatusProps) {
   );
 }
 
-function Head({ view, earlier }: { view: PanelView; earlier: boolean }) {
-  const { t } = useI18n();
+function Head({ view }: { view: PanelView }) {
   const meta = useViewMeta(view.spec);
   return (
     <>
-      <span className="truncate text-xs font-semibold tracking-[0.06em] text-ink-3 uppercase">
-        {meta.kicker}
-        {earlier && (
-          <span className="font-normal tracking-normal normal-case"> · {t("clara.chat.earlier")}</span>
-        )}
-      </span>
+      <span className="truncate text-xs font-semibold tracking-[0.06em] text-ink-3 uppercase">{meta.kicker}</span>
       <span className="line-clamp-2 text-[17px] leading-tight font-semibold sm:text-[19px]">{meta.title}</span>
     </>
   );
