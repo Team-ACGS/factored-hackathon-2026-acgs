@@ -42,6 +42,7 @@ from core.facts.values import (
     Note,
     Percent,
     Period,
+    Status,
     Url,
     Value,
 )
@@ -72,6 +73,11 @@ MISSING_PREPOSITION = {
 }
 VOSEO_FORMS = re.compile(r"(?<!\w)(?:" + "|".join(VOSEO) + r")(?!\w)", re.IGNORECASE)
 SPEND_SCOPE = frozenset({"merchant", "period", "compare_period", "last4"})
+PLURAL_CUES = {
+    "es": re.compile(r"(?<!\w)(?:están|son|ambas|ambos|todas|todos)(?!\w)", re.IGNORECASE),
+    "pt-BR": re.compile(r"(?<!\w)(?:estão|são|ambas|ambos|todas|todos)(?!\w)", re.IGNORECASE),
+}
+CLAUSE_START = re.compile(r"[.;:!?]")
 PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d|activ)(os|as|o|a)(?!\w)")
 DASH = re.compile(r"\s*[\u2014\u2013]\s*")
 CURRENCY = re.compile(r"US\$|R\$|S/|[$€£¥]|(?<![A-Za-z])(?:USD|PEN|MXN|COP|ARS|BRL|EUR)(?![A-Za-z])")
@@ -230,6 +236,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
     text, relative = _relative_day_leads(text, ledger, locale)
     text, dates = _drop_prepositions(text, ledger, (Day, Instant), DATE_PREPOSITIONS[locale])
     text, agreement = _agree_after_counts(text, ledger, locale)
+    text, plural_statuses = _plural_card_statuses(text, ledger, locale)
     text, dashes = DASH.subn(", ", text)
     text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
     text, voseo = VOSEO_FORMS.subn(_as_tu, text) if locale == "es" else (text, 0)
@@ -240,7 +247,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
         "period_preposition": periods,
         "date_preposition": dates,
         "relative_day": relative,
-        "agreement": agreement,
+        "agreement": agreement + plural_statuses,
         "dash": dashes,
         "grammar": grammar,
         "voseo": voseo,
@@ -347,6 +354,23 @@ def _agree_after_counts(text: str, ledger: Ledger, locale: str) -> tuple[str, in
             swaps.append((participle.start(2), participle.end(2), ending))
     for start, end, ending in reversed(swaps):
         text = text[:start] + ending + text[end:]
+    return text, len(swaps)
+
+
+def _plural_card_statuses(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    cue = PLURAL_CUES.get(locale)
+    if cue is None:
+        return text, 0
+    swaps = []
+    for match in REFERENCE.finditer(text):
+        value = resolve(ledger, match.group(1), match.group(2))
+        if not isinstance(value, Status) or value.domain != "card":
+            continue
+        clause = CLAUSE_START.split(text[: match.start()])[-1]
+        if cue.search(clause):
+            swaps.append((match.start(), match.end(), render_value(value, ledger, locale) + "s"))
+    for start, end, plural in reversed(swaps):
+        text = text[:start] + plural + text[end:]
     return text, len(swaps)
 
 

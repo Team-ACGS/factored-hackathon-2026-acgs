@@ -176,7 +176,7 @@ function Head({ view, earlier }: { view: PanelView; earlier: boolean }) {
           <span className="font-normal tracking-normal normal-case"> · {t("clara.chat.earlier")}</span>
         )}
       </span>
-      <span className="truncate text-[19px] font-semibold">{meta.title}</span>
+      <span className="line-clamp-2 text-[17px] leading-tight font-semibold sm:text-[19px]">{meta.title}</span>
     </>
   );
 }

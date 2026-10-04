@@ -527,7 +527,7 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_bCFhI3ETgABQeLoKZgoL7V",
+         "toolUseId": "tooluse_VuRXn5qwTTR6Vb9ksZTNyW",
          "name": "card_status",
          "input": {
           "card_ref": "01a0bf8b-b800-7373-9ead-be42fe52421a"
@@ -537,7 +537,7 @@
        },
        {
         "toolUse": {
-         "toolUseId": "tooluse_wYSOd4CXN96X7ekOZluiT0",
+         "toolUseId": "tooluse_jFiaVMx0I45JFyCZycOmGl",
          "name": "card_status",
          "input": {
           "card_ref": "01a0bf8b-b801-7e8a-b19b-8eaed105d1ff"
@@ -547,7 +547,7 @@
        },
        {
         "toolUse": {
-         "toolUseId": "tooluse_X4bDUSmTucHSzYF8UAmHxE",
+         "toolUseId": "tooluse_HM5SGxLwqNQ2EXsM2FT1MX",
          "name": "card_status",
          "input": {
           "card_ref": "01a0bf8b-b802-7abf-ad4a-e4a67b5674dc"
@@ -563,11 +563,17 @@
      "inputTokens": 1079,
      "outputTokens": 189,
      "totalTokens": 9702,
-     "cacheReadInputTokens": 8434,
-     "cacheWriteInputTokens": 0
+     "cacheReadInputTokens": 0,
+     "cacheWriteInputTokens": 8434,
+     "cacheDetails": [
+      {
+       "ttl": "5m",
+       "inputTokens": 8434
+      }
+     ]
     },
     "metrics": {
-     "latencyMs": 1989
+     "latencyMs": 1927
     }
    }
   },
@@ -587,7 +593,7 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_bCFhI3ETgABQeLoKZgoL7V",
+         "toolUseId": "tooluse_VuRXn5qwTTR6Vb9ksZTNyW",
          "input": {
           "card_ref": "01a0bf8b-b800-7373-9ead-be42fe52421a"
          },
@@ -596,7 +602,7 @@
        },
        {
         "toolUse": {
-         "toolUseId": "tooluse_wYSOd4CXN96X7ekOZluiT0",
+         "toolUseId": "tooluse_jFiaVMx0I45JFyCZycOmGl",
          "input": {
           "card_ref": "01a0bf8b-b801-7e8a-b19b-8eaed105d1ff"
          },
@@ -605,7 +611,7 @@
        },
        {
         "toolUse": {
-         "toolUseId": "tooluse_X4bDUSmTucHSzYF8UAmHxE",
+         "toolUseId": "tooluse_HM5SGxLwqNQ2EXsM2FT1MX",
          "input": {
           "card_ref": "01a0bf8b-b802-7abf-ad4a-e4a67b5674dc"
          },
@@ -624,7 +630,7 @@
            "text": "{\"untrusted\":true,\"facts\":[{\"id\":\"f6\",\"kind\":\"card\",\"fields\":{\"card_ref\":{\"type\":\"ref\",\"kind\":\"card\",\"value\":\"01a0bf8b-b800-7373-9ead-be42fe52421a\",\"trace_only\":true},\"type\":{\"type\":\"enum\",\"domain\":\"card_type\",\"value\":\"credit\"},\"last4\":{\"type\":\"last4\",\"value\":\"0152\"},\"currency\":{\"type\":\"trace\",\"value\":\"BRL\",\"trace_only\":true},\"status\":{\"type\":\"status\",\"domain\":\"card\",\"value\":\"Active\"},\"expiration_date\":{\"type\":\"date\",\"value\":\"2028-08-31\"},\"balance_available\":{\"type\":\"flag\",\"value\":true,\"trace_only\":true},\"current_balance\":{\"type\":\"money\",\"amount\":\"10319.02\",\"currency\":\"BRL\"},\"balance_as_of\":{\"type\":\"datetime\",\"value\":\"2026-09-20T16:00:00.000Z\"},\"credit_limit\":{\"type\":\"money\",\"amount\":\"152000.00\",\"currency\":\"BRL\"},\"available\":{\"type\":\"money\",\"amount\":\"141680.98\",\"currency\":\"BRL\"}}}]}"
           }
          ],
-         "toolUseId": "tooluse_bCFhI3ETgABQeLoKZgoL7V",
+         "toolUseId": "tooluse_VuRXn5qwTTR6Vb9ksZTNyW",
          "status": "success"
         }
        },
@@ -635,7 +641,7 @@
            "text": "{\"untrusted\":true,\"facts\":[{\"id\":\"f7\",\"kind\":\"card\",\"fields\":{\"card_ref\":{\"type\":\"ref\",\"kind\":\"card\",\"value\":\"01a0bf8b-b801-7e8a-b19b-8eaed105d1ff\",\"trace_only\":true},\"type\":{\"type\":\"enum\",\"domain\":\"card_type\",\"value\":\"credit\"},\"last4\":{\"type\":\"last4\",\"value\":\"8372\"},\"currency\":{\"type\":\"trace\",\"value\":\"BRL\",\"trace_only\":true},\"status\":{\"type\":\"status\",\"domain\":\"card\",\"value\":\"Active\"},\"expiration_date\":{\"type\":\"date\",\"value\":\"2031-08-31\"},\"balance_available\":{\"type\":\"flag\",\"value\":true,\"trace_only\":true},\"current_balance\":{\"type\":\"money\",\"amount\":\"5244.86\",\"currency\":\"BRL\"},\"balance_as_of\":{\"type\":\"datetime\",\"value\":\"2026-09-20T16:00:00.000Z\"},\"credit_limit\":{\"type\":\"money\",\"amount\":\"125600.00\",\"currency\":\"BRL\"},\"available\":{\"type\":\"money\",\"amount\":\"120355.14\",\"currency\":\"BRL\"}}}]}"
           }
          ],
-         "toolUseId": "tooluse_wYSOd4CXN96X7ekOZluiT0",
+         "toolUseId": "tooluse_jFiaVMx0I45JFyCZycOmGl",
          "status": "success"
         }
        },
@@ -646,7 +652,7 @@
            "text": "{\"untrusted\":true,\"facts\":[{\"id\":\"f8\",\"kind\":\"card\",\"fields\":{\"card_ref\":{\"type\":\"ref\",\"kind\":\"card\",\"value\":\"01a0bf8b-b802-7abf-ad4a-e4a67b5674dc\",\"trace_only\":true},\"type\":{\"type\":\"enum\",\"domain\":\"card_type\",\"value\":\"debit\"},\"last4\":{\"type\":\"last4\",\"value\":\"6426\"},\"currency\":{\"type\":\"trace\",\"value\":\"BRL\",\"trace_only\":true},\"status\":{\"type\":\"status\",\"domain\":\"card\",\"value\":\"Active\"},\"expiration_date\":{\"type\":\"date\",\"value\":\"2031-08-31\"},\"balance_available\":{\"type\":\"flag\",\"value\":true,\"trace_only\":true},\"current_balance\":{\"type\":\"money\",\"amount\":\"93181.10\",\"currency\":\"BRL\"},\"balance_as_of\":{\"type\":\"datetime\",\"value\":\"2026-09-20T16:00:00.000Z\"}}}]}"
           }
          ],
-         "toolUseId": "tooluse_X4bDUSmTucHSzYF8UAmHxE",
+         "toolUseId": "tooluse_HM5SGxLwqNQ2EXsM2FT1MX",
          "status": "success"
         }
        }
@@ -1168,11 +1174,11 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_F7zPDQMl3GgXcwSxiZtyrm",
+         "toolUseId": "tooluse_yDQ9fp7imGDxj8JRGuVUfo",
          "name": "reply",
          "input": {
           "say": [
-           "Seus cartões estão ativos. Para desbloquear um cartão, você precisa falar com uma pessoa no banco."
+           "Todos os seus cartões estão ativos. Para desbloquear um cartão que está bloqueado, você precisa falar com a gente."
           ],
           "ask": {
            "type": "talk_to_person",
@@ -1190,13 +1196,13 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 2153,
-     "outputTokens": 99,
-     "totalTokens": 10686,
+     "outputTokens": 105,
+     "totalTokens": 10692,
      "cacheReadInputTokens": 8434,
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 1358
+     "latencyMs": 1336
     }
    }
   }

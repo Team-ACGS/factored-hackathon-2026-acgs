@@ -1044,6 +1044,32 @@ def test_a_participle_after_a_count_agrees_with_the_counted_noun(
     assert tidy("Hay {f1.count} cada mes.", book, locale)[1] == {}
 
 
+@pytest.mark.parametrize(
+    ("locale", "text", "expected"),
+    [
+        ("pt-BR", "Seus {f1.count} estão atualmente {f2.status}.", "Seus 3 cartões estão atualmente ativos."),
+        (
+            "pt-BR",
+            "Ambos {f2.status}, o cartão {f2.last4} também.",
+            "Ambos ativos, o cartão final 4141 também.",
+        ),
+        ("es", "Tus {f1.count} están {f2.status}.", "Tus 3 tarjetas están activas."),
+    ],
+)
+def test_a_card_status_after_a_plural_in_its_clause_is_written_in_the_plural(
+    locale: str, text: str, expected: str
+) -> None:
+    book = ledger()
+    book.add("cards", {"count": Count(3, "card")})
+    book.add("card", {"status": Status("card", "Active"), "last4": Last4("4141")})
+
+    tidied, edits = tidy(text, book, locale)
+
+    assert render_text(tidied, book, locale) == expected
+    assert edits == {"agreement": 1}
+    assert tidy("Tu tarjeta {f2.last4} está {f2.status}. Son tuyas.", book, "es")[1] == {}
+
+
 def test_a_relative_day_never_follows_a_contracted_article() -> None:
     book = ledger()
     book.add("movement", {"date": Instant(NOW - timedelta(hours=1)), "day": Day(date(2026, 9, 14))})

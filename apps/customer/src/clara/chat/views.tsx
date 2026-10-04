@@ -255,11 +255,14 @@ function CardView({ spec, nav }: ViewProps<"card">) {
             <CardUsage card={card} tone="clara" />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid gap-2 sm:grid-cols-3 sm:gap-2.5">
           {stats.map(([term, value]) => (
-            <div key={term} className="grid gap-0.5 rounded-[14px] bg-muted px-3.5 py-3">
+            <div
+              key={term}
+              className="flex min-w-0 items-baseline justify-between gap-3 rounded-[14px] bg-muted px-3.5 py-2.5 sm:grid sm:justify-start sm:gap-0.5 sm:py-3"
+            >
               <span className="text-[12.5px] text-ink-3">{term}</span>
-              <b className="text-base font-semibold tabular-nums">{value}</b>
+              <b className="text-[15px] font-semibold [overflow-wrap:anywhere] tabular-nums sm:text-base">{value}</b>
             </div>
           ))}
         </div>

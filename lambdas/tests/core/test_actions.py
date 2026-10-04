@@ -303,6 +303,48 @@ def test_a_yes_read_by_the_graph_never_blocks_and_shows_the_confirmation_again(
     assert cases(aws) == []
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Sí, pero no la bloquees todavía",
+        "sí, mejor mañana",
+        "sí, espera un momento",
+        "si, pero primero quiero hablar con alguien",
+    ],
+)
+def test_a_yes_with_anything_after_it_never_blocks_and_shows_the_confirmation_again(
+    aws: Aws, account: DemoAccount, text: str
+) -> None:
+    chat, asked, row = flagged_chat(aws, account)
+    chat.tap(asked, "no")
+
+    again, _ = chat.send(text, reply("Entiendo."))
+
+    assert card(aws, row["product_id"])["product_status"] == "Active"
+    assert ask_of(again)["ask"] == "block_card"
+    assert cases(aws) == []
+
+
+def test_a_bare_typed_yes_confirms_the_block(aws: Aws, account: DemoAccount) -> None:
+    chat, asked, row = flagged_chat(aws, account)
+    chat.tap(asked, "no")
+
+    chat.send("sí", throttled())
+
+    assert card(aws, row["product_id"])["product_status"] == "Blocked"
+
+
+def test_a_yes_with_a_tail_never_opens_a_claim(aws: Aws, account: DemoAccount) -> None:
+    chat, asked, _ = quiet_chat(aws, account)
+    question, _ = chat.tap(asked, "no")
+    chat.tap(question, "yes")
+
+    again, _ = chat.send("sí, pero mañana", reply("Entiendo."))
+
+    assert ask_of(again)["ask"] == "open_claim"
+    assert cases(aws) == []
+
+
 def test_not_now_keeps_the_card_and_opens_nothing(aws: Aws, account: DemoAccount) -> None:
     chat, asked, row = flagged_chat(aws, account)
     confirm, _ = chat.tap(asked, "no")

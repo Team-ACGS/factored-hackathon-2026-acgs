@@ -23,6 +23,7 @@ CLAIM = "open_claim"
 PERSON = "talk_to_person"
 STORY_ASKS = frozenset({RECOGNIZE, WAS_IT_YOU, HAVE_CARD, BLOCK, CLAIM, PERSON})
 ABOUT_THE_CHARGE = frozenset({RECOGNIZE, WAS_IT_YOU})
+WRITES = frozenset({BLOCK, CLAIM, PERSON})
 PROTECT_REASONS = frozenset({"foreign_country", "unusual_channel"})
 MERCHANT_AFTER = 3
 MAX_CHARGE_MEMORIES = 500
@@ -203,7 +204,9 @@ def answer_of(message: Message, asked: OpenAsk | None) -> Answer | None:
     if hit is not None:
         return None
     short = short_answer(message.text)
-    return Answer(asked, short[0], _note(short[1]), "lexicon") if short else None
+    if short is None or (asked.ask in WRITES and short[1]):
+        return None
+    return Answer(asked, short[0], _note(short[1]), "lexicon")
 
 
 def remember_answer(

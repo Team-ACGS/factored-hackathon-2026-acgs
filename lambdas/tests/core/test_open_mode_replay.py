@@ -99,7 +99,7 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
                 (
                     "Você tem 3 cartões: 2 cartões de crédito e 1 cartão de débito. Seu cartão final "
                     "2338 e seu cartão final 6913 são de crédito, ambos ativos. Seu cartão final 3530 é "
-                    "de débito e também está ativo."
+                    "de débito, também ativo."
                 ),
             ),
             ("cards",),
@@ -278,13 +278,7 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
         ),
         "unblock_pt": (
             "composed",
-            (
-                (
-                    "Desbloquear um cartão é algo que só uma pessoa do banco consegue fazer. Seus 3 "
-                    "cartões estão atualmente ativo: seu cartão final 0152, seu cartão final 8372 e seu "
-                    "cartão final 6426."
-                ),
-            ),
+            ("Desbloquear um cartão é algo que um atendente do banco pode fazer por você.",),
             ("talk_to_person",),
         ),
         "unrecognized_es_tap": (
@@ -548,12 +542,7 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
         ),
         "cards_pt": (
             "composed",
-            (
-                (
-                    "Você tem 2 cartões de crédito (terminada em final 2338 e terminada em final 6913), "
-                    "ambas ativo, e 1 cartão de débito (terminada em final 3530), também ativo."
-                ),
-            ),
+            ("Você tem 2 cartões de crédito e 1 cartão de débito.",),
             ("cards",),
         ),
         "charge_pt": (
@@ -730,8 +719,8 @@ EXPECTED: dict[str, dict[str, tuple[str, tuple[str, ...], tuple[str, ...]]]] = {
             "composed",
             (
                 (
-                    "Seus cartões estão ativos. Para desbloquear um cartão, você precisa falar com uma "
-                    "pessoa no banco."
+                    "Todos os seus cartões estão ativos. Para desbloquear um cartão que está bloqueado, "
+                    "você precisa falar com a gente."
                 ),
             ),
             ("talk_to_person",),

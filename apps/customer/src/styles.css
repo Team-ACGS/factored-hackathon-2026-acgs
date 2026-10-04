@@ -449,6 +449,8 @@
 
 .chat-panel[data-bar] .chat-body {
   padding-bottom: calc(max(var(--bar-height), 160px) + 40px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--bar-height) - 44px), transparent calc(100% - var(--bar-height) - 20px));
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--bar-height) - 44px), transparent calc(100% - var(--bar-height) - 20px));
 }
 
 .chat-body[data-leaving] > * {
