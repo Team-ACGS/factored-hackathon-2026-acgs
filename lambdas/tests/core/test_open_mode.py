@@ -454,7 +454,8 @@ def test_a_case_answer_cites_the_bank_s_process_with_the_document_and_its_page(a
     result = turn(model, "¿cuándo me devuelven la plata de mi aclaración?", policies=policy_index())
 
     assert result.reply.source == "composed"
-    case, process = result.reply.parts
+    case, process, person = result.reply.parts
+    assert person["ask"] == "talk_to_person"
     assert case["citations"] == []
     assert process["citations"] == [
         {

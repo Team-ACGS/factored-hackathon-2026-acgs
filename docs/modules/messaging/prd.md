@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-03
-source: 0020_rich_parts
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Messaging: product
@@ -21,10 +21,11 @@ It also solves a latency problem: Claude composing a reply can take longer than 
 2. The reply does not come back on that same request; it arrives moments later in the same window, pushed to the browser.
 3. The customer never sees a spinner tied to a timeout: the message shows a clock until the bank confirms it, then a check, and the reply appears on its own.
 4. While Clara works, what she is checking arrives on the same channel and replaces itself round by round; it disappears when the reply arrives and is never stored as a message.
-5. Tapping one of Clara's options sends its text like any message, plus which option of which ask it was.
-6. Reloading the chat shows the latest conversation in order, and what Clara is checking if her turn is still running.
+5. Tapping one of Clara's options sends its text like any message, plus which option of which ask it was and the customer's optional note; the bank's "¿No reconoces este cargo?" sends which charge it was.
+6. When Clara changes the account (a card blocked, a case opened, a charge answered), the bank's own screens show it without a reload.
+7. Reloading the chat, coming back to the tab or getting the network back shows the latest conversation in order, and what Clara is checking if her turn is still running.
 
-Errors and empty states: a message that cannot be sent after automatic retries shows "not sent" with a retry; if the live connection drops, the chat says so and asks for a reload; there are no read receipts.
+Errors and empty states: a message that cannot be sent after automatic retries shows "not sent" with a retry; if the live connection drops, the chat shows "Reconectando…" and catches up on its own; there are no read receipts.
 
 ### Human agent joins the same window
 

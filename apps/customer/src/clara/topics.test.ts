@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { formatMoney } from "../bank/format";
 import { translator } from "../i18n/locale";
 import { cardAt, purchase } from "./fixtures";
-import { chargeTopic, topicMessage } from "./topics";
+import { chargeTopic, topicInput, topicMessage } from "./topics";
 
 const charge = purchase(cardAt("Tarjeta Crédito"), 0, {
   merchant_name: "GLOBALPAY*DIGITALSVC",
@@ -28,5 +28,12 @@ describe("topic messages", () => {
 
   it("sends typed text as it was written", () => {
     expect(topicMessage({ kind: "text", text: "  hola Clara " }, translator("pt-BR"), "pt-BR")).toBe("  hola Clara ");
+  });
+
+  it("sends the charge as a structured topic so Clara opens that row, and nothing for other topics", () => {
+    expect(topicInput(chargeTopic(charge))).toEqual({
+      topic: { type: "charge", product_id: charge.product_id, transaction_id: charge.transaction_id },
+    });
+    expect(topicInput({ kind: "unrecognized" })).toBeUndefined();
   });
 });

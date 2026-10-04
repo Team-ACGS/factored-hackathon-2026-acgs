@@ -6,10 +6,18 @@ from core.countries import zone
 from core.facts import Ask, Part, Say, View, render
 from core.facts.catalog import LABELS
 from core.facts.render import format_date, render_value
-from core.facts.targets import CARD_CANDIDATES, Option, Unfit, ask_options, view_items
+from core.facts.targets import (
+    CARD_CANDIDATES,
+    Option,
+    Unfit,
+    ask_options,
+    ask_target,
+    recent_pick,
+    view_items,
+)
 from core.facts.values import Count, Day, Fact, Instant, Json, Labels, Ledger, Ref, Text, Trace, Value
 
-Source = Literal["composed", "repaired", "fallback", "safety", "say_key"]
+Source = Literal["composed", "repaired", "fallback", "safety", "say_key", "story"]
 
 HABIT = {
     "es": "Hiciste {count} antes en este comercio; lo típico es {amount}.",
@@ -21,13 +29,80 @@ HABIT_COUNT = {
     "pt-BR": "Você fez {count} antes neste estabelecimento.",
     "en": "You made {count} here before.",
 }
-COMPARED = {
-    "es": "Este cargo es {ratio}.",
-    "pt-BR": "Esta cobrança é {ratio}.",
-    "en": "This charge is {ratio}.",
-}
 CARD_OPTION = {"es": "Tarjeta {type} {last4}", "pt-BR": "Cartão {type} {last4}", "en": "{type} card {last4}"}
-ASK_PROMPTS = {"which_one": {"es": "¿Cuál es?", "pt-BR": "Qual é?", "en": "Which one is it?"}}
+ASK_PROMPTS = {
+    "which_one": {"es": "¿Cuál es?", "pt-BR": "Qual é?", "en": "Which one is it?"},
+    "recognize_charge": {
+        "es": "¿Reconoces este cargo?",
+        "pt-BR": "Você reconhece esta cobrança?",
+        "en": "Do you recognize this charge?",
+    },
+    "was_it_you": {"es": "¿Fuiste tú?", "pt-BR": "Foi você?", "en": "Was it you?"},
+    "have_card": {
+        "es": "¿Tienes tu tarjeta contigo y la usaste tú estos días?",
+        "pt-BR": "Você está com seu cartão e o usou nestes dias?",
+        "en": "Do you have your card with you, and have you used it yourself these days?",
+    },
+    "block_card": {
+        "es": "¿Quieres que proteja tu tarjeta?",
+        "pt-BR": "Quer que eu proteja seu cartão?",
+        "en": "Do you want me to protect your card?",
+    },
+    "open_claim": {
+        "es": "¿Abro una aclaración por este cargo?",
+        "pt-BR": "Abro uma contestação desta cobrança?",
+        "en": "Shall I open a dispute for this charge?",
+    },
+    "talk_to_person": {
+        "es": "¿Quieres que te pase con una persona del banco?",
+        "pt-BR": "Quer que eu passe você para uma pessoa do banco?",
+        "en": "Do you want me to hand you to a person at the bank?",
+    },
+}
+PURPOSE_PROMPTS = {
+    "lost": {
+        "es": "¿Cuál tarjeta quieres proteger?",
+        "pt-BR": "Qual cartão você quer proteger?",
+        "en": "Which card do you want to protect?",
+    },
+    "not_me": {
+        "es": "¿Cuál movimiento no hiciste?",
+        "pt-BR": "Qual movimentação você não fez?",
+        "en": "Which transaction did you not make?",
+    },
+}
+ANSWER_LABELS = {
+    "recognize_charge": {
+        "yes": {"es": "Sí, fui yo", "pt-BR": "Sim, fui eu", "en": "Yes, it was me"},
+        "no": {"es": "No lo reconozco", "pt-BR": "Não reconheço", "en": "I don't recognize it"},
+    },
+    "was_it_you": {
+        "yes": {"es": "Sí, fui yo", "pt-BR": "Sim, fui eu", "en": "Yes, it was me"},
+        "no": {"es": "No fui yo", "pt-BR": "Não fui eu", "en": "It wasn't me"},
+        "why": {
+            "es": "¿Por qué me preguntas?",
+            "pt-BR": "Por que você pergunta?",
+            "en": "Why are you asking?",
+        },
+    },
+    "have_card": {
+        "yes": {"es": "Sí, la tengo", "pt-BR": "Sim, estou com ele", "en": "Yes, I have it"},
+        "no": {"es": "No", "pt-BR": "Não", "en": "No"},
+    },
+    "block_card": {
+        "yes": {"es": "Sí, bloquéala", "pt-BR": "Sim, bloqueie", "en": "Yes, block it"},
+        "no": {"es": "Ahora no", "pt-BR": "Agora não", "en": "Not now"},
+    },
+    "open_claim": {
+        "yes": {"es": "Sí, ábrela", "pt-BR": "Sim, abra", "en": "Yes, open it"},
+        "no": {"es": "Ahora no", "pt-BR": "Agora não", "en": "Not now"},
+    },
+    "talk_to_person": {
+        "yes": {"es": "Sí, con una persona", "pt-BR": "Sim, com uma pessoa", "en": "Yes, with a person"},
+        "no": {"es": "Ahora no", "pt-BR": "Agora não", "en": "Not now"},
+    },
+}
+NOTED = ("recognize_charge", "was_it_you")
 SHOW_LABELS = {
     "movements": {
         "es": "Ver esos movimientos",
@@ -46,6 +121,7 @@ class Reply:
     facts: tuple[Json, ...]
     draft: tuple[Json, ...]
     source: Source
+    effects: tuple[Json, ...] = ()
 
 
 def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) -> Reply:
@@ -59,9 +135,8 @@ def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) 
         referenced.extend(chunks[entry["chunk_id"]].id for entry in said["citations"])
     public: list[Json] = list(rendered)
     draft: list[Json] = [part.to_wire() for part in says]
-    for part in parts:
-        if isinstance(part, Say):
-            continue
+    shown = [part for part in parts if not isinstance(part, Say)]
+    for part in [*_picked_from(shown, ledger), *shown]:
         try:
             if isinstance(part, View):
                 public.append(view(part, ledger, locale))
@@ -69,9 +144,7 @@ def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) 
             else:
                 options = ask_options(part, ledger)
                 public.append(ask(part, options, ledger, locale))
-                draft.append(
-                    {**part.to_wire(), "options": [{"id": item.id, "read": item.read} for item in options]}
-                )
+                draft.append(_drafted(part, options, ledger))
         except Unfit:
             continue
         referenced.extend(part.facts)
@@ -82,6 +155,31 @@ def compose(parts: Sequence[Part], ledger: Ledger, locale: str, source: Source) 
         draft=tuple(draft),
         source=source,
     )
+
+
+def _picked_from(shown: Sequence[Part], ledger: Ledger) -> list[View]:
+    asked = next((part for part in shown if isinstance(part, Ask) and part.ask == "which_one"), None)
+    if asked is None or any(isinstance(part, View) for part in shown):
+        return []
+    try:
+        options = ask_options(asked, ledger)
+    except Unfit:
+        return []
+    if any(option.read.get("tool") != "charge_facts" for option in options):
+        return []
+    return [View("movements", asked.facts)]
+
+
+def _drafted(part: Ask, options: list[Option], ledger: Ledger) -> Json:
+    wire: Json = {**part.to_wire(), "options": [{"id": item.id, "read": item.read} for item in options]}
+    target = ask_target(part, ledger)
+    if target is not None:
+        wire["target"] = target
+    if recent_pick(part, ledger):
+        wire["recent"] = True
+    if part.ask == "which_one" and part.target and part.target.get("purpose"):
+        wire["purpose"] = part.target["purpose"]
+    return wire
 
 
 def view(part: View, ledger: Ledger, locale: str) -> Json:
@@ -99,9 +197,14 @@ def ask(part: Ask, options: list[Option], ledger: Ledger, locale: str) -> Json:
         "ask": part.ask,
         "options": [{"id": item.id, "label": _label(part.ask, item, ledger, locale)} for item in options],
     }
-    prompt = ASK_PROMPTS.get(part.ask, {}).get(locale)
+    purpose = (part.target or {}).get("purpose") if part.ask == "which_one" else None
+    prompt = (PURPOSE_PROMPTS[purpose] if purpose in PURPOSE_PROMPTS else ASK_PROMPTS.get(part.ask, {})).get(
+        locale
+    )
     if prompt:
         wire["prompt"] = prompt
+    if part.ask in NOTED:
+        wire["note"] = True
     return wire
 
 
@@ -120,6 +223,8 @@ def citation(chunk_id: str, ledger: Ledger) -> Json:
 def _label(kind: str, option: Option, ledger: Ledger, locale: str) -> str:
     if kind == "show":
         return SHOW_LABELS[option.id][locale]
+    if kind in ANSWER_LABELS:
+        return ANSWER_LABELS[kind][option.id][locale]
     fields = option.fact.fields
     if option.fact.kind in CARD_CANDIDATES:
         fields = _card_fact(option, ledger).fields
@@ -207,9 +312,6 @@ def _charge(facts: list[Fact], ledger: Ledger, locale: str) -> Json:
         readings["habit"] = template.format(
             count=render_value(count, ledger, locale), amount=_rendered(amount, ledger, locale)
         )
-    ratio = fields.get("habit.ratio_to_typical")
-    if ratio is not None:
-        readings["compared"] = COMPARED[locale].format(ratio=render_value(ratio, ledger, locale))
     return readings
 
 

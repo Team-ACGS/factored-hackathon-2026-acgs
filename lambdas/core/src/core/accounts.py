@@ -1,9 +1,10 @@
 import os
 import time
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
 from core.ids import format_instant, parse_uuid7, uuid7_time
 from core.read_model import projection, public
@@ -21,6 +22,7 @@ CARD_ATTRIBUTES = (
     "product_status",
     "expiration_date",
     "balance_as_of",
+    "blocked_at",
 )
 
 TRANSACTION_ATTRIBUTES = (
@@ -44,6 +46,11 @@ TRANSACTION_ATTRIBUTES = (
 
 BATCH_ATTEMPTS = 4
 BATCH_BACKOFF_SECONDS = 0.05
+READ_BACK_ATTEMPTS = 2
+ACTIVE = "Active"
+BLOCKED = "Blocked"
+
+Blocking = Literal["written", "redelivered", "already", "missing", "inactive"]
 
 
 class ReadIncomplete(Exception):
@@ -101,6 +108,49 @@ class Accounts:
             Key={"customer_id": customer_id, "product_id": product_id}, **projection(attributes)
         ).get("Item")
         return public(item, attributes) if item else None
+
+    def block(self, customer_id: str, product_id: str, ask_id: str, now: str) -> Blocking:
+        key = {"customer_id": customer_id, "product_id": product_id}
+        try:
+            self._products.update_item(
+                Key=key,
+                UpdateExpression="SET product_status = :blocked, blocked_by = :ask, blocked_at = :now",
+                ConditionExpression="product_status = :active",
+                ExpressionAttributeValues={
+                    ":blocked": BLOCKED,
+                    ":ask": ask_id,
+                    ":now": now,
+                    ":active": ACTIVE,
+                },
+            )
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") != "ConditionalCheckFailedException":
+                raise
+        else:
+            return "written"
+        item = self._products.get_item(
+            Key=key, ConsistentRead=True, ProjectionExpression="product_status, blocked_by"
+        ).get("Item")
+        if item is None:
+            return "missing"
+        if item.get("product_status") != BLOCKED:
+            return "inactive"
+        return "redelivered" if item.get("blocked_by") == ask_id else "already"
+
+    def read_status(self, customer_id: str, product_id: str) -> str | None:
+        for attempt in range(READ_BACK_ATTEMPTS):
+            try:
+                item = self._products.get_item(
+                    Key={"customer_id": customer_id, "product_id": product_id},
+                    ConsistentRead=True,
+                    ProjectionExpression="product_status",
+                ).get("Item")
+            except ClientError:
+                if attempt + 1 == READ_BACK_ATTEMPTS:
+                    return None
+                continue
+            return str(item["product_status"]) if item and item.get("product_status") else None
+        return None
 
     def transaction(
         self,

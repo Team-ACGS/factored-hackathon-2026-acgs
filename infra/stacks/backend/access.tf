@@ -21,7 +21,7 @@ locals {
       session_tag = "customer_id"
       read        = local.customer_owned_tables
       write       = ["products", "complaints", "rooms", "messages"]
-      create      = ["customers"]
+      create      = ["customers", "memory"]
       update      = ["customers"]
       batch_write = ["transactions"]
     }

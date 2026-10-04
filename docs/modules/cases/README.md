@@ -1,11 +1,11 @@
 ---
-updated: 2026-09-27
-source: setup
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Cases
 
-Status: designed, not built.
+Status: Clara opens fraud, claim and service cases with the handoff package and its summary, and the customer sees them (task 0022); the agent console and resolutions are designed, not built.
 
 Owns the case record created when the assistant decides `CLAIM` or `PROTECT`, the structured handoff package that carries verified facts to a human, and the agent console where that human works the case.
 Cases only ever writes the `Open` status; every later transition (analysis, chargeback, ruling, closure) is human work the module merely reads.

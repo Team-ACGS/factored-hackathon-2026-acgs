@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-04
-source: 0021_open_mode_polish
+source: 0022_story_actions
 ---
 
 # assistant: architecture and debt
@@ -406,6 +406,7 @@ source: 0021_open_mode_polish
 - Alternatives rejected: an LLM or a trained classifier (not deterministic, and a crafted merchant name could talk it down); "quiero una persona" as a floor class (B1 has no handoff; the prompt forbids promising one).
 - Reason: protection is never decided by the model, and the floor reads only text the customer wrote.
 - Debt created: a "not me" or "lost card" gets a phone number, not the block ask, until the story path exists; a negation ("no me robaron") still raises the floor.
+- Resolved by: 0022_story_actions, 2026-10-04 (the phone only; a negation still raises the floor)
 - Revisit when: B4 turns a floor hit into the `block_card` ask.
 - Source: 0019_open_mode_graph
 
@@ -424,6 +425,7 @@ source: 0021_open_mode_polish
 - Alternatives rejected: keeping the mock behind its switch; keeping the tones, styles and keys for B2 (pieces nothing renders rot unseen).
 - Reason: the web must talk to the live Clara, and dead code is not documentation.
 - Debt created: the Clara button counts every high-score charge, since the reviewed list is gone.
+- Resolved by: 0022_story_actions, 2026-10-04
 - Revisit when: B4 asks about a flagged charge in the chat.
 - Source: 0019_open_mode_graph
 
@@ -571,3 +573,83 @@ source: 0021_open_mode_polish
 - Revisit when: the demo corpus drifts from `docs/policies` at the docs root.
 - Source: 0021_open_mode_polish
 
+## 2026-10-04: the story's steps are code, and an ask closes only on its tap or an unambiguous lexicon answer
+
+- Decision: `core.rules` reads the open story ask and its target from Clara's latest message's `draft`; a tap bound to its `ask_id`, or a short lexicon answer at the start of the message, closes it (the rest of the message is the note, at most 140 characters); on a write ask (`block_card`, `open_claim`, `talk_to_person`) only a bare short answer counts. The floor reads before any short answer: a typed `not_me` answers `recognize_charge` or `was_it_you` as no, `lost_stolen` supersedes the ask. A tail with a question mark, a floor phrase or the other answer is not an answer. `core.story` then writes, reads back and picks the next ask or receipt without a graph.
+- Alternatives rejected: the graph reading answers (a model could write); room state with the open ask (a second copy of the message); the tail as a note on write asks ("sí, pero no la bloquees" would block).
+- Reason: every write follows a consent the customer gave to that very question, and the same input always leads to the same step.
+- Debt created: none.
+- Revisit when: the watcher writes an ask Clara did not answer in the turn.
+- Source: 0022_story_actions
+
+## 2026-10-04: memory rows snapshot the charge, and a merchant is remembered on the third recognition
+
+- Decision: `recognized_charge#` and `unrecognized_charge#` rows carry the note, the room, the `ask_id` and a snapshot of the charge (merchant, card, amount, currency, date); three recognized charges at one merchant (counted with ConsistentRead) write `recognized_merchant#<normalized merchant key>` with the bank's name as `subject`. Up to five newest memories enter the context as code-rendered sentences.
+- Alternatives rejected: reading the transaction for each memory (a read per row per turn); keying the merchant by the bank's raw name (spellings differ).
+- Reason: the context and the merchant count need no transaction read, and the bank's rows stay untouched.
+- Debt created: each turn reads up to 200 memory rows to pick the five newest, since keys are not in time order.
+- Revisit when: a customer has more than a few hundred memories.
+- Source: 0022_story_actions
+
+## 2026-10-04: when in doubt Clara protects: the card question only for a charge with no warning sign
+
+- Decision: "No lo reconozco" goes to `block_card` when the charge is abroad, on an unusual channel, declined or flagged; otherwise Clara asks `have_card`, whose no leads to `block_card` and yes to the `open_claim` confirmation. `was_it_you` no, a typed not_me and the bare not_me pick always protect; a card already Blocked is offered `talk_to_person` with area fraud instead of a second block.
+- Alternatives rejected: every no to the block (claims would be blocks); every no to the card question (fraud with the card in hand would be a claim).
+- Reason: an unnecessary block costs a replacement card; a missed one costs everything spent until someone acts (`domain/triage.md`).
+- Debt created: none.
+- Revisit when: the evaluation measures claims that should have been protections, or the reverse.
+- Source: 0022_story_actions
+
+## 2026-10-04: consent and receipts are fixed, the other story sentences are composed by one graph with a 3 s read deadline
+
+- Decision: `core.receipts` holds the consent, receipts, the card question's intro and the lists, identical for every customer; the thanks, "why are you asking", the declines and the handoff summary go through `core.graphs.compose` (one model call with only a `say` tool, `facts_check`, no repair, `compose.v1`), the fixed example on any failure. The 3 s is the model's read timeout; connecting has its own second. The "why" option is labelled in the customer's voice ("¿Por qué me preguntas?"), since the tap posts it as their message.
+- Alternatives rejected: two graph modules for `compose` and `summarize_handoff` (the same three nodes); templates only (the scope asks for composed story sentences); a repair round (it doubles a story turn).
+- Reason: auditable consent with Clara's own voice elsewhere, and a story turn under 3 s.
+- Debt created: a composed sentence on a story turn reports `check.result` as `skipped`; its compose steps are in `timings`.
+- Revisit when: C measures composed story sentences.
+- Source: 0022_story_actions
+
+## 2026-10-04: abstention adds a person, never removes an ask, and the graph may propose three story asks
+
+- Decision: `core.router.abstain` (`unblock`, `refund`, `human`) attaches the closing `talk_to_person` and tells the graph through `story.abstain`, unless a story ask is already open; with the model down the template abstention keeps the ask. The graph may propose `talk_to_person`, `was_it_you` (one flagged charge on an Active card) and `open_claim` (one non-flagged charge on an Active card with no open case), which the rules turn into `have_card`; any story ask `allowed_asks` refuses is dropped and counted.
+- Alternatives rejected: a floor class for a person with no ask (a case without consent); the model alone noticing unblock and money (it misses some).
+- Reason: nothing about money or unblocking can be decided or written, and the customer always has the way to a person.
+- Debt created: the open graph still slips an offer or a plural agreement the check does not catch now and then.
+- Revisit when: C finds those slips at scale.
+- Source: 0022_story_actions
+
+## 2026-10-04: the client knows what a turn wrote from its public effects
+
+- Decision: `card_blocked`, `case_opened` (with `case_type`) and `charge_answered` invalidate exactly the cards and the card's ledger, the cases, and the answered charges; the Clara button counts flagged charges with no answer (`GET /crud/memory/charges`), no open case and an Active card; Clara's face follows the story (confirma on a story question, protege while a confirmed block runs, listo on arrival, telefono after a handoff).
+- Alternatives rejected: inferring writes from the views a reply carries; refetching every bank query after each reply.
+- Reason: the bank's pages show a block at once, and the button stops counting what the customer already answered.
+- Debt created: none.
+- Revisit when: a write happens outside a reply (the watcher).
+- Source: 0022_story_actions
+
+## 2026-10-04: confirmations are one tap, picks happen in the list, and views never judge an amount
+
+- Decision: `block_card`, `open_claim`, `talk_to_person` and `have_card` show their options as direct buttons, the accept in the dark one; `was_it_you` keeps the select, note and confirm with "why" as a link; a `which_one` over cards is picked in the cards view ("¿Es esta tarjeta?"); the case view shows the package and, for a fraud or service case, the contact line; the charge view's "Este cargo es lo habitual." reading is gone; the panel fades out above the bar.
+- Alternatives rejected: a second confirm after a confirmation (consent twice); chips over a list already on screen.
+- Reason: the fixed confirmation is the consent, and the screen never says what the prompt forbids the model to say.
+- Debt created: none.
+- Revisit when: Sebastian's review of the screens says otherwise.
+- Source: 0022_story_actions
+
+## 2026-10-04: code writes a card status in the plural after a plural cue in its clause
+
+- Decision: the tidy replaces a card-status reference with its plural when the clause before it carries `estão`, `são`, `ambos`... or `están`, `son`, `ambas`..., counted as `agreement`.
+- Alternatives rejected: a prompt rule alone (Sonnet slipped "3 cartões ... ativo" on the pt-BR demo).
+- Reason: a status renders one card; the plural is grammar code can know.
+- Debt created: none.
+- Revisit when: C finds other agreement slips.
+- Source: 0022_story_actions
+
+## 2026-10-04: the demo harness mints deterministic ids, so a case code replays byte for byte
+
+- Decision: `tests/demo.py` derives the room and message ids from the turn's instants with fixed seeds; every demo turn and story chain is recorded on both profile rows.
+- Alternatives rejected: random ids (a case's code and the summary context change on every run, so the replay cannot freeze them).
+- Reason: the recordings freeze every request, including the summary of a case.
+- Debt created: none.
+- Revisit when: the recordings move to the evaluation harness.
+- Source: 0022_story_actions

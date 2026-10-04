@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-01
-source: 0012_data_tools
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Identity: architecture and debt
@@ -146,3 +146,13 @@ These are design-time decisions, taken from `docs/tasks/_drafts/architecture_and
 - Debt created: moto 5.2.3 ignores session policies, so tests evaluate the policy document and check every tool's AssumeRole request; the denial itself is checked once on prd.
 - Revisit when: moto evaluates session policies, or an AccessDenied appears in a tool's trace.
 - Source: 0012_data_tools
+
+## 2026-10-04: role-customer creates memory rows; the writes stay out of every graph
+
+- Decision: `role-customer` gains `PutItem` on `memory` (the create statement, `LeadingKeys`); the block (`UpdateItem` on `products`) and the cases (`PutItem` and `UpdateItem` on `complaints`) use the writes it already had; the writers run in the assistant's rules under the normal session, and the graphs keep the read-only session.
+- Alternatives rejected: a writer role for the rules (a second role for the same customer boundary); UpdateItem on `memory` (rows are created once and never edited).
+- Reason: the smallest grant that lets Clara remember, with the session policy still keeping a graph from writing even through a bug.
+- Debt created: none.
+- Revisit when: memory rows must be edited or forgotten.
+- Source: 0022_story_actions
+

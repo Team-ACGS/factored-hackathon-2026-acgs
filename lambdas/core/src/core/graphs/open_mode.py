@@ -19,7 +19,7 @@ from core import answers
 from core.answers import SayKey
 from core.facts import Ask, Part, Say, View, check, fallback
 from core.facts.check import CheckError, repair_instruction, tidy, tidy_reply
-from core.facts.parts import AskType, ViewType
+from core.facts.parts import ModelAskType, ViewType
 from core.facts.targets import MAX_OPTIONS, MAX_VIEW_ITEMS
 from core.facts.values import Ledger
 from core.graphs.model import Clients, bedrock_clients, chat_model
@@ -27,7 +27,7 @@ from core.graphs.profiles import ModelProfile, profile_for
 from core.graphs.prompt import MAX_SAY_CHARS, MAX_SAYS, REPLY, Context, shown_rows, tool_result, tool_specs
 from core.observability import logger, metrics
 from core.replies import Reply, Source, compose
-from core.rules import TurnState, allowed_asks
+from core.rules import CLAIM, HAVE_CARD, STORY_ASKS, TurnState, allowed_asks
 from core.tools import TOOLS, ToolContext, call
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ class ViewArgs(BaseModel):
 
 class AskArgs(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    type: AskType
+    type: ModelAskType
     facts: tuple[str, ...] = Field(min_length=1, max_length=MAX_OPTIONS)
 
 
@@ -120,6 +120,7 @@ class OpenModeRun:
     clock: Callable[[], float] = time.monotonic
     state: TurnState = field(default_factory=TurnState)
     on_status: Callable[[str, int], None] | None = None
+    closing: tuple[Part, ...] = ()
     started: float = 0.0
     rounds: int = 0
     model_steps: int = 0
@@ -247,8 +248,14 @@ def _from_what_was_read(run: OpenModeRun) -> list[Part]:
 
 def finalize(state: State, runtime: Runtime[OpenModeRun]) -> State:
     run = runtime.context
-    run.reply = compose(state["parts"], run.ledger, run.context.locale, state["source"])
+    run.reply = compose(_closed(run, state["parts"]), run.ledger, run.context.locale, state["source"])
     return {}
+
+
+def _closed(run: OpenModeRun, parts: list[Part]) -> list[Part]:
+    if not run.closing:
+        return parts
+    return [*(part for part in parts if not isinstance(part, Ask)), *run.closing]
 
 
 def _next(state: State) -> Next:
@@ -284,7 +291,9 @@ def run_open_mode(run: OpenModeRun) -> Reply:
         logger.exception("open_mode crashed, answering from what was read")
         metrics.add_metric(name="TurnsCrashed", unit=MetricUnit.Count, value=1)
         run.metrics.exhausted = "crashed"
-        run.reply = compose(_from_what_was_read(run), run.ledger, run.context.locale, "fallback")
+        run.reply = compose(
+            _closed(run, _from_what_was_read(run)), run.ledger, run.context.locale, "fallback"
+        )
     assert run.reply is not None
     return run.reply
 
@@ -382,6 +391,12 @@ def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source
         source = "repaired" if run.repairs else "composed"
     if args.view is not None:
         parts.append(View(args.view.type, args.view.facts))
-    if args.ask is not None:
+    allowed = allowed_asks(run.state, run.ledger)
+    if args.ask is not None and args.ask.type in STORY_ASKS and args.ask.type not in allowed:
+        run.metrics.count_tidied({"ask_refused": 1})
+    elif args.ask is not None and args.ask.type == CLAIM:
+        parts.append(Ask(HAVE_CARD, args.ask.facts))
+        allowed = allowed | {HAVE_CARD}
+    elif args.ask is not None:
         parts.append(Ask(args.ask.type, args.ask.facts))
-    return parts, source, check(parts, run.ledger, locale, allowed_asks(run.state, run.ledger))
+    return parts, source, check(parts, run.ledger, locale, allowed)

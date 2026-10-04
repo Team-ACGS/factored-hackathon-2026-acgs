@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-03
-source: 0020_rich_parts
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Messaging: architecture decisions and debt
@@ -103,6 +103,7 @@ Status: built for customers (task 0003).
 - Alternatives rejected: reading history first (a reply written in between is lost); subscribing to the room channel (the room id is unknown until history answers, and a new room has none).
 - Reason: nothing can fall between the history read and the live feed, and the order of arrival does not matter.
 - Debt created: after the live connection drops the chat only shows a notice; it does not resubscribe and reread history on its own.
+- Resolved by: 0022_story_actions, 2026-10-04
 - Revisit when: customers report missing replies, or before the demo.
 - Source: 0003_walking_skeleton
 
@@ -168,3 +169,21 @@ Status: built for customers (task 0003).
 - Debt created: none.
 - Revisit when: B4 adds confirmations that write.
 - Source: 0020_rich_parts
+
+## 2026-10-04: the chat catches up on return, network back and channel errors, with backoff
+
+- Decision: the customer app resubscribes and re-reads `GET /messages/rooms/latest` when the tab returns to the foreground, the network comes back or the channel errors, showing "Reconectando…"; after a channel error it waits 1 s, doubling to 30 s, and resets on a good read.
+- Alternatives rejected: a notice asking for a reload (the customer misses Clara's reply); retrying a failing channel at once (a channel that errors right after subscribing loops).
+- Reason: a backgrounded phone drops the WebSocket, and Clara's reply must still appear without a reload.
+- Debt created: none.
+- Revisit when: the chat moves to TanStack Query.
+- Source: 0022_story_actions
+
+## 2026-10-04: `input` carries a note or the bank's charge entry, and a write reply carries public `effects`
+
+- Decision: `input` is a tap (`ask_id`, `option`, an optional `note` of at most 140 characters) or a `topic` (`type charge` with the card and the charge), each validated by shape in `messages` and by ownership in the turn; a reply that wrote something carries `effects` (`card_blocked {product_id}`, `case_opened {complaint_id, case_type}`, `charge_answered {transaction_id}`) on its public shape.
+- Alternatives rejected: the client inferring what changed from the views it receives (a view is not a write); room state with the open ask (Clara's latest message already holds it).
+- Reason: the client invalidates exactly the keys a write changed, as every web does for its own writes.
+- Debt created: none.
+- Revisit when: a write happens outside a reply (the watcher).
+- Source: 0022_story_actions

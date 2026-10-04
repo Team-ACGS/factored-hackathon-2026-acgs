@@ -2,10 +2,14 @@ import random
 import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from clara_testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
+from core.countries import zone
+from core.facts.catalog import MONTHS
+from core.facts.render import format_money
 from core.ids import uuid7_at
 from core.messaging import Message, customer_message, reply_to
 from core.policies import chunk_id, policy_facts
@@ -14,11 +18,13 @@ from core.retrieval import NON_FILTERABLE, ChunkRecord, PolicySearch, VectorRetr
 from core.vectors import SEARCH_DOCUMENT, Vector
 from crud.catalog import COUNTRIES
 from crud.generator import Claim, Score, manual_transaction
-from harness import Aws, demo_account, uuid7
+from harness import Aws, demo_account
 
 NOW = datetime(2026, 9, 20, 17, 0, tzinfo=UTC)
 RECORDINGS = Path(__file__).parent / "core" / "recordings"
 PLANTED_SUFFIX = 2979
+ROOM_SEED = 1
+MESSAGE_SEED = 1_000
 PLACEHOLDER = re.compile(r"\{\{policy\.[a-z_.]+\}\}")
 
 
@@ -147,6 +153,14 @@ class DemoTurn:
     text: str
     history: tuple[tuple[str, str], ...] = ()
     planted: bool = False
+    topic: Literal["", "charge", "remembered", "flagged"] = ""
+
+
+TOPIC_TEXT = {
+    "es": "No reconozco el cargo de {merchant} por {amount} del {date}.",
+    "pt-BR": "Não reconheço a cobrança de {merchant} de {amount} em {date}.",
+}
+NOTES = {"es": "era la gasolina del viaje a Paracas", "pt-BR": "era a gasolina da viagem para Santos"}
 
 
 SUBSCRIPTIONS_ES = (
@@ -198,7 +212,25 @@ DEMO = {
     ),
     "that_one_es": DemoTurn("PE", "es", "esa es", UNRECOGNIZED_ES, planted=True),
     "what_now_es": DemoTurn("PE", "es", "¿y ahora qué pasa?", NOT_MINE_ES, planted=True),
+    "topic_es": DemoTurn("PE", "es", TOPIC_TEXT["es"], topic="charge"),
+    "topic_pt": DemoTurn("BR", "pt-BR", TOPIC_TEXT["pt-BR"], topic="charge"),
+    "remembered_es": DemoTurn("PE", "es", TOPIC_TEXT["es"], topic="remembered"),
+    "remembered_pt": DemoTurn("BR", "pt-BR", TOPIC_TEXT["pt-BR"], topic="remembered"),
+    "flagged_es": DemoTurn("PE", "es", TOPIC_TEXT["es"], planted=True, topic="flagged"),
+    "flagged_pt": DemoTurn("BR", "pt-BR", TOPIC_TEXT["pt-BR"], planted=True, topic="flagged"),
+    "unblock_es": DemoTurn("PE", "es", "Desbloquea mi tarjeta, por favor"),
+    "unblock_pt": DemoTurn("BR", "pt-BR", "desbloqueia meu cartão, por favor"),
 }
+KEPT = {"unrecognized_es": "¿y por qué me cobraron eso si casi no voy?"}
+
+
+FLAGGED = ("flagged_es", "flagged_pt")
+
+
+def base(name: str) -> str:
+    for suffix in ("_why", "_no", "_block", "_yes", "_card", "_open", "_tap", "_pick", "_kept"):
+        name = name.removesuffix(suffix)
+    return name
 
 
 def policy_index(country: str) -> PolicySearch:
@@ -245,21 +277,93 @@ def demo_turn(aws: Aws, name: str) -> tuple[Message, list[Message]]:
     turn = DEMO[name]
     customer_id = f"c0ffee00-0000-4000-8000-{list(DEMO).index(name) + 1:012d}"
     account = demo_account(aws, customer_id, turn.country, turn.locale, NOW - timedelta(hours=1))
-    if turn.planted:
-        plant_charge(aws, customer_id, turn.country, account.cards[0]["product_id"])
-    room = uuid7()
+    planted = (
+        plant_charge(aws, customer_id, turn.country, account.cards[0]["product_id"]) if turn.planted else None
+    )
+    room = str(uuid7_at(NOW - timedelta(hours=1), ROOM_SEED))
     history: list[Message] = []
     sent = NOW - timedelta(minutes=len(turn.history) + 1)
     for sender, text in turn.history:
         if sender == "customer":
-            history.append(
-                customer_message(customer_id, room, uuid7(int(sent.timestamp() * 1000)), text, sent)
-            )
+            history.append(customer_message(customer_id, room, demo_id(sent, len(history)), text, sent))
         else:
             history.append(reply_to(history[-1], "assistant", text, sent))
         sent += timedelta(minutes=1)
     sent = NOW - timedelta(seconds=1)
-    return customer_message(customer_id, room, uuid7(int(sent.timestamp() * 1000)), turn.text, sent), history
+    text, input = turn.text, None
+    if turn.topic:
+        row = dict(planted) if turn.topic == "flagged" and planted else habitual_charge(account.transactions)
+        if turn.topic == "remembered":
+            remember(aws, customer_id, row, NOTES[turn.locale])
+        text = turn.text.format(
+            merchant=row["merchant_name"],
+            amount=format_money(Decimal(str(row["amount"])), str(row["currency"]), turn.locale),
+            date=long_date(datetime.fromisoformat(str(row["transaction_date"])), turn.country, turn.locale),
+        )
+        input = {
+            "topic": {
+                "type": "charge",
+                "product_id": row["product_id"],
+                "transaction_id": row["transaction_id"],
+            }
+        }
+    return customer_message(customer_id, room, demo_id(sent, len(history)), text, sent, input=input), history
+
+
+def demo_id(at: datetime, index: int) -> str:
+    return str(uuid7_at(at, MESSAGE_SEED + index))
+
+
+def habitual_charge(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    approved = sorted(
+        (row for row in rows if row["transaction_status"] == "Approved"),
+        key=lambda row: (row["transaction_date"], row["transaction_id"]),
+        reverse=True,
+    )
+    for row in approved:
+        prior = [
+            other for other in approved if other["merchant_name"] == row["merchant_name"] and other is not row
+        ]
+        if Decimal(str(row.get("fraud_score", 0))) <= 30 and len(prior) >= 2:
+            return row
+    raise LookupError("no habitual charge in the demo account")
+
+
+def quiet_choice(question: Message, aws: Aws, options: list[str]) -> str:
+    rows = {
+        str(item["transaction_id"]): item
+        for item in aws.transactions.query(
+            KeyConditionExpression="customer_id = :id",
+            ExpressionAttributeValues={":id": question.customer_id},
+        )["Items"]
+    }
+    return next(option for option in options if Decimal(str(rows[option].get("fraud_score", 0))) <= 30)
+
+
+def remember(aws: Aws, customer_id: str, row: dict[str, Any], note: str) -> None:
+    aws.memory.put_item(
+        Item={
+            "customer_id": customer_id,
+            "memory_key": f"recognized_charge#{row['transaction_id']}",
+            "type": "recognized_charge",
+            "subject": row["transaction_id"],
+            "note": note,
+            "source_room_id": str(uuid7_at(NOW - timedelta(days=2), 1)),
+            "created_at": "2026-09-18T15:00:00.000Z",
+            "ask_id": str(uuid7_at(NOW - timedelta(days=2), 2)),
+            "merchant": row["merchant_name"],
+            "product_id": row["product_id"],
+            "amount": Decimal(str(row["amount"])),
+            "currency": row["currency"],
+            "charged_at": row["transaction_date"],
+        }
+    )
+
+
+def long_date(at: datetime, country: str, locale: str) -> str:
+    day = at.astimezone(zone(country)).date()
+    month = MONTHS[locale][day.month - 1]
+    return f"{day.day} de {month} de {day.year}"
 
 
 def plant_charge(aws: Aws, customer_id: str, country: str, product_id: str) -> dict[str, object]:
@@ -277,17 +381,26 @@ def plant_charge(aws: Aws, customer_id: str, country: str, product_id: str) -> d
     return item
 
 
+def kept(question: Message, history: list[Message], first: Reply, text: str) -> tuple[Message, list[Message]]:
+    asked = reply_to(question, "assistant", first.text, NOW, first.parts, first.facts, first.draft)
+    sent = NOW - timedelta(milliseconds=200)
+    message = customer_message(
+        question.customer_id, question.room_id, demo_id(sent, len(history) + 1), text, sent
+    )
+    return message, [*history, question, asked]
+
+
 def tap(
-    question: Message, history: list[Message], first: Reply, option: str
+    question: Message, history: list[Message], first: Reply, option: str, step: int = 0
 ) -> tuple[Message, list[Message]]:
     asked = reply_to(question, "assistant", first.text, NOW, first.parts, first.facts, first.draft)
     [ask] = [part for part in first.parts if part["type"] == "ask"]
     [label] = [entry["label"] for entry in ask["options"] if entry["id"] == option]
-    tapped_at = NOW - timedelta(milliseconds=500)
+    tapped_at = NOW - timedelta(milliseconds=500 - 100 * step)
     message = customer_message(
         question.customer_id,
         question.room_id,
-        uuid7(int(tapped_at.timestamp() * 1000)),
+        demo_id(tapped_at, len(history) + 1),
         label,
         tapped_at,
         input={"ask_id": asked.message_id, "option": option},

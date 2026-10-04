@@ -1,5 +1,5 @@
 import { ApiError, type Http } from "../api/http";
-import { isServerMessage, type ServerMessage, type Tap } from "./conversation";
+import { isServerMessage, type ChatInput, type ServerMessage } from "./conversation";
 
 export interface LatestRoom {
   room: { room_id: string; created_at: string } | null;
@@ -12,7 +12,7 @@ export interface NewMessage {
   room_id: string;
   message_id: string;
   text: string;
-  input?: Tap;
+  input?: ChatInput;
 }
 
 export function createChatApi(http: Http) {

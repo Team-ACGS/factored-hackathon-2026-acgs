@@ -2,7 +2,20 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from core.facts.parts import Ask, View
-from core.facts.values import Count, Fact, FactIds, Flag, Json, Ledger, Merchant, Period, Ref, Refs, Trace
+from core.facts.values import (
+    Count,
+    Fact,
+    FactIds,
+    Flag,
+    Json,
+    Labels,
+    Ledger,
+    Merchant,
+    Period,
+    Ref,
+    Refs,
+    Trace,
+)
 
 MAX_VIEW_ITEMS = 25
 SHOWN_ROWS = 5
@@ -18,6 +31,15 @@ TRANSACTION_REF = {
 CARD_REF = {"card": "card_ref", "movement": "card_ref", "charge": "charge.card_ref", "recurring": "card_ref"}
 LISTS = {"movements", "cards", "recurring_list", "cases"}
 CARD_CANDIDATES = ("card", "movements", "spend")
+ANSWER_OPTIONS = {
+    "recognize_charge": ("yes", "no"),
+    "was_it_you": ("yes", "no", "why"),
+    "have_card": ("yes", "no"),
+    "block_card": ("yes", "no"),
+    "open_claim": ("yes", "no"),
+    "talk_to_person": ("yes", "no"),
+}
+CHARGE_ASKS = frozenset({"recognize_charge", "was_it_you", "have_card", "open_claim"})
 
 
 class Unfit(ValueError):
@@ -48,7 +70,7 @@ def view_items(view: View, ledger: Ledger) -> list[Json]:
 def ask_options(ask: Ask, ledger: Ledger) -> list[Option]:
     facts = [_known(ledger, fact_id, "ask_fact_unknown") for fact_id in ask.facts]
     if ask.ask == "which_one":
-        return _which_one(facts, ledger)
+        return _which_one(facts, ledger, story=bool(ask.target))
     if ask.ask == "show":
         if len(facts) != 1:
             raise Unfit("ask_options_count", ask.facts[0] if ask.facts else ask.ask)
@@ -56,7 +78,51 @@ def ask_options(ask: Ask, ledger: Ledger) -> list[Option]:
         if option is None:
             raise Unfit("ask_fact_unfit", facts[0].id)
         return [option]
+    if ask.ask in CHARGE_ASKS:
+        if len(facts) != 1 or facts[0].kind != "charge" or _transaction(facts[0], ledger) is None:
+            raise Unfit("ask_fact_unfit", facts[0].id if facts else ask.ask)
+        return [Option(answer, facts[0]) for answer in ANSWER_OPTIONS[ask.ask]]
+    if ask.ask == "block_card":
+        if len(facts) != 1 or _subject(facts[0], ledger) is None:
+            raise Unfit("ask_fact_unfit", facts[0].id if facts else ask.ask)
+        return [Option(answer, facts[0]) for answer in ANSWER_OPTIONS[ask.ask]]
+    if ask.ask == "talk_to_person":
+        if not ask.target and len(facts) != 1:
+            raise Unfit("ask_options_count", facts[0].id if facts else ask.ask)
+        subject = facts[0] if facts else ledger.facts[next(iter(ledger.facts))]
+        return [Option(answer, subject) for answer in ANSWER_OPTIONS[ask.ask]]
     raise Unfit("ask_not_allowed", ask.ask)
+
+
+def ask_target(ask: Ask, ledger: Ledger) -> Json | None:
+    if ask.ask in CHARGE_ASKS:
+        return _transaction(ledger.facts[ask.facts[0]], ledger)
+    if ask.ask == "block_card":
+        return _subject(ledger.facts[ask.facts[0]], ledger)
+    if ask.ask == "talk_to_person":
+        subject = _subject(ledger.facts[ask.facts[0]], ledger) if len(ask.facts) == 1 else None
+        return {"reason": "other", "area": "service", **(subject or {}), **(ask.target or {})}
+    return None
+
+
+def _subject(fact: Fact, ledger: Ledger) -> Json | None:
+    transaction = _transaction(fact, ledger)
+    if transaction is not None:
+        return transaction
+    card = _ref(fact, "card_ref") if fact.kind == "card" else None
+    return {"product_id": card} if card else None
+
+
+def recent_pick(ask: Ask, ledger: Ledger) -> bool:
+    if ask.ask != "which_one":
+        return False
+    return _newest_of_recent([ledger.facts[fact_id] for fact_id in ask.facts], ledger)
+
+
+def recognizable(fact: Fact) -> bool:
+    reasons = fact.fields.get("verdict.reasons")
+    flagged = isinstance(reasons, Labels) and "score_high" in reasons.values
+    return fact.kind == "charge" and "memory.type" not in fact.fields and not flagged
 
 
 def candidate(fact: Fact, ledger: Ledger) -> tuple[str, Json] | None:
@@ -87,8 +153,8 @@ def show_option(fact: Fact, ledger: Ledger) -> Option | None:
     return None
 
 
-def _which_one(facts: list[Fact], ledger: Ledger) -> list[Option]:
-    if not MIN_OPTIONS <= len(facts) <= MAX_OPTIONS:
+def _which_one(facts: list[Fact], ledger: Ledger, story: bool = False) -> list[Option]:
+    if not (1 if story else MIN_OPTIONS) <= len(facts) <= MAX_OPTIONS:
         raise Unfit("ask_options_count", facts[0].id if facts else "which_one")
     options: list[Option] = []
     kinds: set[str] = set()
@@ -107,7 +173,7 @@ def _which_one(facts: list[Fact], ledger: Ledger) -> list[Option]:
         options.append(option)
     if len(kinds) > 1:
         raise Unfit("ask_options_mixed", facts[-1].id)
-    if _newest_of_recent(facts, ledger):
+    if story or _newest_of_recent(facts, ledger):
         return options
     for fact in facts:
         if _matched(fact, ledger) > len(options):

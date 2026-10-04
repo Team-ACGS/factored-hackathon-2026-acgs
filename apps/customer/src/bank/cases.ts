@@ -1,3 +1,4 @@
+import type { MessageKey } from "../i18n/en";
 import type { Case, CaseStage } from "./types";
 
 export const caseSteps = ["opened", "assigned", "review", "resolved"] as const;
@@ -22,6 +23,11 @@ export function stepsOf(item: Case): { step: CaseStep; state: StepState; at: str
     state: index < current || current === reached.resolved ? "done" : index === current ? "now" : "todo",
     at: index <= current ? (dates[index] ?? null) : null,
   }));
+}
+
+export function stageKey(item: Pick<Case, "type">, step: CaseStep): MessageKey {
+  if (step === "assigned" && item.type !== "claim") return `case.stage.assigned.${item.type}`;
+  return `claim.stage.${step}`;
 }
 
 export function caseOfTransaction(cases: readonly Case[], transactionId: string): Case | undefined {

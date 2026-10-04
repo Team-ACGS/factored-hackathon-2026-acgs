@@ -560,6 +560,7 @@ def test_an_invalid_add_is_rejected(aws: Aws, customer: None, context: LambdaCon
         ("GET", f"/crud/cards/{uuid7()}"),
         ("GET", f"/crud/cards/{uuid7()}/transactions/{uuid7()}"),
         ("POST", f"/crud/cards/{uuid7()}/transactions"),
+        ("GET", "/crud/memory/charges"),
     ],
 )
 def test_a_staff_token_gets_forbidden(
@@ -590,6 +591,32 @@ def test_cases_are_the_customer_s_own_with_their_code_type_and_stage(
     assert case["case_id"] == case_code(claim["complaint_id"], claim["creation_date"])
     assert (case["type"], case["stage"]) == ("claim", stage(claim))
     assert set(case) <= {*COMPLAINT_ATTRIBUTES, "case_id", "type", "stage"}
+
+
+def test_answered_charges_are_the_customer_s_own_transaction_ids_and_nothing_else(
+    aws: Aws, customer: None, context: LambdaContext
+) -> None:
+    recognized, unrecognized, theirs = uuid7(), uuid7(), uuid7()
+    for customer_id, key, subject in (
+        (SUB, "recognized_charge", recognized),
+        (SUB, "unrecognized_charge", unrecognized),
+        (SUB, "recognized_merchant", "plaza vea"),
+        (OTHER, "recognized_charge", theirs),
+    ):
+        aws.memory.put_item(
+            Item={
+                "customer_id": customer_id,
+                "memory_key": f"{key}#{subject}",
+                "type": key,
+                "subject": subject,
+                "note": "era la gasolina del viaje",
+            }
+        )
+
+    status, body = call("GET", "/crud/memory/charges", context)
+
+    assert status == 200
+    assert body == {"answered": sorted([recognized, unrecognized])}
 
 
 def test_a_customer_without_cases_gets_an_empty_list(

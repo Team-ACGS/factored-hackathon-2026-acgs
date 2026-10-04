@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-03
-source: 0020_rich_parts
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Messaging: database
@@ -19,8 +19,8 @@ Every message carries `sender_type`: `customer`, `assistant` or `agent`.
 It is a contract with the infrastructure: the chatbot's stream mapping filters on it.
 A message may carry `origin_trace_id`, the X-Ray root of the `POST /messages` that first stored it; a reply copies the one of the message it answers.
 It exists only to link traces across the stream: it is absent when there was no trace, never returned by `public()` and never published to a channel.
-A Clara reply also carries `parts` (public: rendered `say` parts with citation objects), and `facts` (the typed facts it referenced), `draft` (the parts before rendering) and `source` (`composed`, `repaired`, `fallback`, `safety`, `say_key`), kept for audit and never returned; `text` is the says joined, so readers that ignore `parts` still work.
-A customer's tap carries `input` (`ask_id`, `option`), kept for the turn and never returned; the open ask is Clara's latest message, not a copy on the room.
+A Clara reply also carries `parts` (public: rendered `say` parts with citation objects), and `facts` (the typed facts it referenced), `draft` (the parts before rendering) and `source` (`composed`, `repaired`, `fallback`, `safety`, `say_key`, `story`), kept for audit and never returned, and `effects` (public: what the turn wrote, for the client's invalidations); `text` is the says joined, so readers that ignore `parts` still work.
+A customer's message may carry `input`, a tap (`ask_id`, `option`, optional `note`) or the bank's charge entry (`topic`), kept for the turn and never returned; the open ask and its target are in Clara's latest message's `draft`, not a copy on the room.
 
 ## Tables referenced
 
@@ -40,6 +40,8 @@ None.
 - Only the holder of the turn mark sets `turn_status`; taking or clearing the mark removes it.
 
 ## Migrations of note
+
+- 2026-10-04 (task 0022): new optional attribute `effects` on `messages`, and `note` or `topic` inside `input`; no migration.
 
 - 2026-10-03 (task 0020): new optional attributes `input` on `messages` and `turn_status` on `rooms`; no migration.
 

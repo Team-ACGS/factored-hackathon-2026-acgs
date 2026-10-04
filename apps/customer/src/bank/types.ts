@@ -25,6 +25,7 @@ export interface Card {
   product_status: string;
   expiration_date: string;
   balance_as_of: string | null;
+  blocked_at?: string | null;
 }
 
 export interface Transaction {
@@ -60,6 +61,8 @@ export interface Case {
   closing_date?: string | null;
   transaction_id?: string | null;
   product_id?: string | null;
+  summary?: string | null;
+  summary_points?: string[] | null;
 }
 
 export interface PlantedCase {

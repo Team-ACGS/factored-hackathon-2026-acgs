@@ -502,7 +502,7 @@ def test_an_ask_outside_allowed_asks_never_passes_the_check() -> None:
     book = view_ledger()
     allowed = allowed_asks(TurnState(), book)
 
-    assert allowed == {"which_one", "show"}
+    assert allowed == {"which_one", "show", "talk_to_person"}
     assert check_codes([Ask("which_one", ("f3", "f4"))], book, allowed) == []
     assert check_codes([Ask("show", ("f8",))], book, allowed) == []
     assert check_codes([Ask("block_card", ("f1",))], book, allowed) == [("ask_not_allowed", "block_card")]
@@ -526,10 +526,11 @@ def test_allowed_asks_need_candidates_and_never_repeat_the_choice_just_made() ->
     lone = ledger()
     lone.add("card", {"card_ref": Ref("card", "card-1"), "last4": Last4("4141")})
 
-    assert allowed_asks(TurnState(), lone) == {"show"}
-    assert allowed_asks(TurnState("which_one"), view_ledger()) == {"show"}
-    assert allowed_asks(TurnState("show"), view_ledger()) == {"which_one"}
-    assert allowed_asks(TurnState(), ledger()) == frozenset()
+    assert allowed_asks(TurnState(), lone) == {"show", "talk_to_person"}
+    assert allowed_asks(TurnState("which_one"), view_ledger()) == {"show", "talk_to_person"}
+    assert allowed_asks(TurnState("show"), view_ledger()) == {"which_one", "talk_to_person"}
+    assert allowed_asks(TurnState(), ledger()) == {"talk_to_person"}
+    assert allowed_asks(TurnState(asking="block_card"), view_ledger()) == {"block_card"}
 
 
 def test_a_count_reference_followed_by_its_noun_is_a_doubled_noun() -> None:
@@ -1041,6 +1042,32 @@ def test_a_participle_after_a_count_agrees_with_the_counted_noun(
     assert render_text(tidied, book, locale) == expected
     assert edits == {"agreement": 1}
     assert tidy("Hay {f1.count} cada mes.", book, locale)[1] == {}
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "expected"),
+    [
+        ("pt-BR", "Seus {f1.count} estão atualmente {f2.status}.", "Seus 3 cartões estão atualmente ativos."),
+        (
+            "pt-BR",
+            "Ambos {f2.status}, o cartão {f2.last4} também.",
+            "Ambos ativos, o cartão final 4141 também.",
+        ),
+        ("es", "Tus {f1.count} están {f2.status}.", "Tus 3 tarjetas están activas."),
+    ],
+)
+def test_a_card_status_after_a_plural_in_its_clause_is_written_in_the_plural(
+    locale: str, text: str, expected: str
+) -> None:
+    book = ledger()
+    book.add("cards", {"count": Count(3, "card")})
+    book.add("card", {"status": Status("card", "Active"), "last4": Last4("4141")})
+
+    tidied, edits = tidy(text, book, locale)
+
+    assert render_text(tidied, book, locale) == expected
+    assert edits == {"agreement": 1}
+    assert tidy("Tu tarjeta {f2.last4} está {f2.status}. Son tuyas.", book, "es")[1] == {}
 
 
 def test_a_relative_day_never_follows_a_contracted_article() -> None:

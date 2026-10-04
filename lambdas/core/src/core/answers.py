@@ -1,8 +1,10 @@
 from typing import Literal, get_args
 
 from core.facts.catalog import LIST_JOIN
+from core.facts.fallback import FIELD
 from core.facts.parts import Part, Say
-from core.facts.values import Count, Fact, FactIds, Ledger
+from core.facts.render import render_text
+from core.facts.values import Count, Fact, FactIds, Label, Ledger
 from core.policies import policy_facts
 from core.router import FloorClass
 
@@ -91,6 +93,25 @@ ABOUT_YOU = {
     },
 }
 
+REMEMBERED = {
+    "recognized_charge": {
+        "es": "Reconociste tu cargo en {merchant} por {amount}, {date}.",
+        "pt-BR": "Você reconheceu a cobrança em {merchant} de {amount}, {date}.",
+        "en": "You recognized your charge at {merchant} for {amount}, {date}.",
+    },
+    "unrecognized_charge": {
+        "es": "No reconociste tu cargo en {merchant} por {amount}, {date}.",
+        "pt-BR": "Você não reconheceu a cobrança em {merchant} de {amount}, {date}.",
+        "en": "You did not recognize your charge at {merchant} for {amount}, {date}.",
+    },
+    "recognized_merchant": {
+        "es": "Reconociste varias compras tuyas en {merchant}.",
+        "pt-BR": "Você reconheceu várias compras suas em {merchant}.",
+        "en": "You recognized several of your purchases at {merchant}.",
+    },
+    "note": {"es": " Me dijiste: {note}.", "pt-BR": " Você me disse: {note}.", "en": " You told me: {note}."},
+}
+
 CUSTOMER = "customer"
 
 
@@ -104,6 +125,15 @@ def contact(ledger: Ledger) -> Fact:
 
 def safety(kind: FloorClass, ledger: Ledger, locale: str) -> list[Part]:
     return [Say(_bind(SAFETY[kind][locale], "c", contact(ledger)))]
+
+
+def remembered(fact: Fact, ledger: Ledger, locale: str) -> str:
+    kind = fact.fields.get("type")
+    about = REMEMBERED[kind.value][locale] if isinstance(kind, Label) and kind.value in REMEMBERED else ""
+    if any(name not in fact.fields for name in FIELD.findall(about)):
+        about = ""
+    note = REMEMBERED["note"][locale] if "note" in fact.fields else ""
+    return render_text(_fields((about + note).strip(), fact), ledger, locale)
 
 
 def say_key(key: str, ledger: Ledger, locale: str) -> list[Part]:

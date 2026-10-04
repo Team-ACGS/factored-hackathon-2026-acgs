@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { Case } from "../bank/types";
 import { cardAt, purchase } from "./fixtures";
 import { flaggedCharges, isBlocked } from "./overlay";
 import { createClaraSession, memoryStorage } from "./session";
@@ -83,5 +84,22 @@ describe("flagged charges", () => {
 
   it("drops every charge of a card the bank blocked", () => {
     expect(flaggedCharges([flagged, older], [{ ...credit, product_status: "Blocked" }])).toEqual([]);
+  });
+
+  it("drops a charge the customer already answered or one in an open case", () => {
+    const inCase: Case = {
+      complaint_id: "m1",
+      case_id: "CLR-2026-000001",
+      type: "fraud",
+      stage: "opened",
+      creation_date: "2026-09-20T17:00:00.000Z",
+      transaction_id: older.transaction_id,
+    };
+
+    expect(flaggedCharges([flagged, older], [credit], new Set([flagged.transaction_id]), [inCase])).toEqual([]);
+    expect(flaggedCharges([flagged, older], [credit], new Set(), [{ ...inCase, stage: "resolved" }])).toEqual([
+      flagged,
+      older,
+    ]);
   });
 });

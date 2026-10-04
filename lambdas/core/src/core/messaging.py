@@ -20,6 +20,7 @@ SenderType = Literal["customer", "assistant", "agent"]
 MAX_CLOCK_SKEW = timedelta(minutes=2)
 MAX_TEXT_LENGTH = 2000
 MAX_OPTION_LENGTH = 80
+MAX_NOTE_LENGTH = 140
 TURN_MARK_TTL = timedelta(minutes=5)
 
 Json = dict[str, Any]
@@ -48,6 +49,7 @@ class Message:
     draft: tuple[Json, ...] = ()
     source: str | None = None
     input: Json | None = None
+    effects: tuple[Json, ...] = ()
 
     @property
     def message_key(self) -> str:
@@ -66,7 +68,7 @@ class Message:
         }
         if self.origin_trace_id:
             item["origin_trace_id"] = self.origin_trace_id
-        for name in ("parts", "facts", "draft"):
+        for name in ("parts", "facts", "draft", "effects"):
             if getattr(self, name):
                 item[name] = list(getattr(self, name))
         if self.source:
@@ -94,6 +96,7 @@ class Message:
             draft=tuple(plain(item.get("draft") or [])),
             source=str(item["source"]) if item.get("source") else None,
             input=plain(item["input"]) if isinstance(item.get("input"), Mapping) else None,
+            effects=tuple(plain(item.get("effects") or [])),
         )
 
     def public(self) -> dict[str, Any]:
@@ -107,6 +110,8 @@ class Message:
         }
         if self.parts:
             public["parts"] = list(self.parts)
+        if self.effects:
+            public["effects"] = list(self.effects)
         return public
 
 
@@ -161,7 +166,7 @@ def customer_message(
         sent_at = uuid7_time(parse_uuid7(message_id))
     except InvalidId as error:
         raise InvalidMessage(str(error)) from error
-    choice = None if input is None else tapped(input)
+    choice = None if input is None else structured(input)
     if abs(now - sent_at) > MAX_CLOCK_SKEW:
         raise InvalidMessage("message_id is too far from server time")
     body = text.strip()
@@ -182,19 +187,52 @@ def customer_message(
     )
 
 
-def tapped(value: object) -> Json:
-    if not isinstance(value, Mapping) or set(value) != {"ask_id", "option"}:
-        raise InvalidMessage("input must be an object with exactly ask_id and option")
+def structured(value: object) -> Json:
+    if isinstance(value, Mapping) and set(value) == {"topic"}:
+        return {"topic": _topic(value["topic"])}
+    return _tap(value)
+
+
+def _tap(value: object) -> Json:
+    if not isinstance(value, Mapping) or not {"ask_id", "option"} <= set(value) <= {
+        "ask_id",
+        "option",
+        "note",
+    }:
+        raise InvalidMessage("input must be a tap with ask_id, option and an optional note, or a topic")
     ask_id, option = value["ask_id"], value["option"]
     if not isinstance(ask_id, str) or not isinstance(option, str):
         raise InvalidMessage("input ask_id and option must be strings")
-    try:
-        parse_uuid7(ask_id)
-    except InvalidId as error:
-        raise InvalidMessage(f"input ask_id: {error}") from error
+    _uuid7(ask_id, "input ask_id")
     if not option.strip() or len(option) > MAX_OPTION_LENGTH:
         raise InvalidMessage(f"input option must be 1 to {MAX_OPTION_LENGTH} characters")
-    return {"ask_id": ask_id, "option": option}
+    tap: Json = {"ask_id": ask_id, "option": option}
+    if "note" in value:
+        note = value["note"]
+        if not isinstance(note, str) or len(note.strip()) > MAX_NOTE_LENGTH:
+            raise InvalidMessage(f"input note must be text of at most {MAX_NOTE_LENGTH} characters")
+        if note.strip():
+            tap["note"] = note.strip()
+    return tap
+
+
+def _topic(value: object) -> Json:
+    if not isinstance(value, Mapping) or set(value) != {"type", "product_id", "transaction_id"}:
+        raise InvalidMessage("input topic must have exactly type, product_id and transaction_id")
+    if value["type"] != "charge":
+        raise InvalidMessage("input topic type must be charge")
+    for name in ("product_id", "transaction_id"):
+        if not isinstance(value[name], str):
+            raise InvalidMessage(f"input topic {name} must be a string")
+        _uuid7(value[name], f"input topic {name}")
+    return {"type": "charge", "product_id": value["product_id"], "transaction_id": value["transaction_id"]}
+
+
+def _uuid7(value: str, name: str) -> None:
+    try:
+        parse_uuid7(value)
+    except InvalidId as error:
+        raise InvalidMessage(f"{name}: {error}") from error
 
 
 def plain(value: Any) -> Any:
@@ -220,6 +258,7 @@ def reply_to(
     facts: tuple[Json, ...] = (),
     draft: tuple[Json, ...] = (),
     source: str | None = None,
+    effects: tuple[Json, ...] = (),
 ) -> Message:
     return Message(
         customer_id=message.customer_id,
@@ -234,6 +273,7 @@ def reply_to(
         facts=facts,
         draft=draft,
         source=source,
+        effects=effects,
     )
 
 

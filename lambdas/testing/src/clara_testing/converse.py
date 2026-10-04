@@ -57,6 +57,10 @@ def reply(*say: str, say_key: str | None = None, **usage: int) -> Response:
     return response(tool_use("reply", arguments), **usage)
 
 
+def composed(*say: str, **usage: int) -> Response:
+    return response(tool_use("say", {"say": list(say)}), **usage)
+
+
 def throttled() -> ClientError:
     return ClientError({"Error": {"Code": "ThrottlingException", "Message": "Too many requests"}}, "Converse")
 

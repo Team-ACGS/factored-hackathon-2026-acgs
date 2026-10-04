@@ -90,7 +90,7 @@ def test_the_turn_event_carries_ids_and_measures_and_never_the_text(
     assert detail["message_id"] == message.message_id
     assert detail["reply_message_id"] == str(successor(uuid.UUID(message.message_id)))
     assert detail["route"] == "open_mode"
-    assert (detail["model"], detail["prompt"]) == ("us.anthropic.claude-sonnet-4-6", "system.v4")
+    assert (detail["model"], detail["prompt"]) == ("us.anthropic.claude-sonnet-4-6", "system.v6")
     assert Decimal(detail["cost_usd"]) > 0
     assert detail["steps"] == 1
     assert detail["check"] == {"result": "pass", "errors": [], "tidied": {}}
@@ -99,6 +99,51 @@ def test_the_turn_event_carries_ids_and_measures_and_never_the_text(
     assert "trace_id" in detail
     assert "4242" not in json.dumps(event)
     assert "Hola" not in json.dumps(event)
+
+
+def tap(asked: Message, option: str) -> Message:
+    [ask] = [part for part in asked.parts if part["type"] == "ask"]
+    label = next(item["label"] for item in ask["options"] if item["id"] == option)
+    message = customer_message(
+        CUSTOMER,
+        asked.room_id,
+        uuid7(),
+        label,
+        datetime.now(UTC),
+        input={"ask_id": asked.message_id, "option": option},
+    )
+    Messaging.from_dynamodb(boto3.resource("dynamodb")).send(message)
+    return message
+
+
+def test_a_confirmed_block_stores_its_effects_and_publishes_them(
+    aws: Aws, context: LambdaContext, model: FakeConverse
+) -> None:
+    room = customer_says("me robaron la tarjeta").room_id
+    handler(aws.stream(), context)
+    [listed] = replies(aws)
+    [ask] = [part for part in listed.parts if part["type"] == "ask"]
+    product = ask["options"][0]["id"]
+    tap(listed, product)
+    handler(aws.stream(), context)
+    confirm = replies(aws)[-1]
+    tap(confirm, "yes")
+
+    handler(aws.stream(), context)
+
+    done = replies(aws)[-1]
+    assert done.room_id == room
+    assert [effect["type"] for effect in done.effects] == ["card_blocked", "case_opened"]
+    assert done.effects[0] == {"type": "card_blocked", "product_id": product}
+    assert done.public()["effects"] == list(done.effects)
+    stored = aws.products.get_item(Key={"customer_id": CUSTOMER, "product_id": product})["Item"]
+    assert (stored["product_status"], stored["blocked_by"]) == ("Blocked", confirm.message_id)
+    detail = aws.events()[-1]["detail"]
+    assert (detail["route"], detail["writes"], detail["effects"]) == (
+        "story",
+        ["block", "case", "summary"],
+        ["card_blocked", "case_opened"],
+    )
 
 
 def test_a_room_delegated_to_a_human_gets_no_reply(

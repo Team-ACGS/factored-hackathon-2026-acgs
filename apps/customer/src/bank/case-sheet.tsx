@@ -5,7 +5,7 @@ import { useOpenClara } from "../clara/entry";
 import { useI18n } from "../i18n";
 import { BankSheet, SheetBody, SheetFoot, SheetHead } from "./bank-sheet";
 import { pillButton } from "./buttons";
-import { stepsOf } from "./cases";
+import { stageKey, stepsOf } from "./cases";
 import { formatMoney } from "./format";
 import { chargeOf, useRow } from "./rows";
 import type { Case } from "./types";
@@ -53,7 +53,7 @@ function CaseDetails({ item }: { item: Case }) {
                 {state === "now" && <span className="size-2 rounded-full bg-primary" />}
               </span>
               <span>
-                <b className="block text-sm font-semibold">{t(`claim.stage.${step}`)}</b>
+                <b className="block text-sm font-semibold">{t(stageKey(item, step))}</b>
                 {at && (
                   <span className="text-[13px] text-ink-3">
                     {state === "now" && step !== "opened"

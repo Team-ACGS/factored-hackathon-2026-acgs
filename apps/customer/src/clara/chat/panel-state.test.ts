@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ChatMessage, ViewPart } from "../../chat/conversation";
+import type { AskKind, ChatMessage, ViewPart } from "../../chat/conversation";
 import {
   entityMode,
   faceOf,
@@ -8,9 +8,11 @@ import {
   initialPanel,
   panelMode,
   panelViews,
+  pickIds,
   reducePanel,
   shownView,
   specOf,
+  storyFaces,
   type PanelState,
 } from "./panel-state";
 
@@ -26,6 +28,7 @@ function clara(id: string, view: ViewPart | null): ChatMessage {
     sentAt: id,
     createdAt: id,
     delivery: "sent",
+    effects: [],
   };
 }
 
@@ -85,5 +88,80 @@ describe("clara's panel", () => {
     expect(fromEarlier([clara("m1", movements)], "m1")).toBe(false);
     expect(fromEarlier([clara("m1", movements), clara("m2", cards)], "m1")).toBe(true);
     expect(fromEarlier(answered, null)).toBe(false);
+  });
+});
+
+describe("a pick in the view", () => {
+  const rows = ["t1", "t2", "t3"].map((transactionId) => ({ productId: "p1", transactionId }));
+  const view: ViewPart = { kind: "movements", rows, cards: [], cases: [], readings: {} };
+  const asking = (ids: string[]) => ({
+    ...clara("m2", view),
+    ask: { kind: "which_one" as const, prompt: null, note: false, options: ids.map((id) => ({ id, label: id })) },
+  });
+
+  it("offers the rows of the ask's own list", () => {
+    const asked = asking(["t1", "t3"]);
+    const [shown] = panelViews([asked]);
+
+    expect([...(pickIds(asked, shown ?? null) ?? [])]).toEqual(["t1", "t3"]);
+  });
+
+  it("keeps chips when the list is another message's or misses an option", () => {
+    const asked = asking(["t1", "t9"]);
+    const [shown] = panelViews([asked]);
+    const [other] = panelViews([clara("m1", view)]);
+
+    expect(pickIds(asked, shown ?? null)).toBeNull();
+    expect(pickIds(asking(["t1"]), other ?? null)).toBeNull();
+  });
+
+  it("offers the active cards of a lost-card ask in the cards view, even one", () => {
+    const cards: ViewPart = { kind: "cards", rows: [], cards: ["c1", "c2", "c3"], cases: [], readings: {} };
+    const asked = {
+      ...clara("m3", cards),
+      ask: { kind: "which_one" as const, prompt: null, note: false, options: [{ id: "c2", label: "c2" }] },
+    };
+    const [shown] = panelViews([asked]);
+
+    expect([...(pickIds(asked, shown ?? null) ?? [])]).toEqual(["c2"]);
+  });
+});
+
+describe("clara's face in the story", () => {
+  const ask = (kind: AskKind) => ({ kind, prompt: null, note: false, options: [{ id: "yes", label: "Sí" }] });
+  const customer = (id: string, input?: ChatMessage["input"]): ChatMessage => ({
+    ...clara(id, null),
+    senderType: "customer",
+    ...(input ? { input } : {}),
+  });
+
+  it("wants to confirm on a story question and on the block confirmation", () => {
+    expect(storyFaces([{ ...clara("m1", null), ask: ask("was_it_you") }])).toEqual({ settled: "confirma" });
+    expect(storyFaces([{ ...clara("m1", null), ask: ask("block_card") }])).toEqual({ settled: "confirma" });
+    expect(storyFaces([{ ...clara("m1", null), ask: ask("which_one") }])).toEqual({});
+  });
+
+  it("protects while the confirmed block runs, never for a declined one", () => {
+    const asked = { ...clara("m1", null), ask: ask("block_card") };
+
+    expect(storyFaces([asked, customer("m2", { ask_id: "m1", option: "yes" })])).toEqual({ working: "protege" });
+    expect(storyFaces([asked, customer("m2", { ask_id: "m1", option: "no" })])).toEqual({});
+  });
+
+  it("is done on the block and hands over on the case, and stays done on a claim", () => {
+    const handedOff = {
+      ...clara("m3", null),
+      effects: [
+        { type: "card_blocked" as const, productId: "p1" },
+        { type: "case_opened" as const, complaintId: "m1", caseType: "fraud" },
+      ],
+    };
+    const claim = { ...clara("m3", null), effects: [{ type: "case_opened" as const, complaintId: "m1", caseType: "claim" }] };
+
+    expect(storyFaces([handedOff])).toEqual({ arriving: "listo", settled: "telefono" });
+    expect(storyFaces([claim])).toEqual({ arriving: "listo", settled: "listo" });
+    const calm = { typing: false, asking: false, arriving: true, working: "revisa" as const };
+    expect(faceOf("docked", { ...calm, story: storyFaces([handedOff]) })).toBe("listo");
+    expect(faceOf("docked", { ...calm, arriving: false, story: storyFaces([handedOff]) })).toBe("telefono");
   });
 });

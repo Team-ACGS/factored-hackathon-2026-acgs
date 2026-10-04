@@ -92,7 +92,6 @@ def test_a_charge_view_carries_clara_s_readings_rendered_in_the_customer_s_local
             "explanation": "ya habías comprado antes en este comercio",
             "reasons": [{"reason": "foreign_country", "text": "es en otro país"}],
             "habit": f"Hiciste 5 compras antes en este comercio; lo típico es S/{NB}58.50.",
-            "compared": "Este cargo es unas 2 veces lo habitual.",
         },
     }
     assert "verdict" not in str(reply.parts)
@@ -121,7 +120,15 @@ def test_ask_options_carry_a_label_by_code_and_keep_their_reads_in_the_draft_onl
 
     reply = compose([Ask("which_one", ("f1", "f2")), Ask("show", ("f5",))], book, "es", "composed")
 
-    which, show = reply.parts
+    picked, which, show = reply.parts
+    assert picked == {
+        "type": "view",
+        "view": "movements",
+        "items": [
+            {"product_id": "card-1", "transaction_id": "tx-1"},
+            {"product_id": "card-2", "transaction_id": "tx-2"},
+        ],
+    }
     assert which == {
         "type": "ask",
         "ask": "which_one",
@@ -211,7 +218,11 @@ def test_an_option_of_today_or_yesterday_says_so_like_the_answer_does(
             },
         )
 
-    [ask] = [part for part in compose([Ask("which_one", ("f1", "f2"))], book, locale, "composed").parts]
+    [ask] = [
+        part
+        for part in compose([Ask("which_one", ("f1", "f2"))], book, locale, "composed").parts
+        if part["type"] == "ask"
+    ]
 
     assert [option["label"].rsplit(" · ", 1)[1] for option in ask["options"]] == list(days)
 

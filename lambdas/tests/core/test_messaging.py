@@ -179,6 +179,23 @@ def test_a_reply_keeps_its_parts_and_audit_fields_and_publishes_only_the_parts(m
     assert {"facts", "draft", "source"}.isdisjoint(stored.public())
 
 
+def test_a_write_reply_publishes_its_effects_for_the_client_to_invalidate(messaging: Messaging) -> None:
+    question = message(uuid7(), uuid7())
+    messaging.send(question)
+    product, complaint = uuid7(), uuid7()
+    effects = (
+        {"type": "card_blocked", "product_id": product},
+        {"type": "case_opened", "complaint_id": complaint},
+    )
+    answer = reply_to(question, "assistant", "Listo.", datetime.now(UTC), source="story", effects=effects)
+
+    messaging.write(answer)
+
+    stored = messaging.stored(CUSTOMER, answer.message_key)
+    assert stored == answer
+    assert stored.public()["effects"] == list(effects)
+
+
 def test_a_message_without_parts_publishes_its_text_only(messaging: Messaging) -> None:
     sent = message(uuid7(), uuid7())
     messaging.send(sent)
@@ -216,9 +233,64 @@ def test_a_tap_carries_its_ask_and_option_and_never_publishes_them() -> None:
     assert "input" not in tapped.public()
 
 
+def test_a_tap_keeps_the_customer_s_note_trimmed_and_drops_an_empty_one() -> None:
+    ask_id = uuid7()
+    noted, bare = (
+        customer_message(
+            CUSTOMER,
+            uuid7(),
+            message_id,
+            "Sí, fui yo",
+            at(message_id),
+            input={"ask_id": ask_id, "option": "yes", "note": note},
+        )
+        for message_id, note in ((uuid7(), "  era la gasolina del viaje "), (uuid7(), "   "))
+    )
+
+    assert noted.input == {"ask_id": ask_id, "option": "yes", "note": "era la gasolina del viaje"}
+    assert bare.input == {"ask_id": ask_id, "option": "yes"}
+
+
+def test_a_charge_topic_carries_the_card_and_the_charge() -> None:
+    message_id = uuid7()
+    topic = {"type": "charge", "product_id": uuid7(), "transaction_id": uuid7()}
+
+    opened = customer_message(
+        CUSTOMER, uuid7(), message_id, "No reconozco", at(message_id), input={"topic": topic}
+    )
+
+    assert opened.input == {"topic": topic}
+    assert Message.from_item(opened.to_item()).input == opened.input
+
+
 @pytest.mark.parametrize(
     "input",
     [
+        {"ask_id": "01928f1e-0000-7000-8000-000000000001", "option": "yes", "note": "x" * 141},
+        {"ask_id": "01928f1e-0000-7000-8000-000000000001", "option": "yes", "note": 3},
+        {"topic": {"type": "charge", "product_id": "01928f1e-0000-7000-8000-000000000001"}},
+        {
+            "topic": {
+                "type": "case",
+                "product_id": "01928f1e-0000-7000-8000-000000000001",
+                "transaction_id": "01928f1e-0000-7000-8000-000000000002",
+            }
+        },
+        {
+            "topic": {
+                "type": "charge",
+                "product_id": "card-1",
+                "transaction_id": "01928f1e-0000-7000-8000-000000000002",
+            }
+        },
+        {
+            "topic": {
+                "type": "charge",
+                "product_id": "01928f1e-0000-7000-8000-000000000001",
+                "transaction_id": "01928f1e-0000-7000-8000-000000000002",
+            },
+            "ask_id": "01928f1e-0000-7000-8000-000000000001",
+        },
         "tx-1",
         {"ask_id": "not-a-uuid", "option": "tx-1"},
         {"option": "tx-1"},

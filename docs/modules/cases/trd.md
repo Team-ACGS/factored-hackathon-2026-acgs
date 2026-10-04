@@ -1,27 +1,27 @@
 ---
-updated: 2026-09-28
-source: 0006_customer_data_onboarding
+updated: 2026-10-04
+source: 0022_story_actions
 ---
 
 # Cases: technical
 
-Status: designed, not built.
-None of the case code or routes below exist yet (`lambdas/crud` and `lambdas/core` exist and serve the customer's own data, see `modules/assistant/trd.md`); this describes the agreed design, source `docs/tasks/_drafts/architecture_and_layout.md`.
+Status: case opening is built in `core.cases` and called by the assistant's rules (task 0022); the customer reads cases through `GET /crud/cases`; the agent routes and `apps/support` are designed, not built.
 
 ## Structure
 
 | Path | What |
 |---|---|
-| `lambdas/core` | Shared Python package bundled into every lambda's own zip (no lambda-to-lambda calls); holds this module's case-writing code, the single writer of the `complaints` table, called in-process by both `lambdas/crud` and `lambdas/chatbot` [inferido, path named in the confirmed module list, contents not yet designed] |
+| `lambdas/core` | `core.cases`: the read allow-list, the case code, `open` (put if absent keyed by the confirming `ask_id`, then a consistent read-back) and `write_summary` (once, only if absent); the single writer of `complaints`, called in-process by `lambdas/chatbot` and `lambdas/crud` |
 | `lambdas/crud` | Python lambda behind API Gateway; the agent/officer entrypoint (reads and resolutions) that calls into `lambdas/core`'s case code |
 | `apps/support` | Static React + Vite + TanStack Router SPA, `support.factoredai.sdfles.com`, S3 + CloudFront, client-side only; the agent console for the `agents` group (live chat) |
 
 ## Endpoints owned
 
-No route, method or payload is decided yet.
-The surface to cover, by evidence:
+- Create a case at `Open`: no route; the assistant's rules call `core.cases.open` from `lambdas/chatbot` on a confirming tap.
+- `GET /crud/cases` (assistant's `crud`): the customer's cases with code, type, stage and the summary fields.
 
-- Create a case (a `complaints` row) at `Open` on intake, idempotent (tool `A2 create complaint` in `docs/tasks/_drafts/turn_flow.md`: confirmation, idempotency, read-back of the case); called from `lambdas/chatbot` when Clara decides `CLAIM`, `PROTECT` or `HANDOFF`, through `lambdas/core` directly, not an API Gateway route.
+Designed, not built:
+
 - Read a case and its handoff package, for the agent console: an API Gateway route on `lambdas/crud` (`docs/product/02-technical-flows.md`, black box A step 6, and `01-flows.md` flow 2: "agent console shows the prepared case").
 - Resolve a case: an API Gateway route on `lambdas/crud`, the single write path (via `lambdas/core`) for both an agent's in-chat resolution and an officer's resolution from the backoffice queue.
 - List or fetch cases assigned to the current agent, for the console: an API Gateway route on `lambdas/crud`.
@@ -48,4 +48,5 @@ Expect the `complaints` table name and the `role-customer`/`role-agent`/`role-of
 
 ## Testing
 
-Not designed yet; no tests exist because no code exists.
+- `lambdas/tests/core/test_writers.py`: a case opens once per ask and reads back, a mismatching row is not confirmed, the summary is written once.
+- `lambdas/tests/core/test_actions.py`: the fraud, claim and service cases of the story, redelivered and double-tapped.

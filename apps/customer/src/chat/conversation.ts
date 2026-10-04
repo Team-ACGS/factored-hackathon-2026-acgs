@@ -2,6 +2,8 @@ export type SenderType = "customer" | "assistant" | "agent";
 export type Delivery = "pending" | "sent" | "failed";
 
 export const THINKING_CAP_MS = 30_000;
+export const MAX_TEXT_LENGTH = 2000;
+export const MAX_NOTE_LENGTH = 140;
 
 export interface ServerMessage {
   room_id: string;
@@ -11,6 +13,7 @@ export interface ServerMessage {
   sent_at: string;
   created_at: string;
   parts?: unknown;
+  effects?: unknown;
 }
 
 export interface Citation {
@@ -47,7 +50,6 @@ export interface Readings {
   typical_amount?: string;
   explanation?: string;
   habit?: string;
-  compared?: string;
   reasons?: Reason[];
 }
 
@@ -64,10 +66,30 @@ export interface AskOption {
   label: string;
 }
 
+export const askKinds = [
+  "which_one",
+  "show",
+  "recognize_charge",
+  "was_it_you",
+  "have_card",
+  "block_card",
+  "open_claim",
+  "talk_to_person",
+] as const;
+export type AskKind = (typeof askKinds)[number];
+
+export const confirmKinds: readonly AskKind[] = ["have_card", "block_card", "open_claim", "talk_to_person"];
+
+export type Effect =
+  | { type: "card_blocked"; productId: string }
+  | { type: "case_opened"; complaintId: string; caseType: string | null }
+  | { type: "charge_answered"; transactionId: string };
+
 export interface AskPart {
-  kind: "which_one" | "show";
+  kind: AskKind;
   prompt: string | null;
   options: AskOption[];
+  note: boolean;
 }
 
 export interface ChatMessage {
@@ -81,7 +103,8 @@ export interface ChatMessage {
   sentAt: string;
   createdAt: string | null;
   delivery: Delivery;
-  input?: Tap;
+  effects: Effect[];
+  input?: ChatInput;
 }
 
 export interface TurnStatus {
@@ -94,7 +117,14 @@ export interface TurnStatus {
 export interface Tap {
   ask_id: string;
   option: string;
+  note?: string;
 }
+
+export interface TopicInput {
+  topic: { type: "charge"; product_id: string; transaction_id: string };
+}
+
+export type ChatInput = Tap | TopicInput;
 
 export interface Conversation {
   loaded: boolean;
@@ -115,7 +145,7 @@ export type Action =
   | { type: "loaded"; roomId: string | null; messages: ServerMessage[]; turn?: TurnStatus | null }
   | { type: "received"; message: ServerMessage }
   | { type: "status"; event: StatusEvent; at: number }
-  | { type: "sending"; roomId: string; messageId: string; text: string; sentAt: string; input?: Tap }
+  | { type: "sending"; roomId: string; messageId: string; text: string; sentAt: string; input?: ChatInput }
   | { type: "confirmed"; message: ServerMessage }
   | { type: "failed"; messageId: string }
   | { type: "discarded"; messageId: string };
@@ -183,7 +213,7 @@ function strings(value: unknown): string[] {
 function readingsOf(value: unknown): Readings {
   const fields = record(value) ?? {};
   const readings: Readings = {};
-  for (const name of ["kind", "count", "period", "last4", "merchant", "typical_amount", "explanation", "habit", "compared"] as const) {
+  for (const name of ["kind", "count", "period", "last4", "merchant", "typical_amount", "explanation", "habit"] as const) {
     const text = fields[name];
     if (typeof text === "string") readings[name] = text;
   }
@@ -223,7 +253,8 @@ export function askOf(message: Pick<ServerMessage, "parts">): AskPart | null {
   if (!Array.isArray(message.parts)) return null;
   for (const part of message.parts) {
     const fields = record(part);
-    if (!fields || fields.type !== "ask" || (fields.ask !== "which_one" && fields.ask !== "show")) continue;
+    const kind = fields?.ask;
+    if (!fields || fields.type !== "ask" || typeof kind !== "string" || !askKinds.includes(kind as AskKind)) continue;
     const options = (Array.isArray(fields.options) ? fields.options : []).flatMap((entry): AskOption[] => {
       const option = record(entry);
       return option && typeof option.id === "string" && typeof option.label === "string"
@@ -231,9 +262,32 @@ export function askOf(message: Pick<ServerMessage, "parts">): AskPart | null {
         : [];
     });
     if (options.length === 0) continue;
-    return { kind: fields.ask, prompt: typeof fields.prompt === "string" ? fields.prompt : null, options };
+    return {
+      kind: kind as AskKind,
+      prompt: typeof fields.prompt === "string" ? fields.prompt : null,
+      options,
+      note: fields.note === true,
+    };
   }
   return null;
+}
+
+export function effectsOf(message: Pick<ServerMessage, "effects">): Effect[] {
+  if (!Array.isArray(message.effects)) return [];
+  return message.effects.flatMap((entry): Effect[] => {
+    const fields = record(entry);
+    if (fields?.type === "card_blocked" && typeof fields.product_id === "string") {
+      return [{ type: "card_blocked", productId: fields.product_id }];
+    }
+    if (fields?.type === "case_opened" && typeof fields.complaint_id === "string") {
+      const caseType = typeof fields.case_type === "string" ? fields.case_type : null;
+      return [{ type: "case_opened", complaintId: fields.complaint_id, caseType }];
+    }
+    if (fields?.type === "charge_answered" && typeof fields.transaction_id === "string") {
+      return [{ type: "charge_answered", transactionId: fields.transaction_id }];
+    }
+    return [];
+  });
 }
 
 export function sourcesOf(says: readonly Say[]): Citation[] {
@@ -264,6 +318,7 @@ function fromServer(message: ServerMessage): ChatMessage {
     sentAt: message.sent_at,
     createdAt: message.created_at,
     delivery: "sent",
+    effects: effectsOf(message),
   };
 }
 
@@ -282,7 +337,7 @@ export function reduce(state: Conversation, action: Action): Conversation {
         ...withMessages(state, action.messages.map(fromServer)),
         loaded: true,
         roomId: state.roomId ?? action.roomId,
-        turn: state.turn ?? action.turn ?? null,
+        turn: latestTurn(state.turn, action.turn ?? null),
       };
     case "status": {
       const { event } = action;
@@ -308,6 +363,7 @@ export function reduce(state: Conversation, action: Action): Conversation {
             sentAt: action.sentAt,
             createdAt: null,
             delivery: "pending",
+            effects: [],
             ...(action.input ? { input: action.input } : {}),
           },
         ]),
@@ -323,6 +379,11 @@ export function reduce(state: Conversation, action: Action): Conversation {
       return { ...state, messages };
     }
   }
+}
+
+function latestTurn(known: TurnStatus | null, loaded: TurnStatus | null): TurnStatus | null {
+  if (!known || !loaded) return loaded ?? known;
+  return known.messageId === loaded.messageId ? known : loaded;
 }
 
 export function liveTurn(state: Conversation, now: number): TurnStatus | null {
@@ -346,4 +407,10 @@ export function visibleMessages(state: Conversation): ChatMessage[] {
   return Object.values(state.messages)
     .filter((message) => message.roomId === state.roomId)
     .sort((a, b) => a.sentAt.localeCompare(b.sentAt) || a.messageId.localeCompare(b.messageId));
+}
+
+export function choice(asked: ChatMessage, option: AskOption, note?: string): [string, Tap] {
+  const said = note?.trim().slice(0, MAX_NOTE_LENGTH) ?? "";
+  const tap: Tap = { ask_id: asked.messageId, option: option.id, ...(said ? { note: said } : {}) };
+  return [(said ? `${option.label}\n${said}` : option.label).slice(0, MAX_TEXT_LENGTH), tap];
 }

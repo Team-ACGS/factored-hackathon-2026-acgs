@@ -51,7 +51,7 @@ def case_status(context: ToolContext, ledger: Ledger, args: CaseStatusInput) -> 
             selected = [item for item in items if stage(item) in OPEN_STAGES]
     selected.sort(key=lambda item: str(item.get("creation_date") or ""), reverse=True)
     accounts = Accounts.from_dynamodb(dynamodb)
-    rows = [_case_fields(context, accounts, item) for item in selected[:MAX_CASES]]
+    rows = [case_fields(context, accounts, item) for item in selected[:MAX_CASES]]
     for item in selected[:MAX_CASES]:
         if item.get("transaction_id") and item.get("product_id"):
             ledger.locate(str(item["transaction_id"]), str(item["product_id"]))
@@ -75,7 +75,7 @@ def next_step(kind: str, current: str) -> str:
     return "review_in_progress"
 
 
-def _case_fields(context: ToolContext, accounts: Accounts, item: dict[str, Any]) -> dict[str, Value | None]:
+def case_fields(context: ToolContext, accounts: Accounts, item: dict[str, Any]) -> dict[str, Value | None]:
     opened = str(item.get("creation_date") or "")
     kind = case_type(item.get("area"))
     current = stage(item)

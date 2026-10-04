@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-04
-source: 0020_rich_parts
+source: 0022_story_actions
 ---
 
 # Architecture and Debt Record
@@ -131,19 +131,20 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-09-29 | The chat of `customer` is not on TanStack Query yet | when the chat is next changed |
 | assistant | 2026-09-29 | A failed background refetch after an add or a setup is silent (a focus refetch can briefly hide an add in flight; cards can stay empty after setup) | when a customer reports a missing row or card |
 | assistant | 2026-10-03 | The input token cap (40,000 per turn) comes from four demo turns | when C measures turns at scale |
-| assistant | 2026-10-03 | A "not me" or "lost card" answers with the bank's phone, not the block ask | when B4 turns a floor hit into the `block_card` ask |
 | assistant | 2026-10-03 | Model prices in `profiles.toml` are copied by hand from the AWS Price List API | when AWS changes Bedrock prices |
-| assistant | 2026-10-03 | The Clara button counts every high-score charge (no reviewed list) | when B4 asks about a flagged charge in the chat |
 | assistant | 2026-10-03 | `unseen_rows_claim` knows listed phrasings of "all" only | when C finds generalizations the list misses |
 | assistant | 2026-10-03 | The tidy patterns before the check are lists per locale | when C measures `check.tidied` at scale |
 | assistant | 2026-10-04 | The policy glossary is hand-written; `search_policies` retries one transient failure fewer | when C finds vocabulary misses or `unavailable` rises |
 | assistant | 2026-10-04 | An elaboration inside a cited sentence is held only by the prompt | when C's judge reads cited sentences against their excerpts |
 | assistant | 2026-10-04 | "Composing" is inferred on the client from 1.5 s without a status | when the server publishes a composing status |
+| assistant | 2026-10-03 | A negation ("no me robaron") still raises the safety floor | when C measures floor false positives |
+| assistant | 2026-10-04 | Each turn reads up to 200 memory rows to pick the five newest | when a customer has more than a few hundred memories |
+| assistant | 2026-10-04 | A composed story sentence reports `check.result` as `skipped` | when C measures composed story sentences |
+| assistant | 2026-10-04 | The open graph slips an offer or a plural agreement the check does not catch, now and then | when C finds those slips at scale |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |
 | identity | 2026-09-29 | The credentials cache of `core.access` and its resources are not thread safe | when a handler runs work on threads |
 | messaging | 2026-09-27 | Room history is not paginated | when the support app reads other rooms or a room passes a few hundred messages |
-| messaging | 2026-09-27 | The chat does not resubscribe and reread history after the live connection drops | when customers report missing replies, or before the demo |
 | models | 2026-09-27 | Serving designed but not in `infra/` | when the first model artifact exists |
 | evaluation | 2026-09-27 | No custodian, hash mechanism or recorded-response fixtures for the held-out | before the held-out is written |
 | evaluation | 2026-09-27 | Held-out written from scenario cards the team designed; Portuguese entirely team-generated | state it in the presentation |

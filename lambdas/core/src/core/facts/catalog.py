@@ -298,6 +298,11 @@ LABELS: dict[str, dict[str, dict[str, str]]] = {
             "pt-BR": "uma cobrança que você reconheceu",
             "en": "a charge you recognized",
         },
+        "unrecognized_charge": {
+            "es": "un cargo que no reconociste",
+            "pt-BR": "uma cobrança que você não reconheceu",
+            "en": "a charge you did not recognize",
+        },
         "recognized_merchant": {
             "es": "un comercio que reconociste",
             "pt-BR": "um estabelecimento que você reconheceu",
