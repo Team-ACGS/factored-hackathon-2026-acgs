@@ -70,11 +70,11 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_mbRW5YX3JzLg9xWDp00r3P",
+         "toolUseId": "tooluse_sPKD0uETRX2suTGSzOenu8",
          "name": "say",
          "input": {
           "say": [
-           "Não reconhece a cobrança em {f6.charge.merchant} de {f6.charge.amount}, {f6.charge.date}, no cartão {f6.card.last4}. O sistema de alertas do banco emitiu um alerta e é a primeira compra nesse estabelecimento. Cartão {f2.last4} bloqueado com confirmação e verificado na conta; pergunta em aberto: estava com o cartão quando a cobrança foi feita?"
+           "Não reconhece a cobrança em {f6.charge.merchant} de {f6.charge.amount}, {f6.charge.date}, no cartão {f6.card.last4}. O sistema de alertas do banco emitiu um alerta e é a primeira compra nesse estabelecimento. Cartão {f2.last4} bloqueado com confirmação e verificado na conta."
           ]
          },
          "type": "tool_use"
@@ -86,13 +86,13 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 2676,
-     "outputTokens": 149,
-     "totalTokens": 2825,
+     "outputTokens": 129,
+     "totalTokens": 2805,
      "cacheReadInputTokens": 0,
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 1744
+     "latencyMs": 1660
     }
    }
   }

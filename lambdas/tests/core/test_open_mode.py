@@ -928,6 +928,25 @@ def test_a_policy_answer_that_fails_twice_quotes_the_cited_excerpt_never_unavail
     assert [citation["chunk_id"] for citation in said["citations"]] == [CHUNK]
 
 
+def test_the_fallback_quotes_the_excerpt_a_failed_draft_cited_even_from_an_earlier_round(
+    account: DemoAccount,
+) -> None:
+    uncited = "El banco revisa tu aclaración en {p1.figures.claims.review_time}."
+    model = FakeConverse(
+        [
+            response(tool_use("search_policies", {"query": "cuánto tarda mi aclaración"})),
+            response(tool_use("search_movements", SEARCH)),
+            reply(f"Tu aclaración se revisa [p:{CHUNK}]. {uncited}"),
+            reply(f"Tu aclaración se revisa [p:{CHUNK}]. {uncited}"),
+        ]
+    )
+
+    result = turn(model, "¿cuánto tarda mi aclaración?", policies=policy_index())
+
+    assert result.reply.source == "fallback"
+    assert "Esto dice el banco en «Ciclo de una aclaración»" in result.reply.text
+
+
 def test_a_repair_names_every_error_of_a_reply_that_mixes_them(account: DemoAccount) -> None:
     model = FakeConverse(
         [

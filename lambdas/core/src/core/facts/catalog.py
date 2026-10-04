@@ -505,6 +505,12 @@ PRESENT_TODAY = {
     "en": r"today (you have|you are|you're|there is|there are)",
 }
 
+FIRST_PURCHASE_WORDS = (
+    r"(tu |su )?primera (compra|vez que compras)",
+    r"(a )?(sua )?primeira (compra|vez que (voce )?compra)",
+    r"(your |their )?first (purchase|time (you )?(buy|bought|shop))",
+)
+
 LANGUAGE_MARKERS = {
     "es": "el los las del y tu tus mi mis tienes tiene tengo puedes puedo es son estan pero muy tambien "
     "cuando hay ya yo al lo le les un una con fue eres si cuenta tarjeta tarjetas cargo cargos movimiento "
@@ -522,15 +528,21 @@ PROCESS_ACTIONS = (
     r"(abrir\w*|iniciar\w*|presentar\w*|cancelar\w*|dar\w* de baja|llamar\w*|comunicarte|contactar\w*"
     r"|solicitar\w*|pedir\w*|reclamar\w*|bloquear\w*)",
     r"(comunicate|llama al|llamanos|contacta|escribe al|acude)",
+    r"(necesitaras|tendras que|deberas|vas a tener que|vas a necesitar) (\w+ ){0,2}"
+    r"(hablar|llamar|contactar\w*|comunicarte|solicitar\w*|pedir\w*|acudir)",
     r"(voce )?(pode|poderia|deve|deveria|precisa|tem que) (\w+ ){0,2}"
     r"(abrir|iniciar|registrar|cancelar\w*|ligar|entrar em contato|contatar|solicitar|pedir|bloquear)",
     r"(ligue|entre em contato|contate|procure o banco)",
+    r"(vai precisar|precisara|vai ter que|tera que|devera) (de )?(\w+ ){0,2}"
+    r"(falar|ligar|entrar em contato|contatar|solicitar|pedir)",
     r"you (can|could|should|need to|have to|must) (\w+ ){0,2}"
     r"(open|start|file|cancel|call|contact|request|block)",
     r"(call|contact) the bank",
+    r"you('ll| will) (need|have) to (\w+ ){0,2}(talk|speak|call|contact|request)",
 )
 
 FORBIDDEN = {
+    "gendered_customer": (r"(in)?satisfeit[oa]s?", r"(in)?satisfech[oa]s?"),
     "fraud_word": (r"fraud\w*",),
     "safety_claim": (
         r"es seguro",
@@ -663,9 +675,17 @@ INSTRUCTIONS = {
         "Next to the subscriptions, name a card only as the `last4` of a series' own `recurring` fact; "
         "remove the cards that carry no series."
     ),
+    "gendered_customer": (
+        "Never infer the customer's gender: rephrase without the adjective about them "
+        '("Se a resposta não resolver", "Si la respuesta no te convence").'
+    ),
     "wrong_language": (
         "Write every say in the account's language, the `locale` of the context, whatever language the "
         "customer wrote in; merchant names and document titles stay as they are."
+    ),
+    "repeated_reason": (
+        "What the bank saw, {fN.verdict.reasons}, already says it is the customer's first purchase there; "
+        "remove the words that say it again."
     ),
     "restated_charge": (
         "The bank's question about this charge is open and your reply only repeats the charge. If the "

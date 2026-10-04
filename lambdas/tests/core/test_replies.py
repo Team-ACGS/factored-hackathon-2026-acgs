@@ -5,6 +5,7 @@ import pytest
 
 from core.facts import Ask, Ledger, Say, View
 from core.facts.values import (
+    CaseCode,
     Count,
     Day,
     FactIds,
@@ -242,7 +243,12 @@ def test_a_view_of_the_series_says_it_lists_them_and_counts_them() -> None:
 def test_a_person_ask_brings_the_handoff_card_of_its_subject_in_place_of_any_other_view() -> None:
     book = charge_ledger()
     case = book.add(
-        "case", {"case_ref": Ref("case", "case-1"), "transaction_ref": Ref("transaction", "tx-1")}
+        "case",
+        {
+            "case_ref": Ref("case", "case-1"),
+            "case_id": CaseCode("CLR-2026-000001"),
+            "transaction_ref": Ref("transaction", "tx-1"),
+        },
     )
     person = Ask("talk_to_person", (), target={"reason": "refund", "area": "service"})
 
@@ -250,8 +256,7 @@ def test_a_person_ask_brings_the_handoff_card_of_its_subject_in_place_of_any_oth
 
     assert (view["view"], view["items"]) == ("handoff", [{"complaint_id": "case-1"}])
     assert view["readings"]["points"] == [
-        "Pregunta por la devolución de su dinero.",
-        "Pregunta abierta: ¿de qué cargo o caso espera la devolución?",
+        "Pregunta por la devolución de su dinero, sobre su caso CLR-2026-000001."
     ]
     assert ask["ask"] == "talk_to_person"
 

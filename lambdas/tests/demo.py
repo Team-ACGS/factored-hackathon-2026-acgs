@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from clara_testing import FakeBedrockRuntime, FakeS3Vectors, local_embedder, local_index
+from core.accounts import transaction_date, transaction_key
 from core.countries import zone
 from core.facts.catalog import LOCALES, MONTHS
 from core.facts.render import format_money, render_value
@@ -199,6 +200,7 @@ class DemoTurn:
     history: tuple[tuple[str, str], ...] = ()
     planted: bool = False
     topic: Literal["", "charge", "remembered", "flagged"] = ""
+    cinemark: bool = False
 
 
 TOPIC_TEXT = {
@@ -252,9 +254,24 @@ CINEMARK_PT = (
     ("customer", "nao reconheco a compra no cinemark"),
     (
         "assistant",
-        "Encontrei as suas movimentações no Cinemark neste período. Qual delas você não reconhece?",
+        "Encontrei 5 movimentações em Cinemark no período de 22 de agosto a 20 de setembro. Qual delas você "
+        "não reconhece?",
+    ),
+    ("customer", "Cinemark · R$ 37,26 · ontem"),
+    (
+        "assistant",
+        "A cobrança de R$ 37,26 no Cinemark foi ontem às 21:27, feita na loja no Rio de Janeiro, e está "
+        "aprovada. Você já fez 4 compras no Cinemark antes, com valor típico de R$ 47,15.",
     ),
 )
+CINEMARK_ROWS = (
+    (timedelta(hours=16, minutes=33), "37.26", "Rio de Janeiro"),
+    (timedelta(days=3, hours=11), "52.80", "Belo Horizonte"),
+    (timedelta(days=10, hours=2), "41.50", "Belo Horizonte"),
+    (timedelta(days=10, hours=5), "33.90", "Belo Horizonte"),
+    (timedelta(days=22, hours=8), "61.20", "Belo Horizonte"),
+)
+CINEMARK_SEED = 4_000
 RIO_PT = "todas as compras foram no rio de janeiro?"
 
 DEMO = {
@@ -299,12 +316,17 @@ DEMO = {
     ),
     "spanish_pt": DemoTurn("BR", "pt-BR", "¿cuántas tarjetas de crédito tengo y están activas?"),
     "largest_pt": DemoTurn("BR", "pt-BR", "mas qual foi a maior compra que fiz?"),
-    "rio_pt": DemoTurn("BR", "pt-BR", RIO_PT, CINEMARK_PT),
+    "rio_pt": DemoTurn("BR", "pt-BR", RIO_PT, CINEMARK_PT, cinemark=True),
     "rio_again_pt": DemoTurn(
         "BR",
         "pt-BR",
         "Todas sao do Cinemark do Rio?",
-        (*CINEMARK_PT, ("customer", RIO_PT), ("assistant", "Encontrei as suas movimentações no Cinemark.")),
+        (
+            *CINEMARK_PT,
+            ("customer", RIO_PT),
+            ("assistant", "Encontrei 5 movimentações, de 22 de agosto a 20 de setembro."),
+        ),
+        cinemark=True,
     ),
     "ten_days_again_pt": DemoTurn(
         "BR",
@@ -390,6 +412,8 @@ def demo_turn(aws: Aws, name: str) -> tuple[Message, list[Message]]:
     planted = (
         plant_charge(aws, customer_id, turn.country, account.cards[0]["product_id"]) if turn.planted else None
     )
+    if turn.cinemark:
+        plant_cinemark(aws, customer_id, account.cards[0]["product_id"])
     room = str(uuid7_at(NOW - timedelta(hours=1), ROOM_SEED))
     history: list[Message] = []
     sent = NOW - timedelta(minutes=len(turn.history) + 1)
@@ -531,3 +555,38 @@ def forget(aws: Aws, customer_id: str) -> None:
         KeyConditionExpression="customer_id = :id", ExpressionAttributeValues={":id": customer_id}
     )["Items"]:
         aws.memory.delete_item(Key={"customer_id": customer_id, "memory_key": item["memory_key"]})
+
+
+def plant_cinemark(aws: Aws, customer_id: str, product_id: str) -> None:
+    items = aws.transactions.query(
+        KeyConditionExpression="customer_id = :id", ExpressionAttributeValues={":id": customer_id}
+    )["Items"]
+    for item in items:
+        if item["merchant_name"] == "Cinemark":
+            aws.transactions.delete_item(
+                Key={"customer_id": customer_id, "transaction_key": item["transaction_key"]}
+            )
+    for index, (before, amount, city) in enumerate(CINEMARK_ROWS):
+        transaction_id = str(uuid7_at(NOW - before, CINEMARK_SEED + index))
+        aws.transactions.put_item(
+            Item={
+                "customer_id": customer_id,
+                "transaction_key": transaction_key(product_id, transaction_id),
+                "transaction_id": transaction_id,
+                "product_id": product_id,
+                "transaction_date": transaction_date(transaction_id),
+                "transaction_type": "Purchase",
+                "transaction_category": "Entertainment",
+                "merchant_category": "Entertainment",
+                "amount": Decimal(amount),
+                "currency": "BRL",
+                "channel": "POS",
+                "merchant_name": "Cinemark",
+                "transaction_country": "BR",
+                "transaction_city": city,
+                "transaction_status": "Approved",
+                "response_code": "00",
+                "fraud_score": Decimal("8.5"),
+                "origin": "setup",
+            }
+        )

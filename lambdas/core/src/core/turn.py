@@ -289,7 +289,9 @@ def _kept(pending: rules.OpenAsk, tools: ToolContext, ledger: Ledger) -> Ask | N
     read = _charge(target, tools, ledger) if target.transaction_id else None
     charge = read.ids[0] if read else None
     if pending.ask == rules.PERSON:
-        return Ask(rules.PERSON, (charge,) if charge else (), target=target.to_wire())
+        case = _case(target.complaint_id, tools, ledger) if target.complaint_id else None
+        subject = charge or case
+        return Ask(rules.PERSON, (subject,) if subject else (), target=target.to_wire())
     if pending.ask == rules.BLOCK and charge is None and target.product_id:
         wanted = _card_ref(target.product_id)
         card = next(
@@ -302,6 +304,12 @@ def _kept(pending: rules.OpenAsk, tools: ToolContext, ledger: Ledger) -> Ask | N
         )
         return Ask(rules.BLOCK, (card,)) if card else None
     return Ask(pending.ask, (charge,)) if charge else None
+
+
+def _case(complaint_id: str, tools: ToolContext, ledger: Ledger) -> str | None:
+    read = call("case_status", {"case_ref": complaint_id}, tools, ledger)
+    fact = ledger.get(read.ids[0]) if read.ids else None
+    return fact.id if fact is not None and fact.kind == "case" else None
 
 
 def _charge_of(kept: Ask | None, ledger: Ledger) -> str | None:

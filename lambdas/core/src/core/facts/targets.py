@@ -117,7 +117,7 @@ def code_views(parts: list[Part], ledger: Ledger) -> list[Part]:
         named = ledger.get(asked.facts[0]) if asked.facts else None
         subject = (named.id,) if named is not None and named.kind in SUBJECTS else _subject_of(views, ledger)
         kept = [part for part in parts if not isinstance(part, View | Ask)]
-        return [*kept, View(HANDOFF, subject), asked]
+        return [*kept, View(HANDOFF, subject), Ask(PERSON, subject, target=asked.target)]
     if asked.ask == "which_one" and not views:
         try:
             options = ask_options(asked, ledger)
@@ -182,7 +182,9 @@ def ask_target(ask: Ask, ledger: Ledger) -> Json | None:
     if ask.ask == "block_card":
         return _subject(ledger.facts[ask.facts[0]], ledger)
     if ask.ask == "talk_to_person":
-        subject = _subject(ledger.facts[ask.facts[0]], ledger) if len(ask.facts) == 1 else None
+        fact = ledger.facts[ask.facts[0]] if len(ask.facts) == 1 else None
+        case = _ref(fact, "case_ref") if fact is not None and fact.kind == "case" else None
+        subject = {"complaint_id": case} if case else (_subject(fact, ledger) if fact is not None else None)
         return {"reason": "other", "area": "service", **(subject or {}), **(ask.target or {})}
     return None
 

@@ -591,3 +591,36 @@ def test_a_claim_proposed_by_the_graph_enters_at_the_card_question(aws: Aws, acc
 
     assert ask_of(result)["ask"] == "have_card"
     assert target_of(result)["transaction_id"] == row["transaction_id"]
+
+
+def test_a_person_asked_about_a_case_names_it_and_the_stored_package_is_the_preview(
+    aws: Aws, account: DemoAccount
+) -> None:
+    chat = Chat(aws)
+
+    abstained, _ = chat.send(
+        "¿cuándo me devuelven la plata de mi aclaración?",
+        response(tool_use("case_status", {})),
+        response(
+            tool_use(
+                "reply",
+                {
+                    "say": ["Tu aclaración {f6.case_id} está {f6.stage}."],
+                    "view": {"type": "case", "facts": ["f6"]},
+                },
+            )
+        ),
+    )
+
+    [handoff] = [part for part in abstained.reply.parts if part.get("view") == "handoff"]
+    planted = account.claim
+    assert planted is not None
+    assert handoff["items"] == [{"complaint_id": planted["complaint_id"]}]
+    [request] = handoff["readings"]["points"]
+    assert request.startswith("Pregunta por la devolución de su dinero, sobre su caso CLR-")
+    assert target_of(abstained)["complaint_id"] == planted["complaint_id"]
+
+    chat.tap(abstained, "yes", throttled())
+
+    [stored] = [case for case in cases(aws) if case["complaint_id"] != planted["complaint_id"]]
+    assert stored["summary_points"] == handoff["readings"]["points"]

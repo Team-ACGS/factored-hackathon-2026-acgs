@@ -49,6 +49,7 @@ class Target:
     transaction_id: str | None = None
     reason: str | None = None
     area: str | None = None
+    complaint_id: str | None = None
 
     def to_wire(self) -> dict[str, str]:
         return {name: value for name, value in self.__dict__.items() if value is not None}
@@ -188,7 +189,9 @@ def _target(value: Mapping[str, Any]) -> Target:
     def text(name: str) -> str | None:
         return str(value[name]) if value.get(name) else None
 
-    return Target(text("product_id"), text("transaction_id"), text("reason"), text("area"))
+    return Target(
+        text("product_id"), text("transaction_id"), text("reason"), text("area"), text("complaint_id")
+    )
 
 
 def topic_of(message: Message) -> Target | None:

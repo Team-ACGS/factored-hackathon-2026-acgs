@@ -70,11 +70,11 @@
       "content": [
        {
         "toolUse": {
-         "toolUseId": "tooluse_v13uQY2yFGkqRVoKBthtnh",
+         "toolUseId": "tooluse_iysPUbsGaGj6eBBi9gy6oj",
          "name": "say",
          "input": {
           "say": [
-           "No reconoce el cargo en {f6.charge.merchant} por {f6.charge.amount}, {f6.charge.date}, con la tarjeta {f6.card.last4}. Lo que notó el banco: el sistema de alertas emitió una alerta y es su primera compra en este comercio. Tarjeta {f2.last4} bloqueada con su confirmación y verificada en la cuenta."
+           "No reconoce el cargo en {f6.charge.merchant} por {f6.charge.amount}, {f6.charge.date}, con la tarjeta {f6.card.last4}. El sistema de alertas emitió una alerta y es su primera compra en este comercio. Tarjeta {f2.last4} bloqueada con confirmación del titular y verificada en la cuenta."
           ]
          },
          "type": "tool_use"
@@ -86,13 +86,13 @@
     "stopReason": "tool_use",
     "usage": {
      "inputTokens": 2671,
-     "outputTokens": 135,
-     "totalTokens": 2806,
+     "outputTokens": 129,
+     "totalTokens": 2800,
      "cacheReadInputTokens": 0,
      "cacheWriteInputTokens": 0
     },
     "metrics": {
-     "latencyMs": 2301
+     "latencyMs": 1661
     }
    }
   }

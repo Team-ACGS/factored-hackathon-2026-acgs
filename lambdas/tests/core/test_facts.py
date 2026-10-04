@@ -1294,3 +1294,60 @@ def test_a_charge_ask_without_its_charge_view_is_sent_back_but_code_views_need_n
     assert check_codes([asked], book, allowed) == [("ask_without_view", "recognize_charge")]
     assert check_codes([View("charge", (charge.id,)), asked], book, allowed) == []
     assert check_codes([Ask("talk_to_person", (charge.id,))], book, allowed) == []
+
+
+@pytest.mark.parametrize(
+    ("locale", "text", "expected"),
+    [
+        ("pt-BR", "Você tem {f1.credit} e ambas estão ativas.", "Você tem {f1.credit} e ambos estão ativos."),
+        ("es", "Tienes {f1.credit} y ambos están activos.", "Tienes {f1.credit} y ambas están activas."),
+        ("es", "Tienes {f1.credit} y ambas están activas.", "Tienes {f1.credit} y ambas están activas."),
+    ],
+)
+def test_both_agrees_with_the_counted_noun_of_its_clause(locale: str, text: str, expected: str) -> None:
+    book = Ledger("BR", NOW)
+    book.add("cards", {"credit": Count(2, "credit_card")})
+
+    tidied, edits = tidy(text, book, locale)
+
+    assert tidied == expected
+    assert edits.get("agreement", 0) == (0 if text == expected else 2)
+
+
+def test_the_first_purchase_said_again_beside_the_bank_s_reasons_is_sent_back() -> None:
+    book = Ledger("BR", NOW)
+    book.add("charge", {"verdict.reasons": Labels("reason", ("score_high", "new_merchant"))})
+    quiet = Ledger("BR", NOW)
+    quiet.add("charge", {"verdict.reasons": Labels("reason", ("score_high",))})
+    repeated = "É a sua primeira compra nesse estabelecimento e o que o banco notou: {f1.verdict.reasons}."
+
+    assert codes(repeated, book, "pt-BR") == ["repeated_reason"]
+    assert codes("O que o banco notou: {f1.verdict.reasons}.", book, "pt-BR") == []
+    assert codes("Es tu primera compra ahí. Lo que notó el banco: {f1.verdict.reasons}.", book) == [
+        "repeated_reason"
+    ]
+    assert codes(repeated, quiet, "pt-BR") == []
+
+
+@pytest.mark.parametrize(
+    ("locale", "text"),
+    [
+        ("es", "Para gestionar un desbloqueo necesitarás hablar con el equipo de atención."),
+        ("es", "Tendrás que llamar al banco para eso."),
+        ("pt-BR", "Para isso você vai precisar falar com o banco."),
+        ("en", "You will need to talk to the bank about that."),
+    ],
+)
+def test_future_and_obligation_advice_is_uncited_process(locale: str, text: str) -> None:
+    assert "uncited_process" in codes(text, ledger(), locale)
+
+
+def test_an_adjective_that_guesses_the_customer_s_gender_is_sent_back() -> None:
+    assert codes("Se ainda assim não ficar satisfeita, o passo seguinte é o Procon.", ledger(), "pt-BR") == [
+        "gendered_customer"
+    ]
+    assert (
+        codes("Si no quedas satisfecho con la respuesta, puedes reclamar.", ledger())[0]
+        == "gendered_customer"
+    )
+    assert codes("Se a resposta não resolver, o passo seguinte é o Procon.", ledger(), "pt-BR") == []

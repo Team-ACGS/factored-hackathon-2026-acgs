@@ -253,9 +253,11 @@ def fallback_answer(state: State, runtime: Runtime[OpenModeRun]) -> State:
 def _from_what_was_read(run: OpenModeRun) -> list[Part]:
     last = run.read_rounds[-1] if run.read_rounds else []
     about_memory = bool(run.called) and all(name == "recall" for name in run.called)
+    chunks = run.ledger.chunks()
+    cited = [chunks[chunk].id for chunk in run.cited if chunk in chunks]
     facts = {
         fact_id: fact
-        for fact_id in last
+        for fact_id in [*last, *cited]
         if (fact := run.ledger.facts[fact_id]).kind not in MEMORY_KINDS or about_memory
     }
     return fallback(
@@ -440,7 +442,9 @@ def _checked(run: OpenModeRun, reply_call: ToolCall) -> tuple[list[Part], Source
     if args.view is not None:
         parts.append(View(args.view.type, args.view.facts))
     allowed = allowed_asks(run.state, run.ledger)
-    if args.ask is not None and args.ask.type in STORY_ASKS and args.ask.type not in allowed:
+    if args.ask is not None and run.closing:
+        run.metrics.count_tidied({"ask_replaced": 1})
+    elif args.ask is not None and args.ask.type in STORY_ASKS and args.ask.type not in allowed:
         run.metrics.count_tidied({"ask_refused": 1})
     elif args.ask is not None and args.ask.type == CLAIM:
         parts.append(Ask(HAVE_CARD, args.ask.facts))

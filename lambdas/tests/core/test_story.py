@@ -212,7 +212,9 @@ def test_on_a_turn_where_the_bank_asks_its_question_is_the_only_ask(account: Dem
 
     result = run_turn(message, [], NOW, profile=DEFAULT, clients=model.client)
 
-    assert result.summary()["check"]["errors"] == ["ask_not_allowed"]
+    assert result.summary()["check"]["errors"] == []
+    assert result.summary()["check"]["tidied"] == {"ask_replaced": 1}
+    assert len(model.requests) == 1
     assert [item["ask"] for item in result.reply.parts if item["type"] == "ask"] == ["recognize_charge"]
     assert [item.get("target") for item in result.reply.draft if item["type"] == "ask"] == [
         {"product_id": row["product_id"], "transaction_id": row["transaction_id"]}

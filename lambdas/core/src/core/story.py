@@ -250,7 +250,8 @@ def _person(story: Story, asked: OpenAsk) -> Step:
         block: BlockOutcome | None = "blocked_before" if card is not None and not _active(card) else None
         return _hand_off(story, asked, kind, request, charge=charge, card=card, block=block)
     request = target.reason if target.reason in ("unblock", "refund", "human") else "other"
-    return _hand_off(story, asked, kind, request, charge=charge, card=card)
+    about = case_fact(story, target.complaint_id) if target.complaint_id else None
+    return _hand_off(story, asked, kind, request, charge=charge, card=card, about=about)
 
 
 def _hand_off(
@@ -262,6 +263,7 @@ def _hand_off(
     charge: Fact | None = None,
     card: Fact | None = None,
     block: BlockOutcome | None = None,
+    about: Fact | None = None,
 ) -> Step:
     target = asked.target
     customer = story.message.customer_id
@@ -282,7 +284,7 @@ def _hand_off(
     case = story.ledger.add(
         "case", case_fields(story.tools, Accounts.from_dynamodb(story.tools.dynamodb()), row)
     )
-    package = Package(kind, request, case, charge, card, block, evidence)
+    package = Package(kind, request, case, charge, card, block, evidence, about)
     texts = points(package, story.locale)
     listed = rendered(texts, story.ledger, story.locale)
     summary, source = story.summarize(package, summary_template(package, story.locale))
@@ -309,6 +311,12 @@ def read_charge(story: Story, target: Target) -> Fact | None:
     ):
         return None
     return fact
+
+
+def case_fact(story: Story, complaint_id: str) -> Fact | None:
+    read = call("case_status", {"case_ref": complaint_id}, story.tools, story.ledger)
+    fact = story.ledger.get(read.ids[0]) if read.ids else None
+    return fact if fact is not None and fact.kind == "case" else None
 
 
 def card_fact(story: Story, product_id: str) -> Fact | None:

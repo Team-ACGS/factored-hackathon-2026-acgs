@@ -12,6 +12,7 @@ from core.facts.catalog import (
     DATE_PREPOSITIONS,
     DATE_WORDS,
     FEMININE_NOUNS,
+    FIRST_PURCHASE_WORDS,
     FORBIDDEN,
     INSTRUCTIONS,
     LANGUAGE_MARKERS,
@@ -39,6 +40,7 @@ from core.facts.values import (
     Day,
     Instant,
     Json,
+    Labels,
     Ledger,
     Money,
     Note,
@@ -80,6 +82,8 @@ PLURAL_CUES = {
     "pt-BR": re.compile(r"(?<!\w)(?:estão|são|ambas|ambos|todas|todos)(?!\w)", re.IGNORECASE),
 }
 CLAUSE_START = re.compile(r"[.;:!?]")
+BOTH = re.compile(r"(?<!\w)(amb)(os|as)(?!\w)", re.IGNORECASE)
+STATUS_WORD = re.compile(r"(?<!\w)(ativ|activ|bloquead)(os|as)(?!\w)", re.IGNORECASE)
 PARTICIPLE = re.compile(r"\s+(\w{3,}?[ai]d|activ)(os|as|o|a)(?!\w)")
 QUOTED = re.compile(r"«[^»]*»|“[^”]*”|\"[^\"]*\"")
 WORDS = re.compile(r"[^\W\d_]+")
@@ -142,6 +146,7 @@ def check(
         for ask in missing_views(code_views(list(parts), ledger))
         if parts.index(ask) not in broken
     )
+    errors.extend(_repeated_reasons(parts, ledger))
     errors.extend(_movements_beside_spend(parts, ledger))
     errors.extend(_cards_without_series(parts, ledger))
     return sorted(errors, key=lambda error: (error.part, error.span))
@@ -228,6 +233,25 @@ def _cards_without_series(parts: Sequence[Part], ledger: Ledger) -> list[CheckEr
     return errors
 
 
+def _repeated_reasons(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
+    says = [(index, part.text) for index, part in enumerate(parts) if isinstance(part, Say)]
+    new_merchant = any(
+        match.group(2).endswith("verdict.reasons")
+        and isinstance(reasons := resolve(ledger, match.group(1), match.group(2)), Labels)
+        and "new_merchant" in reasons.values
+        for _, text in says
+        for match in REFERENCE.finditer(text)
+    )
+    if not new_merchant:
+        return []
+    errors = []
+    for index, text in says:
+        masked = REFERENCE.sub(lambda match: " " * len(match.group(0)), text)
+        for found in _first_purchase().finditer(fold(masked)):
+            errors.append(_error("repeated_reason", index, found.span(), text[found.start() : found.end()]))
+    return errors
+
+
 def _movements_beside_spend(parts: Sequence[Part], ledger: Ledger) -> list[CheckError]:
     said = [(index, part.text) for index, part in enumerate(parts) if isinstance(part, Say)]
     kinds = {fact_id: fact.kind for fact_id, fact in ledger.facts.items()}
@@ -258,6 +282,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
     text, dates = _drop_prepositions(text, ledger, (Day, Instant), DATE_PREPOSITIONS[locale])
     text, agreement = _agree_after_counts(text, ledger, locale)
     text, plural_statuses = _plural_card_statuses(text, ledger, locale)
+    text, both = _agree_both(text, ledger, locale)
     text, dashes = DASH.subn(", ", text)
     text, grammar = MISSING_PREPOSITION.get(locale, NOTHING).subn(_with_preposition, text)
     text, voseo = VOSEO_FORMS.subn(_as_tu, text) if locale == "es" else (text, 0)
@@ -268,7 +293,7 @@ def tidy(text: str, ledger: Ledger, locale: str) -> tuple[str, dict[str, int]]:
         "period_preposition": periods,
         "date_preposition": dates,
         "relative_day": relative,
-        "agreement": agreement + plural_statuses,
+        "agreement": agreement + plural_statuses + both,
         "dash": dashes,
         "grammar": grammar,
         "voseo": voseo,
@@ -378,6 +403,26 @@ def _agree_after_counts(text: str, ledger: Ledger, locale: str) -> tuple[str, in
     return text, len(swaps)
 
 
+def _agree_both(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
+    if locale not in FEMININE_NOUNS:
+        return text, 0
+    swaps = []
+    for match in REFERENCE.finditer(text):
+        count = resolve(ledger, match.group(1), match.group(2))
+        if not isinstance(count, Count) or count.value < 2:
+            continue
+        ending = "as" if count.noun in FEMININE_NOUNS[locale] else "os"
+        clause = CLAUSE_START.search(text, match.end())
+        stop = clause.start() if clause else len(text)
+        for word in BOTH.finditer(text, match.end(), stop):
+            for found in (word, *STATUS_WORD.finditer(text, word.end(), stop)):
+                if found.group(2) != ending:
+                    swaps.append((found.start(2), found.end(2), ending))
+    for start, end, ending in sorted(set(swaps), reverse=True):
+        text = text[:start] + ending + text[end:]
+    return text, len(set(swaps))
+
+
 def _plural_card_statuses(text: str, ledger: Ledger, locale: str) -> tuple[str, int]:
     cue = PLURAL_CUES.get(locale)
     if cue is None:
@@ -472,6 +517,11 @@ def number_homonyms(locale: str) -> tuple[re.Pattern[str], ...]:
 @cache
 def _present_today(locale: str) -> re.Pattern[str]:
     return bounded([PRESENT_TODAY[locale]])
+
+
+@cache
+def _first_purchase() -> re.Pattern[str]:
+    return bounded(FIRST_PURCHASE_WORDS)
 
 
 @cache

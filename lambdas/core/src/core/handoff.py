@@ -114,6 +114,12 @@ REASONS = {
     },
 }
 
+ABOUT = {
+    "es": "sobre su caso {s.case_id}.",
+    "pt-BR": "sobre o caso {s.case_id}.",
+    "en": "about their case {s.case_id}.",
+}
+
 QUESTIONS = {
     "fraud": {
         "es": "Pregunta abierta: ¿tenía la tarjeta consigo cuando se hizo el cargo?",
@@ -157,13 +163,17 @@ class Package:
     card: Fact | None = None
     block: BlockOutcome | None = None
     evidence: dict[str, str] = field(default_factory=dict)
+    about: Fact | None = None
 
     def facts(self) -> list[str]:
         return [fact.id for fact in (self.charge, self.card, self.case) if fact is not None]
 
 
 def points(package: Package, locale: str) -> list[str]:
-    found = [REQUESTS[package.request][locale]]
+    request = REQUESTS[package.request][locale]
+    if package.about is not None:
+        request = request.removesuffix(".") + ", " + bind(ABOUT[locale], s=package.about)
+    found = [request]
     charge, card = package.charge, package.card
     if charge is not None:
         found.append(bind(POINTS["charge"][locale], c=charge))
@@ -182,7 +192,8 @@ def points(package: Package, locale: str) -> list[str]:
         found.append(bind(POINTS["card"][locale], k=card))
     if package.block is not None and card is not None:
         found.append(bind(POINTS[package.block][locale], k=card))
-    found.append(QUESTIONS[_question(package)][locale])
+    if package.kind != "service" or (package.about is None and package.charge is None):
+        found.append(QUESTIONS[_question(package)][locale])
     return found
 
 
@@ -199,8 +210,8 @@ def handoff_points(subjects: list[Fact], asked: Ask | None, ledger: Ledger, loca
         request = reason if reason in ("unblock", "refund", "human") else "other"
     blocked = card is not None and card.fields.get("status") == Status("card", "Blocked")
     block: BlockOutcome | None = "blocked_before" if fraud and blocked else None
-    case = subject if subject is not None and subject.kind == "case" else None
-    preview = Package("fraud" if fraud else "service", request, case, charge, card, block)
+    about = subject if subject is not None and subject.kind == "case" else None
+    preview = Package("fraud" if fraud else "service", request, None, charge, card, block, about=about)
     shown = []
     for point in points(preview, locale):
         try:
