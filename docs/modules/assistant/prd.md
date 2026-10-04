@@ -71,7 +71,8 @@ Errors and empty states: a card already blocked is never blocked again; Clara of
 - A cited sentence says only what its excerpt says; advice about what the customer can do, and what the bank does next, is said only with a citation. The customer's own words ("cancelar") reach the bank's documents through a glossary of the bank's terms ("bloquear").
 - A policy figure (a time, a fee, a phone) is said only as a reference to the excerpt's figures, rendered from the same facts the rules read, so a document and a rule cannot disagree; a timeframe is the bank's process, never a promise.
 - Legal deadlines are the bank's reading of each norm, flagged unverified (`policy_facts.toml`, `verified = false`), and must not reach a customer as-is until checked against the primary legal text.
-- A write (block a card, open a case, remember an answer) happens only on the customer's tap or a bare typed yes to that very question; a yes with anything after it, or a yes read by the model, shows the question again. Clara says it happened only after reading the result back.
+- A block, a case or a handoff to a person happens only on the customer's tap or a bare typed yes to that very question; a yes with anything after it, or a yes read by the model, shows the question again. Clara says it happened only after reading the result back.
+- "¿Reconoces este cargo?" and "¿Fuiste tú?" also close on a short yes or no at the start of a typed message, and the rest of it is kept as the customer's note.
 - The customer only ever sees their own data, never another customer's, never an invented deadline, never a promise of a specific agent (`docs/product/01-flows.md` flow 1).
 - A stale pending charge (older than 7 days) is never explained to the customer as "temporary" (`hackathon/docs/domain/triage.md`).
 - Clara never answers her own messages, and says nothing in a room delegated to a human.
