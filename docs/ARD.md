@@ -141,6 +141,9 @@ Open debt only: an entry with `Resolved by` leaves the table.
 | assistant | 2026-10-04 | Each turn reads up to 200 memory rows to pick the five newest | when a customer has more than a few hundred memories |
 | assistant | 2026-10-04 | A composed story sentence reports `check.result` as `skipped` | when C measures composed story sentences |
 | assistant | 2026-10-04 | The open graph slips an offer or a plural agreement the check does not catch, now and then | when C finds those slips at scale |
+| assistant | 2026-10-04 | `wrong_language` passes a short say in another language (fewer than three markers) | when C finds a mixed-language reply |
+| assistant | 2026-10-04 | `restated_charge` passes a restatement mixed with other fields | when C finds open asks answered by restating |
+| assistant | 2026-10-04 | Offer, gender and agreement phrase lists are per locale; Haiku keeps finding new offer phrasings | when C finds slips the lists miss |
 | identity | 2026-09-27 | `role-analyst` and group `analysts` unused until the fourth web exists | when the improvement console is built |
 | identity | 2026-09-27 | IAM changes a lambda needs must be applied by hand before the merge deploys that lambda | when Terraform applies from CI |
 | identity | 2026-09-29 | The credentials cache of `core.access` and its resources are not thread safe | when a handler runs work on threads |

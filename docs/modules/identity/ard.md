@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-04
-source: 0022_story_actions
+source: 0023_open_mode_polish_2
 ---
 
 # Identity: architecture and debt
@@ -156,3 +156,11 @@ These are design-time decisions, taken from `docs/tasks/_drafts/architecture_and
 - Revisit when: memory rows must be edited or forgotten.
 - Source: 0022_story_actions
 
+## 2026-10-04: secrets and unread attributes stay out of the read models
+
+- Decision: The read allow-lists drop `products.expiration_date` (a card secret, like the CVV) and `transactions.transaction_type` and `response_code` (read by neither the client nor the tools); `role-customer` keeps its table access, so the columns stay in the tables as the bank's record and simply never leave a read model.
+- Alternatives rejected: an IAM attribute condition per column (a second place to keep the list); removing the columns from the data (the dataset and prd rows carry them).
+- Reason: Allow-lists are the one gate every reader passes (assistant 2026-09-28), so a removal there reaches the tools, the context, the views and every `/crud` response at once.
+- Debt created: None.
+- Revisit when: A screen or a tool needs one of these attributes.
+- Source: 0023_open_mode_polish_2

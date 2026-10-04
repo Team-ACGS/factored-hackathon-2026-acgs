@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-04
-source: 0022_story_actions
+source: 0023_open_mode_polish_2
 ---
 
 # assistant: flows
@@ -19,7 +19,9 @@ flowchart TD
     TM -- yes --> TAP{Tap of Clara's latest ask?}
     TAP -- answer to a story ask --> STORY[core.story: write, read back, next ask or receipt]
     TAP -- which_one pick --> READ[Run the option's stored read] --> CTX
-    TAP -- no --> FL{Safety floor on raw text}
+    TAP -- no --> CL{Only closers, no ask open?}
+    CL -- yes --> FIN
+    CL -- no --> FL{Safety floor on raw text}
     FL -- not_me or lost_stolen --> PICK[Lists to pick: newest movements or cards] --> FIN
     FL -- nothing --> CTX[Context: name, locale, today, cards, memories, last 3 exchanges, choice, topic, story]
     STORY --> COMP[compose: a story sentence, or the handoff summary] --> FIN
@@ -27,6 +29,7 @@ flowchart TD
     SUP -- tool calls within budget --> STATUS[status event and turn status per round]
     STATUS --> TOOLS[tools under the read-only session, five rows shown]
     TOOLS --> SUP
+    SUP -- reply answer to the open recognize_charge --> STORY
     SUP -- reply: say, view, ask --> TIDY[tidy the reply and each say, counted] --> CHK{facts_check with allowed_asks}
     CHK -- pass --> FIN[render says, views with readings, asks with labels]
     CHK -- first failure --> SUP
@@ -36,7 +39,7 @@ flowchart TD
     FIN --> W[Write reply with its effects, clear the mark, turn.completed]
 ```
 
-Only `supervisor` and `compose` call the model; every other box is code, and every value the customer reads comes from a tool's facts through `render`. A free text with a story ask open is answered by the graph and the same ask is shown again; the rules, not the model, attach the bank's question after a charge is pointed at.
+Only `supervisor` and `compose` call the model; every other box is code, and every value the customer reads comes from a tool's facts through `render`. A free text with a story ask open is answered by the graph and the same ask is shown again, unless the model reads a clear answer to `recognize_charge`, which `core.story` then closes; the rules, not the model, attach the bank's question after a charge is pointed at.
 
 ## A flagged charge, to the handoff
 

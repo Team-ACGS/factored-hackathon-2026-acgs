@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-04
-source: 0022_story_actions
+source: 0023_open_mode_polish_2
 ---
 
 # assistant: database
@@ -25,7 +25,7 @@ Status: `customers`, `products` and `transactions` are written and read by `crud
 ## Invariants kept in code
 
 - No tool accepts `customer_id` as an argument; it always comes from the session's assumed-role credentials, never from client input (`docs/tasks/_drafts/turn_flow.md`); in `crud` it is the token's `sub`, never the body, path or cursor.
-- Every read of `customers`, `products` or `transactions` goes through the allow-lists in `core.customers` and `core.accounts`, used both as projection and as mapping: `transactions.origin` (`setup`, `manual_normal`, `manual_suspicious`), `customers.setup_claimed_at` and `customers.suspicious_suffixes` never reach the app or a tool, so nothing reveals which charges were planted.
+- Every read of `customers`, `products` or `transactions` goes through the allow-lists in `core.customers` and `core.accounts`, used both as projection and as mapping: `transactions.origin` (`setup`, `manual_normal`, `manual_suspicious`), `customers.setup_claimed_at` and `customers.suspicious_suffixes` never reach the app or a tool, so nothing reveals which charges were planted; `products.expiration_date`, `transactions.transaction_type` and `transactions.response_code` stay in the tables as the bank's record and are in no allow-list.
 - `origin` is written only by `crud`.
 - A new transaction enters only through `core.ingestion.accept`: the row passes contract v`TRANSACTION_CONTRACT_VERSION` (undeclared fields refused, so no lineage fields) and is written in one TransactWriteItems with its card's balance move, so a `transaction_id` is written once, moves the balance once, and the balance never moves without its row.
 - Only an Approved charge moves `products.current_balance`: credit adds the amount used and may not pass `credit_limit`, debit subtracts from the funds and may not go negative; each move stamps `balance_as_of`, and `card_status` shows a balance only with it.

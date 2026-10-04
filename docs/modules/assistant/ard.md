@@ -1,6 +1,6 @@
 ---
 updated: 2026-10-04
-source: 0022_story_actions
+source: 0023_open_mode_polish_2
 ---
 
 # assistant: architecture and debt
@@ -653,3 +653,84 @@ source: 0022_story_actions
 - Debt created: none.
 - Revisit when: the recordings move to the evaluation harness.
 - Source: 0022_story_actions
+
+## 2026-10-04: a citation is moved into its sentence before the reply tidy, and a say without words fails
+
+- Decision: `tidy_reply` moves a citation written after its period into the sentence before it splits sentences, counted as `citation_placement`; the check rule `empty_say` rejects a paragraph with no letter and no reference.
+- Alternatives rejected: only the guard (the prd empty bubble would have been repaired, not prevented); a prompt rule alone (the model writes "... [p:id]" after the period about half the time).
+- Reason: On prd a reference-free advice sentence cited after its period was dropped as uncited, leaving "[p:id]" alone, which passed the check and rendered empty.
+- Debt created: None.
+- Revisit when: C finds another tidy drop that empties a paragraph.
+- Source: 0023_open_mode_polish_2
+
+## 2026-10-04: a failed policy answer quotes the excerpt it cited
+
+- Decision: Amends 2026-10-01 (policy excerpts are `pN` facts): `text` stays trace-only for the model, and only the fallback quotes it. When the ledger holds an excerpt, the fallback quotes its whole section verbatim, markdown stripped, with its title by reference and its citation: the one the failed draft cited (even from an earlier tool round), else the first.
+- Alternatives rejected: the `unavailable` template (Clara had the answer); paraphrasing the excerpt in code (a new text the bank never wrote).
+- Reason: The prd turn "o que posso fazer se não resolvem em 10 dias?" fell to "no pude verificar" with the escalation excerpt in the ledger.
+- Debt created: None.
+- Revisit when: C measures fallback answers at scale.
+- Source: 0023_open_mode_polish_2
+
+## 2026-10-04: a fixed answer is never given twice in a row
+
+- Decision: The reply's private draft records its `say_key`; the same key on the next turn is the check error `say_key_repeated`, repaired once with a trace-only `fixed_answer` fact (what the fixed answer said) and the contact fact when the key has a phone. `about_you` is only for "what do you know about me"; questions about documents, addresses or what Clara cannot share are composed as "no tengo acceso a".
+- Alternatives rejected: a cooldown by time; letting the model see the key in the context (it does not read its own drafts).
+- Reason: A prd session got the same `about_you` answer three times in a row for three different questions.
+- Debt created: None.
+- Revisit when: a fixed answer must legitimately repeat.
+- Source: 0023_open_mode_polish_2
+
+## 2026-10-04: Clara answers in the account's language, checked by stop words
+
+- Decision: The prompt holds the account's `locale` whatever the customer writes; the check rule `wrong_language` counts distinctive stop words of es, pt-BR and en outside references, citations, ledger merchants and quoted spans, and fails a say with at least three markers of another language and more than of its own.
+- Alternatives rejected: a language detector library (another dependency in the zip for three languages); the message's language (switching mid-conversation reads as a glitch, Sebastian).
+- Reason: Documents, templates and views are already in the account's language.
+- Debt created: A short say in another language (fewer than three markers) passes.
+- Revisit when: C finds a mixed-language reply.
+- Source: 0023_open_mode_polish_2
+
+## 2026-10-04: closers are answered by code, and the largest purchase is a lookup
+
+- Decision: A message made only of closers (ok, gracias, beleza, obrigada, listo...) with no ask open gets one line from `answers.CLOSER`, route `closer`, no model; closers are not in the yes lexicon. `search_movements` sorted by amount with no `date_from` covers the whole window and only purchases unless `status` is passed; the `movements` aggregate carries `by_city`, counted over every matched row and rendered by code.
+- Alternatives rejected: the model greeting again (prd "Beleza" got a full greeting); refusing the largest purchase as a ranking; the model counting rows by city.
+- Reason: One row is a fact, a ranking is a list; counts are values only code may state.
+- Debt created: None.
+- Revisit when: rankings by merchant are asked for.
+- Source: 0023_open_mode_polish_2
+
+## 2026-10-04: the card expiry and two unread transaction attributes leave the read models
+
+- Decision: `expiration_date` leaves `CARD_ATTRIBUTES`, the tools' card read and the `card` fact; the card face and Clara's card view drop it. `transaction_type` and `response_code` leave `TRANSACTION_ATTRIBUTES`: neither the client nor the tools read them. The rest stays: `product_number` is stored masked, `product_id` is the opaque id the routes need, `fraud_score` feeds the Clara button and `charge_facts`, `merchant_category` feeds `charge_facts`. The tables keep every column as the bank's record.
+- Alternatives rejected: hiding the expiry in the client only (the model had it in its context); a reveal tap (Sebastian: no reveal).
+- Reason: The expiry is a card secret like the CVV (a teammate's prd session showed it in answers and views).
+- Debt created: None.
+- Revisit when: a screen or tool needs a removed attribute.
+- Source: 0023_open_mode_polish_2
+
+## 2026-10-04: the graph may answer an open recognize_charge from free text
+
+- Decision: Amends 2026-10-04 (the story's steps are code) for `recognize_charge` only. `reply.answer` (yes or no) is accepted only while that ask is open, the message has no "?" and no abstention hit, bound to its `ask_id`; `core.story` then closes it under the normal session: a yes writes the memory with the message (140 chars, untrusted) as the note, a no goes to the block confirmation. Writes read `memory:graph`. The floor normalizes "wasnt" style contractions. With the ask open, a reply that only restates the charge is `restated_charge`.
+- Alternatives rejected: keeping tap-only answers (forcing a tap on a clear written answer reads as deaf); letting a graph yes block or open a claim.
+- Reason: Sebastian's prd session: "yep, that's the one, it wasnt me" left the ask open and Clara repeated the charge.
+- Debt created: A restatement mixed with other fields passes `restated_charge`.
+- Revisit when: C finds open asks answered by restating.
+- Source: 0023_open_mode_polish_2
+
+## 2026-10-04: every ask brings its own view, and the panel shows only the latest reply
+
+- Decision: Amends 2026-10-04 (the panel hides the view while Clara works) and replaces 0021's "de tu mensaje anterior". `ASK_VIEWS` names each ask's view; the check rejects `recognize_charge`, `was_it_you` and `open_claim` without their charge view, and code attaches the list of a `which_one` and a `handoff` view for every `talk_to_person`, whose subject is the ask's charge, card or case (the case travels in the target as `complaint_id`). The handoff points name that case or charge, speak of the customer in the third person, and a service handoff about one asks no open question; the stored package equals the preview. With a closing ask from code, the model's own ask is ignored (`ask_replaced`). The client follows only the latest reply's view; none leaves Clara alone.
+- Alternatives rejected: keeping the previous view under a new ask (prd: a person ask under an old card view); a handoff view the model names.
+- Reason: The buttons and the screen must be about the same thing.
+- Debt created: None.
+- Revisit when: Sebastian's review of the screens says otherwise.
+- Source: 0023_open_mode_polish_2
+
+## 2026-10-04: more of Clara's wording is checked or fixed by code
+
+- Decision: New check codes `repeated_reason` (the first purchase said in words beside reasons that say it), `gendered_customer` (satisfeito/a, satisfecho/a about the customer), `offer_talk` (transfers, a person, "si quieres" offers) and future or obligation advice in `uncited_process`; tidy makes "ambos/ambas" agree with the counted noun and gives each listed `last4` its own singular card noun, counted as `agreement`. The composed handoff summary falls to the template when it references `verdict.reasons`.
+- Alternatives rejected: prompt rules alone (Sonnet broke each in a recording after the rule was in the prompt).
+- Reason: Each slip reached a demo turn a judge reads.
+- Debt created: The phrase lists are per locale; Haiku keeps finding new offer phrasings.
+- Revisit when: C finds offers or agreement slips the lists miss.
+- Source: 0023_open_mode_polish_2
