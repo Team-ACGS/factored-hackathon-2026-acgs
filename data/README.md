@@ -1,7 +1,7 @@
 # Data
 
-The pipeline that turns the raw dataset into curated Parquet, the contracts that guard it, and every query behind a figure in `docs/`.
-The runtime service does not import this package.
+The pipeline that turns the raw dataset into curated Parquet, the contracts that guard it, every query behind a figure in `docs/`, and the build of the policy corpus that Clara cites.
+The lambdas do not import this package; they only read the policy index that its build publishes.
 It exists so that any number in a doc or a slide can be regenerated with one command.
 
 ## Flow
@@ -9,7 +9,7 @@ It exists so that any number in a doc or a slide can be regenerated with one com
 ```
 raw CSV  --ingest-->  curated Parquet  --figures-->  figures/<group>/*.csv
                             |
-                        --check-->  contracts pass or the pipeline stops
+                        --check-->  contracts: exit code 1 on any failure
 ```
 
 DuckDB is the engine at every step.
@@ -27,6 +27,8 @@ Parquet is the storage format at every step, local or in S3, and the same code r
 | `src/bankdata/pipeline/contracts.py` | Checks that block: rows present, declared columns and types, unique non-null keys, event dates within the data clock |
 | `src/bankdata/analysis/figures.py` | Runs every SQL file of a group and rewrites that group's output, one CSV per file |
 | `src/bankdata/analysis/scratch.py` | Runs scratch queries and writes each result next to its SQL |
+| `src/bankdata/policies/` | The policy corpus: `build-policies` (validate, publish) and `tune-policies` |
+| `policies/` | The spec of the corpus documents, the runbook, the labeled queries, the tuned thresholds and a sample corpus for tests |
 | `sql/figures/eda/` | One query per figure of the dataset analysis |
 | `sql/scratch/` | Work-in-progress queries; `bankdata scratch` writes `<name>.csv` next to each, ignored by git |
 | `figures/` | Committed output, one CSV per query; always rewritten from `sql/figures/`, git keeps the history |
@@ -116,3 +118,24 @@ uv run pytest
 
 Fixtures under `tests/fixtures/raw/` are a few rows per table in the source layout.
 The tests ingest them into a temporary root, run the contracts, plant a duplicate key and a future row to prove the contracts catch them, and execute every SQL file under `sql/figures/` so a broken query fails in CI, not on the day of the presentation.
+
+## Policy corpus
+
+The bank's policy documents become PDFs at `docs.factoredai.sdfles.com` and vectors in an S3 Vectors index that Clara's `search_policies` tool queries.
+It needs the deployed stack, Bedrock access to Cohere Embed v4 and the AWS profile `personal`; `policies/RUNBOOK.md` has the one-time setup and every step, `policies/SPEC.md` the format of a document.
+`uv run build-policies validate --sources <folder>` needs no AWS.
+WeasyPrint needs the system libraries `libpango-1.0-0`, `libpangoft2-1.0-0` and `libharfbuzz-subset0` (Debian and Ubuntu) or `pango` (macOS).
+
+```bash
+uv run build-policies validate --sources policies/sample/sources
+uv run build-policies publish --sources <folder>
+uv run tune-policies --queries policies/queries.toml
+```
+
+## Flows
+
+- [Dataset pipeline](../docs/modules/data/flows.md#dataset-pipeline)
+- [Validate the policy sources](../docs/modules/data/flows.md#validate-the-policy-sources)
+- [Publish the policy corpus](../docs/modules/data/flows.md#publish-the-policy-corpus)
+- [Tune the similarity cut](../docs/modules/data/flows.md#tune-the-similarity-cut)
+- [Search policies at runtime](../docs/modules/data/flows.md#search-policies-at-runtime)
