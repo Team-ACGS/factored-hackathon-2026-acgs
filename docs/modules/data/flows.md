@@ -58,14 +58,11 @@ sequenceDiagram
     participant CLI as build-policies validate
     participant Store as local sources folder
     participant Facts as policy_facts.toml
-    participant Check as validate and render
     CLI->>Store: names and read of doc_id/language.md
     Store-->>CLI: sources
-    CLI->>Check: parse and validate_all with Limits
-    Check->>Facts: figure keys per country
-    Check-->>CLI: problems with file and line
-    CLI->>Check: expand per country, render, oversized
-    Check-->>CLI: editions or chunk_length problems
+    CLI->>CLI: parse and validate_all with Limits
+    CLI->>Facts: figure keys per country
+    CLI->>CLI: expand per country, render, oversized
     CLI-->>CLI: print problems and counts, exit 1 on any
 ```
 
@@ -137,16 +134,16 @@ sequenceDiagram
     participant Policies as S3 policies bucket
     participant Bedrock as Bedrock Cohere Embed v4
     participant Vectors as S3 Vectors index
-    participant File as tuning.json
-    participant Infra as infra policy_min_similarity
+    participant TF as Terraform
+    participant Chatbot as chatbot lambda
     CLI->>Policies: read manifest.json for corpus_hash
     CLI->>Bedrock: embed labeled queries as search_query
     CLI->>Vectors: QueryVectors per query, country filter
     Vectors-->>CLI: chunks with distance
     CLI->>CLI: rank of the expected section, threshold per language
-    CLI->>File: write thresholds and recall
-    File-->>Infra: copied by hand, then terraform apply
-    Infra-->>Infra: chatbot lambda env POLICY_MIN_SIMILARITY
+    CLI->>CLI: write data/policies/tuning.json
+    CLI-->>TF: thresholds copied by hand into policy_min_similarity
+    TF->>Chatbot: apply sets POLICY_MIN_SIMILARITY
 ```
 
 ## Search policies at runtime
@@ -170,21 +167,17 @@ The turn that calls the tool is not described here, see Assistant: Run the open 
 
 ```mermaid
 sequenceDiagram
-    participant Sup as Supervisor
-    participant Tool as search_policies
+    participant Chatbot as chatbot lambda
     participant Bedrock as Bedrock Cohere Embed v4
     participant Vectors as S3 Vectors index
-    participant Ledger as turn ledger
-    Sup->>Tool: query, topic, doc_type, k
-    Tool->>Tool: bank_terms gives one or two queries
-    Tool->>Bedrock: InvokeModel search_query for all queries
-    Bedrock-->>Tool: embeddings
-    Tool->>Vectors: QueryVectors top 30, filter country and group
-    Vectors-->>Tool: matches with distance and metadata
-    Tool->>Tool: distinct below 0.5 containment, cut by language
-    Tool->>Vectors: second query only when the first left nothing
-    Tool->>Ledger: policy_chunk facts p1..pk and a policies fact
-    Tool-->>Sup: fact ids
-    Sup->>Sup: reply with the p chunk_id citation
-    Sup->>Ledger: facts check, compose citation with title, page, url
+    Chatbot->>Chatbot: open mode graph calls search_policies with query, topic, doc_type, k
+    Chatbot->>Chatbot: bank_terms gives one or two queries
+    Chatbot->>Bedrock: InvokeModel search_query for all queries
+    Bedrock-->>Chatbot: embeddings
+    Chatbot->>Vectors: QueryVectors top 30, filter country and group
+    Vectors-->>Chatbot: matches with distance and metadata
+    Chatbot->>Chatbot: distinct below 0.5 containment, cut by language
+    Chatbot->>Vectors: second query only when the first left nothing
+    Chatbot->>Chatbot: policy_chunk facts p1..pk and a policies fact in the turn ledger
+    Chatbot->>Chatbot: reply with the p chunk_id citation, facts check, compose citation
 ```

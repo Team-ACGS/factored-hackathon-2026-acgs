@@ -38,11 +38,11 @@ The chatbot lambda consumes each customer message from the messages stream and w
 
 ```mermaid
 sequenceDiagram
-  participant Stream as "messages stream"
-  participant Chatbot as "chatbot lambda"
-  participant Rooms as "rooms table"
-  participant Messages as "messages table"
-  participant Customers as "customers table"
+  participant Stream as messages stream
+  participant Chatbot as chatbot lambda
+  participant Rooms as rooms table
+  participant Messages as messages table
+  participant Customers as customers table
   participant Bus as EventBridge
   Stream->>Chatbot: INSERT of a customer message
   Chatbot->>Rooms: get room (consistent)
@@ -88,10 +88,10 @@ Only `supervisor` calls Bedrock, with the model profile of `BEDROCK_MODEL_ID` (`
 
 ```mermaid
 sequenceDiagram
-  participant Chatbot as "chatbot lambda"
-  participant Tables as "DynamoDB customer tables"
-  participant Bedrock as "Bedrock Claude"
-  participant Vectors as "S3 Vectors policy index"
+  participant Chatbot as chatbot lambda
+  participant Tables as DynamoDB customer tables
+  participant Bedrock as Bedrock Claude
+  participant Vectors as S3 Vectors policy index
   Chatbot->>Tables: list_cards, recent memories, option read or charge_facts
   Chatbot->>Bedrock: supervisor with system prompt, context and tool specs
   loop until a reply call or budget out
@@ -115,7 +115,7 @@ A charge question is the story ask `recognize_charge` or `was_it_you`, shown wit
 1. `core.turn.run_turn` calls `core.story.answered`, which routes to `_about_the_charge`.
 2. Option `why` (only on `was_it_you`): `read_charge` reads the charge with `charge_facts`, the reply is the `why_asked` template composed by the model (see Compose a sentence with the model), the charge view and `was_it_you` again.
    Nothing is written.
-3. Any other option calls `rules.close_ask`, then `rules.remember_answer`: it reads the transaction with `Accounts.transaction`, looks for an earlier answer with `Memory.of_charge`, and puts `recognized_charge#<transaction>` or `unrecognized_charge#<transaction>` in the `memory` table with `put_if_absent`, keyed by the `ask_id`.
+3. Any other option calls `rules.close_ask`, then `rules.remember_answer`: it reads the transaction with `Accounts.transaction`, looks for an earlier answer with `Memory.of_charge`, and puts `recognized_charge#<transaction>` or `unrecognized_charge#<transaction>` in the `memory` table with `put_if_absent`, keyed by the transaction and carrying the `ask_id`, which tells `redelivered` from `already`.
    The outcome is `written`, `redelivered`, `already` or `missing`: `missing` answers the `unavailable` fallback, and `already` with a different earlier answer answers the fixed `already` text.
 4. A yes answers the `recognized` template, composed by the model; `_learn_merchant` also puts `recognized_merchant#<merchant>` once 3 charges of that merchant are recognized.
 5. A no goes to `story.protect` when the ask was `was_it_you`, when the answer came from the floor or the graph, or when `rules.protect_signals` finds a flagged score, a foreign country, an unusual channel or a declined status.
@@ -126,21 +126,29 @@ A charge question is the story ask `recognize_charge` or `was_it_you`, shown wit
 
 ```mermaid
 sequenceDiagram
-  participant Stream as "messages stream"
-  participant Chatbot as "chatbot lambda"
-  participant Transactions as "transactions table"
-  participant Memory as "memory table"
-  participant Bedrock as "Bedrock Claude"
-  participant Messages as "messages table"
+  participant Stream as messages stream
+  participant Chatbot as chatbot lambda
+  participant Transactions as transactions table
+  participant Memory as memory table
+  participant Bedrock as Bedrock Claude
+  participant Messages as messages table
   Stream->>Chatbot: customer message with a tap or a short answer
   Chatbot->>Transactions: get the charge (consistent)
-  Chatbot->>Memory: get earlier answer, then put answer if absent
-  opt recognized for the third time at a merchant
-    Chatbot->>Memory: put recognized_merchant
+  alt why
+    Chatbot->>Bedrock: compose why_asked
+    Bedrock-->>Chatbot: say, or the template stays
+  else yes
+    Chatbot->>Memory: get earlier answer, then put answer if absent
+    opt third recognized charge at a merchant
+      Chatbot->>Memory: put recognized_merchant
+    end
+    Chatbot->>Bedrock: compose recognized
+    Bedrock-->>Chatbot: say, or the template stays
+  else no
+    Chatbot->>Memory: get earlier answer, then put answer if absent
+    Note over Chatbot: fixed consent_block or have_card reply, no model call
   end
-  Chatbot->>Bedrock: compose recognized or why_asked
-  Bedrock-->>Chatbot: say, or the template stays
-  Chatbot->>Messages: put reply with effect charge_answered
+  Chatbot->>Messages: put reply, effect charge_answered when the memory row is written
 ```
 
 ## Handle not me and lost or stolen
@@ -157,17 +165,17 @@ The reply is built by `core.story`, with fixed texts and lists to pick from.
    No cards answers `answers.safety`; no active card answers `lost_none`, the cards view and a `talk_to_person` ask (reason `lost`, area `fraud`); otherwise `lost`, the cards view and a `which_one` ask over up to 5 active cards with purpose `lost`.
 4. The customer taps an option: `rules.resolve_choice` finds it in the stored `draft` of Clara's latest message and returns the option's `read` and `purpose`, so `run_turn` calls `story.picked`.
 5. Purpose `lost`: `story.protect` on the picked card.
-   Purpose `not_me`: `_charge_of_pick` reads the charge, `rules.remember_answer` puts `unrecognized_charge#<transaction>` in `memory` keyed by the tap's `ask_id`, then `protect`.
+   Purpose `not_me`: `_charge_of_pick` reads the charge, `rules.remember_answer` puts `unrecognized_charge#<transaction>` in `memory`, keyed by the transaction and carrying the tap's `ask_id`, then `protect`.
    A written or redelivered answer adds the effect `charge_answered`.
 6. `protect` ends in the `block_card` consent (see Block a card and hand off).
 
 ```mermaid
 sequenceDiagram
-  participant Stream as "messages stream"
-  participant Chatbot as "chatbot lambda"
-  participant Tables as "DynamoDB customer tables"
-  participant Memory as "memory table"
-  participant Messages as "messages table"
+  participant Stream as messages stream
+  participant Chatbot as chatbot lambda
+  participant Tables as DynamoDB customer tables
+  participant Memory as memory table
+  participant Messages as messages table
   Stream->>Chatbot: customer message with floor wording
   Chatbot->>Tables: search_movements limit 5 or list_cards
   Chatbot->>Messages: put reply with fixed text and a which_one ask
@@ -199,12 +207,12 @@ Each write is keyed by the `ask_id`, so a redelivery finds its own result and an
 
 ```mermaid
 sequenceDiagram
-  participant Stream as "messages stream"
-  participant Chatbot as "chatbot lambda"
-  participant Products as "products table"
-  participant Complaints as "complaints table"
-  participant Bedrock as "Bedrock Claude"
-  participant Messages as "messages table"
+  participant Stream as messages stream
+  participant Chatbot as chatbot lambda
+  participant Products as products table
+  participant Complaints as complaints table
+  participant Bedrock as Bedrock Claude
+  participant Messages as messages table
   Stream->>Chatbot: tap Yes on block_card
   Chatbot->>Products: update to Blocked with blocked_by if Active
   Chatbot->>Products: get status (consistent)
@@ -232,11 +240,11 @@ Two more story asks write a case without blocking anything: `open_claim` for a c
 
 ```mermaid
 sequenceDiagram
-  participant Stream as "messages stream"
-  participant Chatbot as "chatbot lambda"
-  participant Complaints as "complaints table"
-  participant Bedrock as "Bedrock Claude"
-  participant Messages as "messages table"
+  participant Stream as messages stream
+  participant Chatbot as chatbot lambda
+  participant Complaints as complaints table
+  participant Bedrock as Bedrock Claude
+  participant Messages as messages table
   Stream->>Chatbot: tap Yes on open_claim or talk_to_person
   Chatbot->>Complaints: put case if absent with complaint_id as ask_id
   Chatbot->>Complaints: get case (consistent)
@@ -259,8 +267,8 @@ Story replies are fixed texts, except a few sentences the model words from facts
 
 ```mermaid
 sequenceDiagram
-  participant Chatbot as "chatbot lambda"
-  participant Bedrock as "Bedrock Claude"
+  participant Chatbot as chatbot lambda
+  participant Bedrock as Bedrock Claude
   Chatbot->>Bedrock: compose.v1 prompt, step key, example and facts
   Bedrock-->>Chatbot: say tool call
   Chatbot->>Chatbot: tidy and facts_check
@@ -285,10 +293,10 @@ The event is best effort: it never delays or fails the turn.
 
 ```mermaid
 sequenceDiagram
-  participant Chatbot as "chatbot lambda"
-  participant Rooms as "rooms table"
-  participant Events as "AppSync Events"
-  participant App as "Customer app"
+  participant Chatbot as chatbot lambda
+  participant Rooms as rooms table
+  participant Events as AppSync Events
+  participant App as Customer app
   Chatbot->>Rooms: set turn_status (conditional on the turn mark)
   Chatbot->>Events: POST status event to the room channel
   Events-->>App: status event
@@ -307,10 +315,10 @@ Every completed turn, replayed ones included, leaves one `turn.completed` event 
 
 ```mermaid
 sequenceDiagram
-  participant Chatbot as "chatbot lambda"
+  participant Chatbot as chatbot lambda
   participant Bus as EventBridge
-  participant Firehose as "Firehose turn-events"
-  participant S3 as "events S3 bucket"
+  participant Firehose as Firehose turn-events
+  participant S3 as events S3 bucket
   Chatbot->>Bus: put_events turn.completed with source clara.chatbot
   Bus->>Firehose: rule turns delivers the event
   Firehose->>S3: gzip batch under turns/yyyy/MM/dd
@@ -336,13 +344,13 @@ A new customer picks a country and language once, and the crud lambda generates 
 
 ```mermaid
 sequenceDiagram
-  participant App as "Customer app"
-  participant Gateway as "API Gateway"
-  participant Crud as "crud lambda"
-  participant Customers as "customers table"
-  participant Products as "products table"
-  participant Transactions as "transactions table"
-  participant Complaints as "complaints table"
+  participant App as Customer app
+  participant Gateway as API Gateway
+  participant Crud as crud lambda
+  participant Customers as customers table
+  participant Products as products table
+  participant Transactions as transactions table
+  participant Complaints as complaints table
   App->>Gateway: POST /crud/profile/setup with country and language
   Gateway->>Crud: claims from the Cognito authorizer
   Crud->>Customers: claim_setup (conditional update)
@@ -372,12 +380,12 @@ The demo footer adds a normal or a suspicious transaction to a card, so a tester
 
 ```mermaid
 sequenceDiagram
-  participant App as "Customer app"
-  participant Gateway as "API Gateway"
-  participant Crud as "crud lambda"
-  participant Customers as "customers table"
-  participant Products as "products table"
-  participant Transactions as "transactions table"
+  participant App as Customer app
+  participant Gateway as API Gateway
+  participant Crud as crud lambda
+  participant Customers as customers table
+  participant Products as products table
+  participant Transactions as transactions table
   App->>Gateway: POST /crud/cards/{product_id}/transactions
   Gateway->>Crud: claims from the Cognito authorizer
   Crud->>Products: get card
@@ -407,10 +415,10 @@ Listing cases belongs to Cases (see Cases: Customer app reads cases).
 
 ```mermaid
 sequenceDiagram
-  participant App as "Customer app"
-  participant Gateway as "API Gateway"
-  participant Crud as "crud lambda"
-  participant Tables as "customers, products, transactions and memory tables"
+  participant App as Customer app
+  participant Gateway as API Gateway
+  participant Crud as crud lambda
+  participant Tables as customers, products, transactions and memory tables
   App->>Gateway: GET /crud/cards/{product_id}
   Gateway->>Crud: claims from the Cognito authorizer
   Crud->>Tables: get card, query newest 21 transactions
@@ -435,10 +443,10 @@ The customer app signs the customer in with Cognito and loads the profile before
 
 ```mermaid
 sequenceDiagram
-  participant App as "Customer app"
-  participant Cognito as "Cognito customers pool"
-  participant Gateway as "API Gateway"
-  participant Crud as "crud lambda"
+  participant App as Customer app
+  participant Cognito as Cognito customers pool
+  participant Gateway as API Gateway
+  participant Crud as crud lambda
   App->>Cognito: signIn with email and password
   Cognito-->>App: tokens, or CONFIRM_SIGN_UP
   App->>App: claraSession.open and route to /
@@ -463,10 +471,10 @@ The chat screen subscribes to the room channel first, loads the latest room seco
 
 ```mermaid
 sequenceDiagram
-  participant App as "Customer app"
-  participant Events as "AppSync Events"
-  participant Gateway as "API Gateway"
-  participant Messages as "messages lambda"
+  participant App as Customer app
+  participant Events as AppSync Events
+  participant Gateway as API Gateway
+  participant Messages as messages lambda
   App->>Events: connect and subscribe to the customer channel
   App->>Gateway: GET /messages/rooms/latest
   Gateway->>Messages: claims from the Cognito authorizer
@@ -489,10 +497,10 @@ When the subscription breaks or the page comes back, the chat reconnects and rel
 
 ```mermaid
 sequenceDiagram
-  participant App as "Customer app"
-  participant Events as "AppSync Events"
-  participant Gateway as "API Gateway"
-  participant Messages as "messages lambda"
+  participant App as Customer app
+  participant Events as AppSync Events
+  participant Gateway as API Gateway
+  participant Messages as messages lambda
   Events--xApp: subscription error
   App->>App: retryDelay backoff, or visibility and online return
   App->>Events: subscribe again
@@ -513,10 +521,10 @@ A reply's `effects` tell the app which cached data its writes made stale, so the
 
 ```mermaid
 sequenceDiagram
-  participant Events as "AppSync Events"
-  participant App as "Customer app"
-  participant Gateway as "API Gateway"
-  participant Crud as "crud lambda"
+  participant Events as AppSync Events
+  participant App as Customer app
+  participant Gateway as API Gateway
+  participant Crud as crud lambda
   Events-->>App: reply message with effects
   App->>App: invalidationsOf and invalidateQueries
   App->>Gateway: GET /crud/cards, /crud/cards/{product_id}, /crud/memory/charges
@@ -538,11 +546,11 @@ The bank app is the protagonist and Clara a widget: the customer reaches the cha
 
 ```mermaid
 sequenceDiagram
-  participant App as "Customer app"
-  participant Gateway as "API Gateway"
-  participant Messages as "messages lambda"
-  participant Stream as "messages stream"
-  participant Chatbot as "chatbot lambda"
+  participant App as Customer app
+  participant Gateway as API Gateway
+  participant Messages as messages lambda
+  participant Stream as messages stream
+  participant Chatbot as chatbot lambda
   App->>App: startTopic in sessionStorage and route to /chat
   App->>Gateway: POST /messages with text and input topic
   Gateway->>Messages: claims from the Cognito authorizer

@@ -22,10 +22,10 @@ The code is a sign-up step only: sign-in never asks for it again.
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant Cog as "Cognito customers pool"
-    participant CM as "lambda custom_message"
-    participant SES as "Amazon SES"
+    participant App as Customer app
+    participant Cog as Cognito customers pool
+    participant CM as lambda custom_message
+    participant SES as Amazon SES
 
     App->>Cog: signUp with email, password, given_name, locale
     Cog->>CM: CustomMessage_SignUp
@@ -54,9 +54,9 @@ Only the code and invitation kinds are reachable from the customer app today: it
 
 ```mermaid
 sequenceDiagram
-    participant Cog as "Cognito pool"
-    participant CM as "lambda custom_message"
-    participant SES as "Amazon SES"
+    participant Cog as Cognito pool
+    participant CM as lambda custom_message
+    participant SES as Amazon SES
 
     Cog->>CM: trigger_source, locale attribute, code_parameter
     CM->>CM: locale in en, es, pt-BR or else en
@@ -83,11 +83,11 @@ The item is keyed by the Cognito `sub`, which is the `customer_id` everywhere el
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant Cog as "Cognito customers pool"
-    participant PC as "lambda post_confirmation"
-    participant STS as "AWS STS"
-    participant Cust as "DynamoDB customers"
+    participant App as Customer app
+    participant Cog as Cognito customers pool
+    participant PC as lambda post_confirmation
+    participant STS as AWS STS
+    participant Cust as DynamoDB customers
 
     App->>Cog: confirmSignUp with email and code
     Cog->>PC: PostConfirmation_ConfirmSignUp
@@ -119,9 +119,9 @@ A signed-out customer reaches `/sign-in`, enters email and password and gets Cog
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant Cog as "Cognito customers pool"
-    participant PT as "lambda pre_token_generation"
+    participant App as Customer app
+    participant Cog as Cognito customers pool
+    participant PT as lambda pre_token_generation
 
     App->>Cog: signIn with email and password
     Cog->>PT: PreTokenGeneration V2_0
@@ -152,10 +152,10 @@ The lambda then decides who the caller is from the verified claims.
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant GW as "API Gateway"
-    participant Cog as "Cognito customers pool"
-    participant L as "lambda messages or crud"
+    participant App as Customer app
+    participant GW as API Gateway
+    participant Cog as Cognito customers pool
+    participant L as lambda messages or crud
 
     App->>GW: request with Authorization ID token
     GW->>Cog: validate the token
@@ -193,9 +193,9 @@ No handler calls it, so these roles are reachable only through the trust policie
 
 ```mermaid
 sequenceDiagram
-    participant L as "Request lambda"
-    participant STS as "AWS STS"
-    participant DDB as "DynamoDB"
+    participant L as Request lambda
+    participant STS as AWS STS
+    participant DDB as DynamoDB
 
     L->>L: cached session still valid for 2 more minutes?
     alt cache miss
@@ -218,8 +218,8 @@ Signing out clears the session and every cached trace of the customer.
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant Cog as "Cognito customers pool"
+    participant App as Customer app
+    participant Cog as Cognito customers pool
 
     App->>Cog: signOut
     App->>App: clear router and query caches

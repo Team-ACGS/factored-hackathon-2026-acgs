@@ -2,7 +2,7 @@
 
 Clara is the customer service system of LATAM Bank for one situation: a customer sees a card charge they do not recognize.
 She tells apart a hold that releases on its own, a charge already reversed, the customer's own purchase and a real fraud, from verified facts in the customer's own records.
-She explains, opens a claim or blocks the card, always with the customer's confirmation, in Spanish or Brazilian Portuguese.
+She explains, opens a claim or blocks the card, always with the customer's confirmation, in English, Spanish or Brazilian Portuguese.
 Built by Team ACGS for the Factored AI Data Hackathon 2026 on the LATAM Bank dataset.
 
 ## What is running
@@ -30,10 +30,10 @@ AWS account `975050033628`, region us-east-1, one environment (`prd`) deployed f
 Each component is run and tested on its own, one command at a time; the details are in its README.
 
 ```bash
-cd apps && pnpm install --frozen-lockfile        # Node >= 22.12 and pnpm 10
-cd lambdas && uv sync && uv run pytest -q        # Python 3.12 and uv
-cd data && uv sync && uv run pytest -q
-cd infra/environments/prd && terraform init -backend=false && terraform validate   # Terraform >= 1.10
+(cd apps && pnpm install --frozen-lockfile)        # Node >= 22.12 and pnpm 10
+(cd lambdas && uv sync && uv run pytest -q)        # Python 3.12 and uv
+(cd data && uv sync && uv run pytest -q)
+(cd infra/environments/prd && terraform init -backend=false && terraform validate)   # Terraform >= 1.10
 ```
 
 The customer web needs `apps/customer/.env.local`, see [apps/README.md](apps/README.md).

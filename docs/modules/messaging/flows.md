@@ -30,13 +30,13 @@ History, pushes and send confirmations merge by `message_id`.
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant Evt as "AppSync Events"
-    participant GW as "API Gateway"
-    participant M as "lambda messages"
-    participant STS as "AWS STS"
-    participant Rooms as "DynamoDB rooms"
-    participant Msgs as "DynamoDB messages"
+    participant App as Customer app
+    participant Evt as AppSync Events
+    participant GW as API Gateway
+    participant M as lambda messages
+    participant STS as AWS STS
+    participant Rooms as DynamoDB rooms
+    participant Msgs as DynamoDB messages
 
     App->>Evt: connect and subscribe to /rooms/{customer_id}/*
     Evt-->>App: ready
@@ -80,12 +80,12 @@ Nothing in this repo sets the flag, so it stays `false`.
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant GW as "API Gateway"
-    participant M as "lambda messages"
-    participant Rooms as "DynamoDB rooms"
-    participant Msgs as "DynamoDB messages"
-    participant Str as "DynamoDB stream"
+    participant App as Customer app
+    participant GW as API Gateway
+    participant M as lambda messages
+    participant Rooms as DynamoDB rooms
+    participant Msgs as DynamoDB messages
+    participant Str as DynamoDB stream
 
     App->>GW: POST /messages with room_id, message_id, text
     GW->>M: invoke after Cognito authorizer
@@ -114,10 +114,10 @@ The retry reuses the id while the server would still accept it, so a write that 
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant GW as "API Gateway"
-    participant M as "lambda messages"
-    participant Msgs as "DynamoDB messages"
+    participant App as Customer app
+    participant GW as API Gateway
+    participant M as lambda messages
+    participant Msgs as DynamoDB messages
 
     App->>GW: POST /messages, first attempt
     GW--xApp: network error
@@ -151,16 +151,16 @@ Updates and deletes are not pushed.
    The client's `received` action merges it by `message_id`, so the echo of a message the customer just sent only confirms it.
 
 The namespace accepts publishes from IAM only, so no client can publish to a channel.
-The assistant publishes status events on the same channels, see Assistant: Answer a customer message.
+The assistant publishes status events on the same channels, see Assistant: Show turn progress.
 
 ```mermaid
 sequenceDiagram
-    participant Msgs as "DynamoDB messages"
-    participant Str as "DynamoDB stream"
-    participant N as "lambda chat_notifier"
-    participant Evt as "AppSync Events"
-    participant DLQ as "SQS DLQ"
-    participant App as "Customer app"
+    participant Msgs as DynamoDB messages
+    participant Str as DynamoDB stream
+    participant N as lambda chat_notifier
+    participant Evt as AppSync Events
+    participant DLQ as SQS DLQ
+    participant App as Customer app
 
     Msgs-->>Str: INSERT
     Str->>N: batch, filter INSERT
@@ -191,9 +191,9 @@ Subscribing is the only client operation on the namespace, and a customer can on
 
 ```mermaid
 sequenceDiagram
-    participant App as "Customer app"
-    participant Evt as "AppSync Events"
-    participant Cog as "Cognito"
+    participant App as Customer app
+    participant Evt as AppSync Events
+    participant Cog as Cognito
 
     App->>Evt: connect with ID token
     Evt->>Cog: validate token against the pool
@@ -218,11 +218,11 @@ A message carries the trace id of the request that created it, so the whole chai
 
 ```mermaid
 sequenceDiagram
-    participant API as "API Gateway"
-    participant M as "lambda messages"
-    participant Msgs as "DynamoDB messages"
-    participant N as "lambda chat_notifier"
-    participant C as "lambda chatbot"
+    participant API as API Gateway
+    participant M as lambda messages
+    participant Msgs as DynamoDB messages
+    participant N as lambda chat_notifier
+    participant C as lambda chatbot
 
     API->>M: POST /messages, X-Ray root id
     M->>Msgs: customer message with origin_trace_id

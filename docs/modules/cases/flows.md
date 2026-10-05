@@ -95,20 +95,19 @@ The app holds one query for the list and derives everything it shows from it: th
 
 ```mermaid
 sequenceDiagram
-    participant Chat as Clara chat stream
-    participant Live as chat/live.ts
-    participant Query as bankQueries.cases
+    participant App as Customer app
+    participant Evt as AppSync Events
     participant APIGW as API Gateway
     participant Crud as crud lambda
-    participant UI as Help page, case sheet, charge pills
-    UI->>Query: useSuspenseQuery or useQuery
-    Query->>APIGW: GET /crud/cases when stale over 30 s
+    participant Complaints as DynamoDB complaints
+    App->>APIGW: GET /crud/cases when the cases query is stale over 30 s
     APIGW->>Crud: proxy
-    Crud-->>Query: cases with case_id, type, stage
-    Query-->>UI: Case list
-    UI->>UI: isOpen, stepsOf, caseOfTransaction
-    Chat->>Live: message with effect case_opened
-    Live->>Query: invalidateQueries bank cases
-    Query->>APIGW: GET /crud/cases
-    Query-->>UI: list with the new case
+    Crud->>Complaints: Query customer_id
+    Complaints-->>Crud: rows
+    Crud-->>App: cases with case_id, type, stage
+    App->>App: help page, case sheet, charge pills and chat card read the one query
+    Evt-->>App: message with effect case_opened
+    App->>App: invalidate bank cases
+    App->>APIGW: GET /crud/cases
+    APIGW-->>App: list with the new case
 ```

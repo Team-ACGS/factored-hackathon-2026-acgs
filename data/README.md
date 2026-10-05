@@ -22,7 +22,7 @@ Parquet is the storage format at every step, local or in S3, and the same code r
 | `src/bankdata/settings.py` | Reads `BANKDATA_ROOT`, memory and thread limits from the environment; the only place that knows where data lives |
 | `src/bankdata/duck.py` | `connect()`: one DuckDB connection with limits, S3 credentials when the root is a bucket, the `data_clock` variable, and every curated table registered as a view |
 | `src/bankdata/cli.py` | The `bankdata` command |
-| `src/bankdata/pipeline/schemas.py` | The declared schema of every table: columns, types, key, event date, partitioning; the single source for contracts and, later, Glue and Postgres DDL |
+| `src/bankdata/pipeline/schemas.py` | The declared schema of every table: columns, types, key, event date, partitioning; the single source for ingestion and contracts |
 | `src/bankdata/pipeline/ingest.py` | Raw CSV to curated Parquet, partitioned by year and month, idempotent per table |
 | `src/bankdata/pipeline/contracts.py` | Checks that block: rows present, declared columns and types, unique non-null keys, event dates within the data clock |
 | `src/bankdata/analysis/figures.py` | Runs every SQL file of a group and rewrites that group's output, one CSV per file |
