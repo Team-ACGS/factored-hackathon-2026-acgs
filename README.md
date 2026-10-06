@@ -4,6 +4,8 @@ Clara answers a bank customer about a card charge they do not recognize, from th
 The model reads and composes; code checks every value, decides every write and keeps each customer's data apart.
 Built by Team ACGS for the Factored AI Data Hackathon 2026 on the LATAM Bank dataset, in English, Spanish and Brazilian Portuguese.
 
+[Live demo](#what-is-running) · [Try it](#try-it-in-three-minutes) · [What makes Clara different](#what-makes-clara-different) · [Architecture](#architecture) · [How a turn runs](#how-a-turn-runs) · [Flows](#flows)
+
 ## The problem, in the dataset's own numbers
 
 Every figure below is a committed query: the CSV in `data/figures/`, the SQL in `data/sql/figures/`.
@@ -91,6 +93,21 @@ The screens are rendered locally with mocked data, from the replies of the live 
   The reply is pushed in real time into the bank's own screens: `chat_notifier` publishes to AppSync Events and `apps/customer/src/clara/widget.tsx` opens the chat from any charge, card or case.
 - **A security model with no trust in the prompt.**
   IAM per customer (`infra/stacks/backend/access.tf`), read-only tool sessions (`core.access`) and writes only on a confirmed ask.
+
+## Measured
+
+These are sessions and recorded sets, not a held-out suite.
+
+- **Recorded set** ([assistant trd](docs/modules/assistant/trd.md)): on 2026-10-04, with prompt `system.v7`, 54 recorded replies in Spanish and Brazilian Portuguese on Claude Sonnet 4.6.
+  30 were composed, 7 were repaired out of 38 model turns, 16 were story turns and 1 a fixed answer, with no fallback.
+  Open turns took about 2.3 s to 9 s.
+- **Live session on `prd`**, after the story path shipped: 2026-10-04 from 14:09Z to 14:23Z, a fresh account in English, read from CloudWatch, X-Ray and the turn events (source: the task notes of the story path).
+  It had 18 turns, 0 fallbacks and 1 repair.
+  Open turns had a median of 3.6 s (1.5 to 6.2 s), and story turns took 0.1 s, or 2.0 to 2.3 s with the composed summary.
+  There was one cold start of 2.06 s, both dead letter queues stayed empty, and the session cost $0.25 of Bedrock.
+- **Isolation check** in the same session: at 2026-10-04T14:29:28Z, `role-customer` assumed with the read-only session policy got `AccessDeniedException` on `PutItem` to `clara-prd-memory`.
+
+Not measured: a held-out suite, a human rating of the replies, and a session on `prd` after the latest prompt and graph changes.
 
 ## Architecture
 
@@ -313,6 +330,7 @@ Every flow of the product, with its numbered steps and a sequence diagram checke
 - [Publish the policy corpus](docs/modules/data/flows.md#publish-the-policy-corpus): PDFs, embeddings and the vector index.
 - [Tune the similarity cut](docs/modules/data/flows.md#tune-the-similarity-cut): one threshold per document language.
 - [Search policies at runtime](docs/modules/data/flows.md#search-policies-at-runtime): cited excerpts for the assistant.
+
 ## More docs
 
 - [docs/PRD.md](docs/PRD.md): what the product does and for whom.
