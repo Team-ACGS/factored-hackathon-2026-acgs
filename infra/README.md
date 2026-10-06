@@ -3,6 +3,7 @@
 Terraform for Clara on AWS account `975050033628`, us-east-1, one environment (`prd`).
 Terraform owns infrastructure and configuration; GitHub Actions owns code, deploying the lambda bundles and the web on every merge to `main`.
 A person runs `terraform apply`; CI only runs `fmt`, `validate` and `plan`.
+The architecture diagram is in the [root README](../README.md#architecture).
 
 | Path | What |
 |---|---|
