@@ -129,7 +129,7 @@ function MessageRow({ message, view, current, onRetry, onReference }: MessageRow
       return (
         <div className="chat-msg grid grid-cols-[26px_minmax(0,1fr)] items-start gap-3">
           <ClaraGlyph />
-          <div className="grid min-w-0 justify-items-start gap-3">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] justify-items-start gap-3">
             {message.says.map((say, index) => (
               <p key={index} className="font-serif text-[17px] leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere]">
                 {say.text}
