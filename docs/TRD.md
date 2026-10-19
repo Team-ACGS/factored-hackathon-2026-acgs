@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-03
-source: 0019_open_mode_graph
+updated: 2026-10-19
+source: 0025_decommission_prd
 ---
 
 # Technical Requirements Document
