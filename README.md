@@ -4,7 +4,7 @@ Clara answers a bank customer about a card charge they do not recognize, from th
 The model reads and composes; code checks every value, decides every write and keeps each customer's data apart.
 Built by Team ACGS for the Factored AI Data Hackathon 2026 on the LATAM Bank dataset, in English, Spanish and Brazilian Portuguese.
 
-[Live demo](#what-is-running) · [Try it](#try-it-in-three-minutes) · [What makes Clara different](#what-makes-clara-different) · [Architecture](#architecture) · [How a turn runs](#how-a-turn-runs) · [Flows](#flows)
+[What ran](#what-ran) · [Try it](#try-it-in-three-minutes) · [What makes Clara different](#what-makes-clara-different) · [Architecture](#architecture) · [How a turn runs](#how-a-turn-runs) · [Flows](#flows)
 
 ## The problem, in the dataset's own numbers
 
@@ -41,19 +41,21 @@ Every figure below is a committed query: the CSV in `data/figures/`, the SQL in 
 - **Isolation is IAM, not code.**
   Every lambda that reads a customer's tables does it as the role `role-customer`, assumed with the session tag `customer_id` taken from the verified token (`crud`, `messages`), the stream record (`chatbot`) or the Cognito event (`post_confirmation`), and limited by `dynamodb:LeadingKeys` (`infra/stacks/backend/access.tf`, `core.access.customer_session`).
 
-## What is running
+## What ran
+
+The environment was decommissioned on 2026-10-19, after the hackathon; [Apply in `infra/docs/setup.md`](infra/docs/setup.md#apply) re-creates it.
 
 | Where | What |
 |---|---|
-| [factoredai.sdfles.com](https://factoredai.sdfles.com) | The customer web: a bank app with Clara in a chat widget. A new customer gets a demo account (three cards, three months of movements, three planted charges) to try her on. |
+| `factoredai.sdfles.com` | The customer web: a bank app with Clara in a chat widget. A new customer gets a demo account (three cards, three months of movements, three planted charges) to try her on. |
 | `api.factoredai.sdfles.com` | The REST API behind the web: `/crud/*` for the customer's data and `/messages/*` for the chat. |
 | `docs.factoredai.sdfles.com` | The bank's policy documents as PDFs, which Clara cites by page. |
 
-AWS account `975050033628`, region us-east-1, one environment (`prd`) deployed from `main`.
+AWS account `975050033628`, region us-east-1, one environment (`prd`) deployed from `main` until the decommission.
 
 ## Try it in three minutes
 
-1. Open [factoredai.sdfles.com](https://factoredai.sdfles.com), sign up with an email, enter the code that arrives and pick a country and a language.
+1. Open `factoredai.sdfles.com`, sign up with an email, enter the code that arrives and pick a country and a language.
 2. The demo account has three cards with three months of movements.
    The setup guide lists three planted charges: a recent hold, a refunded charge and an old hold.
    "Add a suspicious purchase" at the bottom of the page adds a charge you did not make.
