@@ -1,6 +1,6 @@
 ---
-updated: 2026-10-03
-source: 0019_open_mode_graph
+updated: 2026-10-19
+source: 0025_decommission_prd
 ---
 
 # Technical Requirements Document
@@ -64,6 +64,7 @@ Built: `data/`, `infra/`, `.github/workflows/`, and `lambdas/` and `apps/` as a 
 ## Environments and delivery
 
 - One environment, `prd`, AWS us-east-1, deployed from `main`.
+- Decommissioned on 2026-10-19 (task 0025): `prd` and `core` destroyed, the Terraform and deploy workflows disabled, the repository archived; Apply in `infra/docs/setup.md` re-creates it.
 - Terraform owns infrastructure and configuration; GitHub Actions owns code.
 - Terraform creates each lambda with a bootstrap bundle, its own role (from a capability map), log group and environment, and ignores `s3_key`; Actions uploads bundles keyed by commit SHA and calls `update-function-code` only when `CodeSha256` changes.
 - `terraform apply` is run by a person; `.github/workflows/terraform.yml` runs `fmt`, `validate` and a `plan` of `core` and `prd` on every pull request that touches `infra/`, with the plan in the job summary.

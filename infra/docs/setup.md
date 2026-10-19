@@ -4,6 +4,9 @@ Terraform for Clara on AWS account `975050033628`, us-east-1, one environment `p
 Terraform owns infrastructure and configuration; GitHub Actions owns code.
 An apply is run by a person; CI only plans.
 
+Decommissioned on 2026-10-19 (task 0025): `prd` and `core` are destroyed, the Terraform, Deploy lambdas and Deploy customer web workflows are disabled, and the repository is archived.
+To re-create it: unarchive the repository, `gh workflow enable` those three workflows, run [Apply](#apply), dispatch both deploy workflows, and rebuild the policy corpus with `data/policies/RUNBOOK.md`.
+
 ```
 environments/core/  Account singletons that outlive prd: API Gateway logging role, admin users
 environments/prd/   The root: providers, locals, state, the OIDC lookup
@@ -77,12 +80,15 @@ aws iam simulate-principal-policy --policy-source-arn $ROLE \
 
 ## Destroy
 
+`prd` first, then `core`, since `prd` writes stage logs through the role `core` owns.
+
 ```bash
-terraform destroy
+cd environments/prd && source .env && terraform destroy
+cd ../core && source .env && terraform destroy
 ```
 
 Everything goes, data included: buckets force destroy, tables and pools have no deletion protection, every log group is managed here.
-Only `core`, the state bucket, the Route 53 zone and the shared OIDC provider survive.
+Only the state bucket, the Route 53 zone and the shared OIDC provider survive.
 
 ## Admin users
 
